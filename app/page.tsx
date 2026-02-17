@@ -312,15 +312,15 @@ export default function Dashboard() {
                 </div>
                 <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-slate-200">
-                        <thead className="bg-[#800000] text-white">
+                        <thead className="bg-white border-b-2 border-primary/5">
                             <tr>
-                                <th onClick={() => handleSort('ente')} className="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider cursor-pointer group select-none hover:bg-white/10 transition-colors">
+                                <th onClick={() => handleSort('ente')} className="px-6 py-3 text-left text-[11px] font-bold text-slate-600 uppercase tracking-widest cursor-pointer group select-none hover:bg-slate-50 transition-colors">
                                     <span className="flex items-center">Ente Comercial <SortIcon col="ente" /></span>
                                 </th>
-                                <th onClick={() => handleSort('primas')} className="px-6 py-3 text-right text-xs font-bold text-white uppercase tracking-wider cursor-pointer group select-none hover:bg-white/10 transition-colors">
+                                <th onClick={() => handleSort('primas')} className="px-6 py-3 text-right text-[11px] font-bold text-slate-600 uppercase tracking-widest cursor-pointer group select-none hover:bg-slate-50 transition-colors">
                                     <span className="flex items-center justify-end">Primas NP (€) <SortIcon col="primas" /></span>
                                 </th>
-                                <th onClick={() => handleSort('polizas')} className="px-6 py-3 text-right text-xs font-bold text-white uppercase tracking-wider cursor-pointer group select-none hover:bg-white/10 transition-colors">
+                                <th onClick={() => handleSort('polizas')} className="px-6 py-3 text-right text-[11px] font-bold text-slate-600 uppercase tracking-widest cursor-pointer group select-none hover:bg-slate-50 transition-colors">
                                     <span className="flex items-center justify-end">Nº Pólizas <SortIcon col="polizas" /></span>
                                 </th>
                             </tr>
