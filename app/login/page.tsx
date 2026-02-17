@@ -1,9 +1,10 @@
 "use client";
 
 import { signIn } from "next-auth/react";
-import Image from "next/image";
 import { Lock, Mail, KeyRound, AlertCircle } from "lucide-react";
 import { useState } from "react";
+
+const LOGO_SRC = "/logo.png";
 
 export default function LoginPage() {
     const [email, setEmail] = useState("");
@@ -42,14 +43,14 @@ export default function LoginPage() {
                 <div className="bg-white rounded-[32px] shadow-2xl border border-slate-200 p-10 overflow-hidden">
                     {/* Logo */}
                     <div className="text-center mb-10">
-                        <div className="w-24 h-24 mx-auto mb-6 relative hover:scale-105 transition-transform duration-500">
-                            <Image
-                                src="/logo.png"
-                                alt="Grupo Data Logo"
-                                fill
-                                className="object-contain drop-shadow-sm"
-                            />
-                        </div>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                            src={LOGO_SRC}
+                            alt="Grupo Data Seguros"
+                            width={96}
+                            height={96}
+                            className="mx-auto mb-6 rounded-2xl shadow-md hover:scale-105 transition-transform duration-500"
+                        />
                         <h1 className="text-3xl font-black text-slate-900 tracking-tight">
                             Grupo Data <span className="text-primary text-xl">Seguros</span>
                         </h1>

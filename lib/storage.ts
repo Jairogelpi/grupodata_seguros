@@ -147,6 +147,7 @@ async function writeToBlob(filename: string, buffer: Buffer): Promise<void> {
         await put(blobPath, buffer, {
             access: 'public',
             addRandomSuffix: false,
+            allowOverwrite: true,
         });
 
         // Invalidate cache
