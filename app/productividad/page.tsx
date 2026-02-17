@@ -405,21 +405,21 @@ export default function ProductividadPage() {
                     </div>
                     <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-slate-200">
-                            <thead className="bg-slate-50">
+                            <thead className="bg-[#800000] text-white">
                                 <tr>
-                                    <th onClick={() => handleSort('asesor')} className="px-6 py-3 text-left text-[10px] font-bold text-primary uppercase tracking-wider cursor-pointer">
+                                    <th onClick={() => handleSort('asesor')} className="px-6 py-3 text-left text-[10px] font-bold text-white uppercase tracking-wider cursor-pointer hover:bg-white/10 transition-colors">
                                         Asesor <SortIcon col="asesor" />
                                     </th>
-                                    <th onClick={() => handleSort('numEntes')} className="px-6 py-3 text-right text-[10px] font-bold text-primary uppercase tracking-wider cursor-pointer">
+                                    <th onClick={() => handleSort('numEntes')} className="px-6 py-3 text-right text-[10px] font-bold text-white uppercase tracking-wider cursor-pointer hover:bg-white/10 transition-colors">
                                         Nº Entes <SortIcon col="numEntes" />
                                     </th>
-                                    <th onClick={() => handleSort('totalPrimas')} className="px-6 py-3 text-right text-[10px] font-bold text-primary uppercase tracking-wider cursor-pointer">
+                                    <th onClick={() => handleSort('totalPrimas')} className="px-6 py-3 text-right text-[10px] font-bold text-white uppercase tracking-wider cursor-pointer hover:bg-white/10 transition-colors">
                                         Total (€) <SortIcon col="totalPrimas" />
                                     </th>
-                                    <th onClick={() => handleSort('avgPrimas')} className="px-6 py-3 text-right text-[10px] font-bold text-primary uppercase tracking-wider cursor-pointer">
+                                    <th onClick={() => handleSort('avgPrimas')} className="px-6 py-3 text-right text-[10px] font-bold text-white uppercase tracking-wider cursor-pointer hover:bg-white/10 transition-colors">
                                         Media/Ente <SortIcon col="avgPrimas" />
                                     </th>
-                                    <th className="px-6 py-3 text-center text-[10px] font-bold text-slate-400 uppercase tracking-wider no-print">
+                                    <th className="px-6 py-3 text-center text-[10px] font-bold text-white/50 uppercase tracking-wider no-print">
                                         Acción
                                     </th>
                                 </tr>
@@ -466,11 +466,11 @@ export default function ProductividadPage() {
                     </div>
                     <div className="h-[500px] overflow-y-auto custom-scrollbar print:h-auto print:overflow-visible">
                         <table className="min-w-full divide-y divide-slate-200">
-                            <thead className="bg-slate-50 sticky top-0 print:static">
+                            <thead className="bg-[#800000] text-white sticky top-0 print:static">
                                 <tr>
-                                    <th className="px-4 py-2 text-left text-[10px] font-bold text-slate-500 uppercase">Ente</th>
-                                    <th className="px-4 py-2 text-right text-[10px] font-bold text-primary uppercase">Ticket M.</th>
-                                    <th className="px-4 py-2 text-right text-[10px] font-bold text-slate-500 uppercase">Primas</th>
+                                    <th className="px-4 py-2 text-left text-[10px] font-bold text-white uppercase">Ente</th>
+                                    <th className="px-4 py-2 text-right text-[10px] font-bold text-white uppercase">Ticket M.</th>
+                                    <th className="px-4 py-2 text-right text-[10px] font-bold text-white uppercase">Primas</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-slate-200">

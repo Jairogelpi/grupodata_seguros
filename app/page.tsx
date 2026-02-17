@@ -302,22 +302,25 @@ export default function Dashboard() {
             {/* Detailed Table */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
-                    <h3 className="text-lg font-semibold text-slate-800">Desglose por Ente Comercial</h3>
+                    <h3 className="text-lg font-bold text-primary flex items-center gap-2">
+                        <LayoutList className="w-5 h-5" />
+                        Desglose por Ente Comercial
+                    </h3>
                     {(filters.anio.length === 1 && filters.mes.length === 1) && (
                         <span className="text-xs font-medium text-slate-400 uppercase tracking-widest">Tendencia vs Mes Anterior</span>
                     )}
                 </div>
                 <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-slate-200">
-                        <thead className="bg-slate-50">
+                        <thead className="bg-[#800000] text-white">
                             <tr>
-                                <th onClick={() => handleSort('ente')} className="px-6 py-3 text-left text-xs font-bold text-primary uppercase tracking-wider cursor-pointer group select-none">
+                                <th onClick={() => handleSort('ente')} className="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider cursor-pointer group select-none hover:bg-white/10 transition-colors">
                                     <span className="flex items-center">Ente Comercial <SortIcon col="ente" /></span>
                                 </th>
-                                <th onClick={() => handleSort('primas')} className="px-6 py-3 text-right text-xs font-bold text-primary uppercase tracking-wider cursor-pointer group select-none">
+                                <th onClick={() => handleSort('primas')} className="px-6 py-3 text-right text-xs font-bold text-white uppercase tracking-wider cursor-pointer group select-none hover:bg-white/10 transition-colors">
                                     <span className="flex items-center justify-end">Primas NP (€) <SortIcon col="primas" /></span>
                                 </th>
-                                <th onClick={() => handleSort('polizas')} className="px-6 py-3 text-right text-xs font-bold text-primary uppercase tracking-wider cursor-pointer group select-none">
+                                <th onClick={() => handleSort('polizas')} className="px-6 py-3 text-right text-xs font-bold text-white uppercase tracking-wider cursor-pointer group select-none hover:bg-white/10 transition-colors">
                                     <span className="flex items-center justify-end">Nº Pólizas <SortIcon col="polizas" /></span>
                                 </th>
                             </tr>
