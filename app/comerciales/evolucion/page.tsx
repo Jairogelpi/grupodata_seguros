@@ -345,7 +345,7 @@ function AdvisorEvolutionContent() {
                 </div>
 
                 {/* Main Chart */}
-                <div className="mt-8">
+                <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 mt-8 break-inside-avoid">
                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
                             <BarChart3 className="w-5 h-5 text-amber-500" />
@@ -373,7 +373,7 @@ function AdvisorEvolutionContent() {
 
             {/* Feature 3: Product Mix Donut */}
             {!loading && productMix.length > 0 && (
-                <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+                <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 break-inside-avoid">
                     <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2 mb-6">
                         <PieChart className="w-5 h-5 text-purple-500" />
                         Mix de Productos por Ramo
@@ -416,7 +416,7 @@ function AdvisorEvolutionContent() {
             )}
 
             {/* Monthly Breakdown Table */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden break-inside-avoid">
                 <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
                     <LayoutList className="w-5 h-5 text-slate-400" />
                     <h3 className="text-lg font-bold text-slate-800">Cómputo Mensual</h3>

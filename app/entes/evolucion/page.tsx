@@ -317,7 +317,7 @@ function EvolutionContent() {
                 </div>
             </div>
 
-            <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+            <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 break-inside-avoid">
                 <div className="flex items-center gap-4 mb-6">
                     <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
                         <TrendingUp className="w-6 h-6" />
@@ -409,7 +409,7 @@ function EvolutionContent() {
 
             {/* Feature 3: Product Mix Donut */}
             {!loading && productMix.length > 0 && (
-                <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+                <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 break-inside-avoid">
                     <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2 mb-6">
                         <PieChart className="w-5 h-5 text-purple-500" />
                         Mix de Productos por Ramo
@@ -452,7 +452,7 @@ function EvolutionContent() {
             )}
 
             {/* Monthly Breakdown Table */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden break-inside-avoid">
                 <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
                     <LayoutList className="w-5 h-5 text-slate-400" />
                     <h3 className="text-lg font-bold text-slate-800">Desglose Mensual</h3>
