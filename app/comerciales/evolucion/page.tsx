@@ -16,7 +16,8 @@ import {
     PieChart,
     ChevronUp,
     ChevronDown,
-    ChevronsUpDown
+    ChevronsUpDown,
+    Search
 } from 'lucide-react';
 import {
     Chart as ChartJS,
@@ -98,6 +99,7 @@ function AdvisorEvolutionContent() {
     const [globalStats, setGlobalStats] = useState<GlobalStats>({ active: 0, suspension: 0, totalAnuladas: 0 });
     const [productMix, setProductMix] = useState<ProductMixItem[]>([]);
     const [loading, setLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
     const [chartType, setChartType] = useState<'line' | 'bar'>('bar');
     const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
 
@@ -164,7 +166,12 @@ function AdvisorEvolutionContent() {
     const sortedData = useMemo(() => {
         if (!sortConfig) return [...filteredData].reverse();
 
-        const sorted = [...filteredData].sort((a, b) => {
+        const searched = [...filteredData].filter(d => {
+            const periodStr = `${MONTHS[d.mes - 1]} ${d.anio}`.toLowerCase();
+            return periodStr.includes(searchTerm.toLowerCase());
+        });
+
+        const sorted = searched.sort((a, b) => {
             let aVal: any = a[sortConfig.key as keyof AdvisorEvolutionData];
             let bVal: any = b[sortConfig.key as keyof AdvisorEvolutionData];
 
@@ -527,6 +534,20 @@ function AdvisorEvolutionContent() {
                     <LayoutList className="w-5 h-5 text-slate-400" />
                     <h3 className="text-lg font-bold text-slate-800">Cómputo Mensual</h3>
                 </div>
+
+                <div className="p-4 border-b border-slate-100 bg-slate-50/30">
+                    <div className="relative w-full md:w-96">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                            type="text"
+                            placeholder="Buscar periodo (ej: Enero 2024)..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all text-sm font-medium"
+                        />
+                    </div>
+                </div>
+
                 <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
                         <thead>

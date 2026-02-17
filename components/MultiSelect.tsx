@@ -76,7 +76,7 @@ export default function MultiSelect({ label, options, selected, onChange }: Mult
             </button>
 
             {isOpen && (
-                <div className="absolute z-10 mt-1 w-full bg-white shadow-xl max-h-80 rounded-xl py-2 text-base ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm flex flex-col border border-slate-100">
+                <div className="absolute z-[50] mt-1 w-full min-w-[220px] bg-white shadow-2xl max-h-80 rounded-xl py-2 text-base ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm flex flex-col border border-slate-100 left-0">
                     {/* Search Input */}
                     <div className="px-3 pb-2 pt-1 border-b border-slate-100">
                         <input

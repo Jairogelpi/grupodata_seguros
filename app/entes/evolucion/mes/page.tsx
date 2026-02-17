@@ -10,13 +10,15 @@ import {
     Search,
     Filter,
     Table as TableIcon,
-    ChevronDown,
-    ChevronUp,
-    ChevronsUpDown,
-    Check,
-    X
+    ArrowUpDown,
+    ArrowUp,
+    ArrowDown,
+    LayoutList,
+    X,
+    Check
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import MultiSelect from '@/components/MultiSelect';
 
 const currencyFormatter = new Intl.NumberFormat('es-ES', {
     style: 'currency',
@@ -57,8 +59,13 @@ function MonthlyDetailsContent() {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>({ key: 'primas', direction: 'desc' });
-    const [activeFilters, setActiveFilters] = useState<Record<string, string[]>>({});
-    const [openFilter, setOpenFilter] = useState<string | null>(null);
+    const [filters, setFilters] = useState({
+        estado: [] as string[],
+        producto: [] as string[],
+        compania: [] as string[],
+        motivoAnulacion: [] as string[],
+        formaPago: [] as string[]
+    });
 
     useEffect(() => {
         if (ente && anio && mes) {
@@ -88,11 +95,12 @@ function MonthlyDetailsContent() {
             p.producto.toLowerCase().includes(searchTerm.toLowerCase()) ||
             p.compania.toLowerCase().includes(searchTerm.toLowerCase());
 
-        const matchesFilters = Object.entries(activeFilters).every(([key, values]) => {
-            if (values.length === 0) return true;
-            const val = String(p[key as keyof PolicyDetail] || '');
-            return values.includes(val);
-        });
+        const matchesFilters =
+            (filters.estado.length === 0 || filters.estado.includes(p.estado)) &&
+            (filters.producto.length === 0 || filters.producto.includes(p.producto)) &&
+            (filters.compania.length === 0 || filters.compania.includes(p.compania)) &&
+            (filters.motivoAnulacion.length === 0 || filters.motivoAnulacion.includes(p.motivoAnulacion || '')) &&
+            (filters.formaPago.length === 0 || filters.formaPago.includes(p.formaPago));
 
         return matchesSearch && matchesFilters;
     });
@@ -122,83 +130,19 @@ function MonthlyDetailsContent() {
         setSortConfig({ key, direction });
     };
 
-    const toggleFilter = (column: string, value: string) => {
-        setActiveFilters(prev => {
-            const current = prev[column] || [];
-            if (current.includes(value)) {
-                return { ...prev, [column]: current.filter(v => v !== value) };
-            } else {
-                return { ...prev, [column]: [...current, value] };
-            }
-        });
+    const handleFilterChange = (key: keyof typeof filters, selected: string[]) => {
+        setFilters(prev => ({ ...prev, [key]: selected }));
     };
 
-    const clearFilters = () => setActiveFilters({});
-
     const getUniqueValues = (column: keyof PolicyDetail) => {
-        return Array.from(new Set(polizas.map(p => String(p[column] || '')))).sort();
+        return Array.from(new Set(polizas.map(p => String(p[column] || '')))).sort().filter(v => v !== '');
     };
 
     const SortIcon = ({ column }: { column: string }) => {
-        if (sortConfig?.key !== column) return <ChevronsUpDown className="w-3 h-3 text-slate-300 ml-1 inline opacity-0 group-hover:opacity-100 transition-opacity" />;
+        if (sortConfig?.key !== column) return <ArrowUpDown className="w-4 h-4 ml-1 opacity-30 inline" />;
         return sortConfig.direction === 'asc' ?
-            <ChevronUp className="w-3 h-3 text-primary ml-1 inline" /> :
-            <ChevronDown className="w-3 h-3 text-primary ml-1 inline" />;
-    };
-
-    const FilterDropdown = ({ column, title }: { column: keyof PolicyDetail, title: string }) => {
-        const values = getUniqueValues(column);
-        const active = activeFilters[column as string] || [];
-        const isOpen = openFilter === (column as string);
-
-        return (
-            <div className="relative inline-block no-print">
-                <button
-                    onClick={(e) => { e.stopPropagation(); setOpenFilter(isOpen ? null : (column as string)); }}
-                    className={`ml-1 p-1 rounded-md hover:bg-slate-200 transition-colors ${active.length > 0 ? 'bg-amber-100 text-amber-600' : 'text-slate-400'}`}
-                >
-                    <Filter className="w-3 h-3" />
-                </button>
-
-                {isOpen && (
-                    <div className="absolute left-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-200 z-[100] p-4 text-xs normal-case font-medium">
-                        <div className="flex justify-between items-center mb-3">
-                            <span className="font-black text-slate-400 uppercase tracking-widest text-[10px]">Filtrar {title}</span>
-                            <button onClick={() => setOpenFilter(null)}><X className="w-4 h-4 text-slate-400 hover:text-slate-600" /></button>
-                        </div>
-                        <div className="max-h-60 overflow-y-auto space-y-1 mb-3 pr-2 scrollbar-thin">
-                            {values.map((v, i) => (
-                                <label key={i} className="flex items-center gap-2 p-2 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors">
-                                    <div className="relative flex items-center">
-                                        <input
-                                            type="checkbox"
-                                            checked={active.includes(v)}
-                                            onChange={() => toggleFilter(column as string, v)}
-                                            className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary/20"
-                                        />
-                                    </div>
-                                    <span className="text-slate-700 truncate">{v || '(Vacio)'}</span>
-                                </label>
-                            ))}
-                        </div>
-                        <div className="flex gap-2 pt-3 border-t border-slate-100">
-                            <button
-                                onClick={() => setActiveFilters(prev => ({ ...prev, [column as string]: [] }))}
-                                className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg font-bold transition-colors"
-                            >
-                                Limpiar
-                            </button>
-                            <button
-                                onClick={() => setOpenFilter(null)}
-                                className="flex-1 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg font-bold transition-colors"
-                            >
-                                Aplicar
-                            </button>
-                        </div>
-                    </div>
-                )}
-            </div>
-        );
+            <ArrowUp className="w-4 h-4 ml-1 text-primary inline" /> :
+            <ArrowDown className="w-4 h-4 ml-1 text-primary inline" />;
     };
 
     const handleExportExcel = () => {
@@ -301,6 +245,47 @@ function MonthlyDetailsContent() {
                 </div>
             </div>
 
+            {/* Filters Section (Mirroring Dashboard) */}
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 no-print">
+                <div className="flex items-center gap-2 mb-4 text-slate-800 font-black uppercase tracking-widest text-xs border-b border-slate-100 pb-3">
+                    <LayoutList className="w-4 h-4 text-primary" />
+                    <h3>Filtros de Reporte</h3>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+                    <MultiSelect
+                        label="Estado"
+                        options={getUniqueValues('estado')}
+                        selected={filters.estado}
+                        onChange={(val) => handleFilterChange('estado', val)}
+                    />
+                    <MultiSelect
+                        label="Compañía"
+                        options={getUniqueValues('compania')}
+                        selected={filters.compania}
+                        onChange={(val) => handleFilterChange('compania', val)}
+                    />
+                    <MultiSelect
+                        label="Producto"
+                        options={getUniqueValues('producto')}
+                        selected={filters.producto}
+                        onChange={(val) => handleFilterChange('producto', val)}
+                    />
+                    <MultiSelect
+                        label="Motivo Anul."
+                        options={getUniqueValues('motivoAnulacion')}
+                        selected={filters.motivoAnulacion}
+                        onChange={(val) => handleFilterChange('motivoAnulacion', val)}
+                    />
+                    <MultiSelect
+                        label="Forma Pago"
+                        options={getUniqueValues('formaPago')}
+                        selected={filters.formaPago}
+                        onChange={(val) => handleFilterChange('formaPago', val)}
+                    />
+                </div>
+            </div>
+
             {/* Search and Table */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="p-6 border-b border-slate-100 bg-slate-50/30 flex flex-col md:flex-row justify-between items-center gap-4">
@@ -308,15 +293,15 @@ function MonthlyDetailsContent() {
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                         <input
                             type="text"
-                            placeholder="Buscar en el reporte..."
+                            placeholder="Buscar por póliza o tomador..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm"
+                            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all text-sm font-medium"
                         />
                     </div>
-                    <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-widest bg-white px-4 py-2 rounded-lg border border-slate-100">
-                        <Filter className="w-3.5 h-3.5 text-indigo-500" />
-                        {filteredPolizas.length} registros técnicos
+                    <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-widest bg-white px-4 py-2 rounded-lg border border-slate-100 shadow-sm">
+                        <Filter className="w-3.5 h-3.5 text-primary" />
+                        {filteredPolizas.length} registros filtrados
                     </div>
                 </div>
 
@@ -325,19 +310,19 @@ function MonthlyDetailsContent() {
                         <thead>
                             <tr className="bg-slate-100 border-b border-slate-200">
                                 <th className="p-3 font-black text-slate-500 uppercase tracking-widest cursor-pointer group" onClick={() => requestSort('poliza')}>
-                                    Póliza <SortIcon column="poliza" />
+                                    <span className="flex items-center">Póliza <SortIcon column="poliza" /></span>
                                 </th>
-                                <th className="p-3 font-black text-slate-500 uppercase tracking-widest">
-                                    Estado <FilterDropdown column="estado" title="Estado" />
+                                <th className="p-3 font-black text-slate-500 uppercase tracking-widest cursor-pointer group" onClick={() => requestSort('estado')}>
+                                    <span className="flex items-center">Estado <SortIcon column="estado" /></span>
                                 </th>
                                 <th className="p-3 font-black text-slate-500 uppercase tracking-widest min-w-[150px] print-wrap cursor-pointer group" onClick={() => requestSort('tomador')}>
-                                    Tomador / NIF <SortIcon column="tomador" />
+                                    <span className="flex items-center">Tomador / NIF <SortIcon column="tomador" /></span>
                                 </th>
-                                <th className="p-3 font-black text-slate-500 uppercase tracking-widest min-w-[150px] print-wrap">
-                                    Producto <FilterDropdown column="producto" title="Producto" />
+                                <th className="p-3 font-black text-slate-500 uppercase tracking-widest min-w-[150px] print-wrap cursor-pointer group" onClick={() => requestSort('producto')}>
+                                    <span className="flex items-center">Producto <SortIcon column="producto" /></span>
                                 </th>
-                                <th className="p-3 font-black text-slate-500 uppercase tracking-widest">
-                                    Compañía <FilterDropdown column="compania" title="Compañía" />
+                                <th className="p-3 font-black text-slate-500 uppercase tracking-widest cursor-pointer group" onClick={() => requestSort('compania')}>
+                                    <span className="flex items-center">Compañía <SortIcon column="compania" /></span>
                                 </th>
                                 <th className="p-3 font-black text-slate-500 uppercase tracking-widest cursor-pointer group" onClick={() => requestSort('fechaEfecto')}>
                                     F. Efecto <SortIcon column="fechaEfecto" />
@@ -354,11 +339,11 @@ function MonthlyDetailsContent() {
                                 <th className="p-3 font-black text-slate-500 uppercase tracking-widest text-right cursor-pointer group" onClick={() => requestSort('cartera')}>
                                     Primas Cart. <SortIcon column="cartera" />
                                 </th>
-                                <th className="p-3 font-black text-slate-500 uppercase tracking-widest min-w-[120px] print-wrap">
-                                    Motivo Anul. <FilterDropdown column="motivoAnulacion" title="Motivo" />
+                                <th className="p-3 font-black text-slate-500 uppercase tracking-widest min-w-[120px] print-wrap cursor-pointer group" onClick={() => requestSort('motivoAnulacion')}>
+                                    Motivo Anul. <SortIcon column="motivoAnulacion" />
                                 </th>
-                                <th className="p-3 font-black text-slate-500 uppercase tracking-widest text-center">
-                                    Forma Pago <FilterDropdown column="formaPago" title="Forma Pago" />
+                                <th className="p-3 font-black text-slate-500 uppercase tracking-widest text-center cursor-pointer group" onClick={() => requestSort('formaPago')}>
+                                    Forma Pago <SortIcon column="formaPago" />
                                 </th>
                             </tr>
                         </thead>
