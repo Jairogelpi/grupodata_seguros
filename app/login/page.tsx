@@ -41,11 +41,13 @@ export default function LoginPage() {
                 <div className="bg-white rounded-[32px] shadow-2xl border border-slate-200 p-10 overflow-hidden">
                     {/* Logo */}
                     <div className="text-center mb-10">
-                        <div className="w-24 h-24 mx-auto mb-6 flex items-center justify-center hover:scale-105 transition-transform duration-500">
-                            <img src="/logo.png" alt="Grupo Data Logo" className="w-full h-full object-contain drop-shadow-sm" />
-                        </div>
+                        <img
+                            src="/logo.png"
+                            alt="Grupo Data Logo"
+                            className="h-24 w-auto mx-auto mb-6 object-contain hover:scale-105 transition-transform duration-500"
+                        />
                         <h1 className="text-3xl font-black text-slate-900 tracking-tight">
-                            Grupo Data <span className="text-primary text-xl">Seguros</span>
+                            Grupo Data <span className="text-slate-900 text-xl">Seguros</span>
                         </h1>
                         <p className="mt-3 text-slate-500 font-medium text-sm">
                             Acceso restringido para analistas autorizados
