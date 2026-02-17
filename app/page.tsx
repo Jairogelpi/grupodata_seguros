@@ -176,9 +176,7 @@ export default function Dashboard() {
     return (
         <div className="space-y-8">
             {/* Printable Logo (hidden on screen) */}
-            <div className="hidden print:block mb-6">
-                <img src="/logo.png" alt="Grupo Data Logo" className="h-16 w-auto" />
-            </div>
+
 
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -257,7 +255,7 @@ export default function Dashboard() {
             {/* KPIs */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Primas NP Card */}
-                <div className="relative overflow-hidden bg-white p-6 rounded-2xl shadow-sm border border-slate-200 group hover:shadow-md transition-all duration-300">
+                <div className="relative overflow-hidden bg-white p-6 rounded-2xl shadow-sm border border-slate-200 group hover:shadow-md transition-all duration-300 break-inside-avoid">
                     <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                         <Users className="w-24 h-24 text-primary" />
                     </div>
@@ -279,7 +277,7 @@ export default function Dashboard() {
                 </div>
 
                 {/* Nº Polizas Card */}
-                <div className="relative overflow-hidden bg-white p-6 rounded-2xl shadow-sm border border-slate-200 group hover:shadow-md transition-all duration-300">
+                <div className="relative overflow-hidden bg-white p-6 rounded-2xl shadow-sm border border-slate-200 group hover:shadow-md transition-all duration-300 break-inside-avoid">
                     <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                         <FileText className="w-24 h-24 text-slate-600" />
                     </div>

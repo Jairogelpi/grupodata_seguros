@@ -12,6 +12,8 @@ export const metadata: Metadata = {
 
 import { Providers } from './providers';
 
+import PrintLayout from '@/components/PrintLayout';
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -21,8 +23,9 @@ export default function RootLayout({
     <html lang="es">
       <body className={`${inter.className} min-h-screen bg-slate-50 text-slate-900 antialiased`}>
         <Providers>
+          <PrintLayout />
           <Navbar />
-          <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+          <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 print:py-0 print:px-8">
             {children}
           </main>
         </Providers>

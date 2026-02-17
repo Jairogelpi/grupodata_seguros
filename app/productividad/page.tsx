@@ -233,7 +233,7 @@ export default function ProductividadPage() {
         const maxVal = Math.max(...data.map(d => d[dataKey]), 1);
 
         return (
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-full flex flex-col">
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-full flex flex-col break-inside-avoid">
                 <div className="flex justify-between items-center mb-6">
                     <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
                         <BarChart2 className="w-4 h-4 text-primary" />
@@ -289,9 +289,7 @@ export default function ProductividadPage() {
     return (
         <div className="space-y-8">
             {/* Printable Logo (hidden on screen) */}
-            <div className="hidden print:block mb-6">
-                <img src="/logo.png" alt="Grupo Data Logo" className="h-16 w-auto" />
-            </div>
+
 
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -398,7 +396,7 @@ export default function ProductividadPage() {
             {/* Details Section (Power BI style split) */}
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
                 {/* Asesor Table */}
-                <div className="xl:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div className="xl:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden break-inside-avoid">
                     <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center text-slate-800">
                         <h3 className="text-lg font-semibold flex items-center gap-2">
                             <TrendingUp className="w-5 h-5 text-primary" />
@@ -459,7 +457,7 @@ export default function ProductividadPage() {
                 </div>
 
                 {/* Ente Detail Side Table */}
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden print:overflow-visible">
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden print:overflow-visible break-inside-avoid">
                     <div className="px-4 py-4 border-b border-slate-200 bg-slate-50 text-slate-800">
                         <h3 className="text-sm font-bold flex items-center gap-2">
                             <Users className="w-4 h-4 text-primary" />
