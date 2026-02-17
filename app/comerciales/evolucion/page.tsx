@@ -447,7 +447,7 @@ function AdvisorEvolutionContent() {
                             <button onClick={() => setChartType('bar')} className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${chartType === 'bar' ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Barras</button>
                         </div>
                     </div>
-                    <div className="h-[400px] w-full print:h-[500px] print:w-[75%] mx-auto">
+                    <div className="h-[400px] w-full print:h-[500px] print:w-full">
                         {loading ? (
                             <div className="h-full w-full bg-slate-50 animate-pulse rounded-2xl flex items-center justify-center text-slate-400 font-medium">Cargando histórico de asesor...</div>
                         ) : filteredData.length > 0 ? (

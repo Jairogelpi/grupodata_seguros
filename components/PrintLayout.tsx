@@ -54,8 +54,13 @@ export default function PrintLayout() {
                         margin-right: 0 !important;
                         
                         transform: scale(0.75); /* Reduced scale to fit more content */
-                        transform-origin: top center;
+                        transform-origin: top left;
                         width: 133.3% !important; /* 100 / 0.75 = 133.3% */
+                        
+                        margin-left: 0 !important;
+                        margin-right: 0 !important;
+                        padding-left: 40px !important;
+                        padding-right: 40px !important;
                         
                         overflow: visible !important;
                         display: block !important;
@@ -64,6 +69,7 @@ export default function PrintLayout() {
                     /* Table Condensation for Print */
                     .print-table-condensed {
                         font-size: 8px !important;
+                        width: 100% !important;
                     }
                     .print-table-condensed th, 
                     .print-table-condensed td {
