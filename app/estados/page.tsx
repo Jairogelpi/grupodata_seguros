@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Activity, FileText, LayoutList, ArrowUpDown, ArrowUp, ArrowDown, FileDown, Printer, BarChart2, TrendingUp, Info, ShieldCheck, ShieldAlert, AlertTriangle } from 'lucide-react';
 import MultiSelect from '@/components/MultiSelect';
+import PrintFilterSummary from '@/components/PrintFilterSummary';
 import * as XLSX from 'xlsx';
 
 // Formatter for currency
@@ -130,17 +131,35 @@ export default function EstadosPage() {
     }, [breakdown]);
 
     const handleExportExcel = () => {
+        // 1. Prepare Filter Summary rows
+        const filterRows = [
+            ['REPORTE DE ESTADOS DE PÓLIZAS'],
+            ['Filtros Aplicados:', new Date().toLocaleString()],
+            ['Asesor:', filters.comercial.length > 0 ? filters.comercial.join(', ') : 'Todos'],
+            ['Ente:', filters.ente.length > 0 ? filters.ente.join(', ') : 'Todos'],
+            ['Año:', filters.anio.length > 0 ? filters.anio.join(', ') : 'Todos'],
+            ['Mes:', filters.mes.length > 0 ? filters.mes.join(', ') : 'Todos'],
+            ['Estado:', filters.estado.length > 0 ? filters.estado.join(', ') : 'Todos'],
+            [], // Empty row
+        ];
+
+        // 2. Prepare Data
         const dataToExport = sortedData.map(item => ({
-            'Estado': item.estado,
-            'Número de Pólizas': item.polizas,
-            'Primas Totales (€)': item.primas,
-            '% del Total': ((item.polizas / (kpis.totalPolizas || 1)) * 100).toFixed(2) + '%'
+            'Estado de Póliza': item.estado,
+            'Nº Pólizas': item.polizas,
+            'Primas Totales (€)': item.primas
         }));
 
-        const ws = XLSX.utils.json_to_sheet(dataToExport);
+        // 3. Create Workbook
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Segmentacion_Estados");
-        XLSX.writeFile(wb, `Segmentacion_Estados_${new Date().toISOString().split('T')[0]}.xlsx`);
+        const ws = XLSX.utils.aoa_to_sheet(filterRows);
+        XLSX.utils.sheet_add_json(ws, dataToExport, { origin: filterRows.length });
+
+        // Widths
+        ws['!cols'] = [{ wch: 30 }, { wch: 15 }, { wch: 20 }];
+
+        XLSX.utils.book_append_sheet(wb, ws, "Estados");
+        XLSX.writeFile(wb, `Estados_GrupoData_${new Date().toISOString().split('T')[0]}.xlsx`);
     };
 
     const handleExportPDF = () => {
@@ -253,6 +272,9 @@ export default function EstadosPage() {
                     <div className="mt-1 text-[10px] text-slate-400 font-medium">DEL TOTAL DE PÓLIZAS</div>
                 </div>
             </div>
+
+            {/* Print Only: Filter Summary */}
+            <PrintFilterSummary filters={filters} />
 
             {/* Filters */}
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 no-print filters-container">

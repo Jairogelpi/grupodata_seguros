@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { PieChart, FileText, LayoutList, ArrowUpDown, ArrowUp, ArrowDown, FileDown, Printer, BarChart2, TrendingUp, Info, Package } from 'lucide-react';
 import MultiSelect from '@/components/MultiSelect';
+import PrintFilterSummary from '@/components/PrintFilterSummary';
 import * as XLSX from 'xlsx';
 
 // Formatter for currency
@@ -107,16 +108,35 @@ export default function CarteraPage() {
     };
 
     const handleExportExcel = () => {
+        // 1. Prepare Filter Summary rows
+        const filterRows = [
+            ['REPORTE DE CARTERA POR PRODUCTO'],
+            ['Filtros Aplicados:', new Date().toLocaleString()],
+            ['Asesor:', filters.comercial.length > 0 ? filters.comercial.join(', ') : 'Todos'],
+            ['Ente:', filters.ente.length > 0 ? filters.ente.join(', ') : 'Todos'],
+            ['Año:', filters.anio.length > 0 ? filters.anio.join(', ') : 'Todos'],
+            ['Mes:', filters.mes.length > 0 ? filters.mes.join(', ') : 'Todos'],
+            ['Estado:', filters.estado.length > 0 ? filters.estado.join(', ') : 'Todos'],
+            [], // Empty row
+        ];
+
+        // 2. Prepare Data
         const dataToExport = sortedData.map(item => ({
-            'Producto / Ramo': item.producto,
+            'Producto/Ramo': item.producto,
             'Nº Pólizas': item.polizas,
             'Primas Totales (€)': item.primas
         }));
 
-        const ws = XLSX.utils.json_to_sheet(dataToExport);
+        // 3. Create Workbook
         const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet(filterRows);
+        XLSX.utils.sheet_add_json(ws, dataToExport, { origin: filterRows.length });
+
+        // Widths
+        ws['!cols'] = [{ wch: 40 }, { wch: 15 }, { wch: 20 }];
+
         XLSX.utils.book_append_sheet(wb, ws, "Cartera");
-        XLSX.writeFile(wb, `Salud_Cartera_${new Date().toISOString().split('T')[0]}.xlsx`);
+        XLSX.writeFile(wb, `Cartera_GrupoData_${new Date().toISOString().split('T')[0]}.xlsx`);
     };
 
     const handleExportPDF = () => {
@@ -192,6 +212,9 @@ export default function CarteraPage() {
                     </button>
                 </div>
             </div>
+
+            {/* Print Only: Filter Summary */}
+            <PrintFilterSummary filters={filters} />
 
             {/* Filters */}
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 no-print filters-container">

@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { Plus, Search, LayoutList, FileDown, Printer } from 'lucide-react';
 import FileUploader from '@/components/FileUploader';
 import MultiSelect from '@/components/MultiSelect';
+import PrintFilterSummary from '@/components/PrintFilterSummary';
 import * as XLSX from 'xlsx';
 
 interface Ente {
@@ -94,16 +96,37 @@ export default function EntesPage() {
     };
 
     const handleExportExcel = () => {
-        const dataToExport = entes.map(item => ({
-            'Código': item.Código,
-            'Nombre': item.Nombre,
-            'Tipo': item.Tipo,
-            'Año': item.Año1
+        // 1. Prepare Filter Summary rows
+        const filterRows = [
+            ['GESTIÓN DE ENTES Y RANKING DE EFICIENCIA'],
+            ['Filtros Aplicados:', new Date().toLocaleString()],
+            ['Asesor:', filters.comercial.length > 0 ? filters.comercial.join(', ') : 'Todos'],
+            ['Ente:', filters.ente.length > 0 ? filters.ente.join(', ') : 'Todos'],
+            ['Año:', filters.anio.length > 0 ? filters.anio.join(', ') : 'Todos'],
+            ['Mes:', filters.mes.length > 0 ? filters.mes.join(', ') : 'Todos'],
+            ['Estado:', filters.estado.length > 0 ? filters.estado.join(', ') : 'Todos'],
+            [], // Empty row
+        ];
+
+        // 2. Prepare Data (Ranking)
+        const dataToExport = efficiencyRanking.map(item => ({
+            'Ente Comercial': item.ente,
+            'Asesor': item.asesor,
+            'Primas Totales (€)': item.primas,
+            'Nº Pólizas': item.polizas,
+            'Ticket Medio (€)': item.ticketMedio
         }));
-        const ws = XLSX.utils.json_to_sheet(dataToExport);
+
+        // 3. Create Workbook
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Entes");
-        XLSX.writeFile(wb, `Listado_Entes_${new Date().toISOString().split('T')[0]}.xlsx`);
+        const ws = XLSX.utils.aoa_to_sheet(filterRows);
+        XLSX.utils.sheet_add_json(ws, dataToExport, { origin: filterRows.length });
+
+        // Widths
+        ws['!cols'] = [{ wch: 40 }, { wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 20 }];
+
+        XLSX.utils.book_append_sheet(wb, ws, "Ranking_Eficiencia");
+        XLSX.writeFile(wb, `Entes_Ranking_${new Date().toISOString().split('T')[0]}.xlsx`);
     };
 
     const handleExportPDF = () => window.print();
@@ -261,7 +284,14 @@ export default function EntesPage() {
                                         }`}>
                                         {idx + 1}
                                     </div>
-                                    <h3 className="font-bold text-slate-800 truncate" title={item.ente}>{item.ente}</h3>
+                                    <h3 className="font-bold text-slate-800 truncate">
+                                        <Link
+                                            href={`/entes/evolucion?ente=${encodeURIComponent(item.ente)}`}
+                                            className="text-indigo-600 hover:text-indigo-900 hover:underline decoration-indigo-200 underline-offset-4 transition-all"
+                                        >
+                                            {item.ente}
+                                        </Link>
+                                    </h3>
                                 </div>
                                 <div className="flex flex-col gap-1">
                                     <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Ticket Medio</div>
@@ -282,6 +312,9 @@ export default function EntesPage() {
                     )}
                 </div>
             </div>
+
+            {/* Print Only: Filter Summary */}
+            <PrintFilterSummary filters={filters} />
 
             {/* List */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">

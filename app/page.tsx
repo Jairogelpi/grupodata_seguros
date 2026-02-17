@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Users, FileText, LayoutList, ArrowUpDown, ArrowUp, ArrowDown, FileDown, Printer } from 'lucide-react';
 import MultiSelect from '@/components/MultiSelect';
 import FileUploader from '@/components/FileUploader';
+import PrintFilterSummary from '@/components/PrintFilterSummary';
 import * as XLSX from 'xlsx';
 
 // Formatter for currency
@@ -120,6 +122,19 @@ export default function Dashboard() {
     };
 
     const handleExportExcel = () => {
+        // 1. Prepare Filter Summary rows
+        const filterRows = [
+            ['DASHBOARD - DESGLOSE POR ENTE'],
+            ['Filtros Aplicados:', new Date().toLocaleString()],
+            ['Asesor:', filters.comercial.length > 0 ? filters.comercial.join(', ') : 'Todos'],
+            ['Ente:', filters.ente.length > 0 ? filters.ente.join(', ') : 'Todos'],
+            ['Año:', filters.anio.length > 0 ? filters.anio.join(', ') : 'Todos'],
+            ['Mes:', filters.mes.length > 0 ? filters.mes.join(', ') : 'Todos'],
+            ['Estado:', filters.estado.length > 0 ? filters.estado.join(', ') : 'Todos'],
+            [], // Empty row
+        ];
+
+        // 2. Prepare Data
         const dataToExport = sortedData.map(item => ({
             'Ente Comercial': item.ente,
             'Primas NP (€)': item.primas,
@@ -128,10 +143,16 @@ export default function Dashboard() {
             'Tendencia Pólizas (%)': item.trendPolizas.toFixed(2)
         }));
 
-        const ws = XLSX.utils.json_to_sheet(dataToExport);
+        // 3. Create Workbook
         const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet(filterRows);
+        XLSX.utils.sheet_add_json(ws, dataToExport, { origin: filterRows.length });
+
+        // Widths
+        ws['!cols'] = [{ wch: 40 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 20 }];
+
         XLSX.utils.book_append_sheet(wb, ws, "Desglose");
-        XLSX.writeFile(wb, `Metricas_GrupoData_${new Date().toISOString().split('T')[0]}.xlsx`);
+        XLSX.writeFile(wb, `Dashboard_GrupoData_${new Date().toISOString().split('T')[0]}.xlsx`);
     };
 
     const handleExportPDF = () => {
@@ -183,6 +204,9 @@ export default function Dashboard() {
                     <FileUploader target="polizas" label="Subir Pólizas" onUploadSuccess={() => window.location.reload()} />
                 </div>
             </div>
+
+            {/* Print Only: Filter Summary */}
+            <PrintFilterSummary filters={filters} />
 
             {/* Filters */}
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 no-print filters-container">
@@ -312,7 +336,14 @@ export default function Dashboard() {
                             ) : sortedData.length > 0 ? (
                                 sortedData.map((item, idx) => (
                                     <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{item.ente}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900 leading-relaxed">
+                                            <Link
+                                                href={`/entes/evolucion?ente=${encodeURIComponent(item.ente)}`}
+                                                className="text-indigo-600 hover:text-indigo-900 hover:underline decoration-indigo-200 underline-offset-4 transition-all"
+                                            >
+                                                {item.ente}
+                                            </Link>
+                                        </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 text-right">
                                             <div className="flex flex-col items-end">
                                                 <span className="font-mono">{currencyFormatter.format(item.primas)}</span>

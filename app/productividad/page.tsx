@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Users, FileText, LayoutList, ArrowUpDown, ArrowUp, ArrowDown, FileDown, Printer, BarChart2, TrendingUp, Info, MousePointer2, XCircle } from 'lucide-react';
 import MultiSelect from '@/components/MultiSelect';
+import PrintFilterSummary from '@/components/PrintFilterSummary';
 import * as XLSX from 'xlsx';
 
 // Formatter for currency
@@ -158,6 +159,19 @@ export default function ProductividadPage() {
     };
 
     const handleExportExcel = () => {
+        // 1. Prepare Filter Summary rows
+        const filterRows = [
+            ['REPORTE DE PRODUCTIVIDAD'],
+            ['Filtros Aplicados:', new Date().toLocaleString()],
+            ['Asesor:', filters.comercial.length > 0 ? filters.comercial.join(', ') : 'Todos'],
+            ['Ente:', filters.ente.length > 0 ? filters.ente.join(', ') : 'Todos'],
+            ['Año:', filters.anio.length > 0 ? filters.anio.join(', ') : 'Todos'],
+            ['Mes:', filters.mes.length > 0 ? filters.mes.join(', ') : 'Todos'],
+            ['Estado:', filters.estado.length > 0 ? filters.estado.join(', ') : 'Todos'],
+            [], // Empty row for spacing
+        ];
+
+        // 2. Prepare Data Table
         const dataToExport = sortedAsesorData.map(item => ({
             'Asesor': item.asesor,
             'Número de Entes': item.numEntes,
@@ -166,8 +180,23 @@ export default function ProductividadPage() {
             'Media por Ente (€)': item.avgPrimas
         }));
 
-        const ws = XLSX.utils.json_to_sheet(dataToExport);
+        // 3. Create Workbook and Worksheet
         const wb = XLSX.utils.book_new();
+        // Create worksheet from filter rows first
+        const ws = XLSX.utils.aoa_to_sheet(filterRows);
+
+        // Add the JSON data starting after the filter rows
+        XLSX.utils.sheet_add_json(ws, dataToExport, { origin: filterRows.length });
+
+        // 4. Style (Optional: just column widths for better view)
+        ws['!cols'] = [
+            { wch: 30 }, // Asesor
+            { wch: 15 }, // Nº Entes
+            { wch: 15 }, // Nº Pólizas
+            { wch: 20 }, // Total
+            { wch: 20 }  // Media
+        ];
+
         XLSX.utils.book_append_sheet(wb, ws, "Productividad");
         XLSX.writeFile(wb, `Productividad_Interactiva_${new Date().toISOString().split('T')[0]}.xlsx`);
     };
@@ -294,6 +323,9 @@ export default function ProductividadPage() {
                     </button>
                 </div>
             </div>
+
+            {/* Print Only: Filter Summary */}
+            <PrintFilterSummary filters={filters} />
 
             {/* Filters */}
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 no-print filters-container">

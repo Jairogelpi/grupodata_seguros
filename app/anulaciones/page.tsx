@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState, useMemo } from 'react';
-import { AlertTriangle, FileText, LayoutList, BarChart2, TrendingDown, Info, Clock, AlertCircle, Ban, UserX } from 'lucide-react';
+import { AlertTriangle, FileText, LayoutList, BarChart2, TrendingDown, Info, Clock, AlertCircle, Ban, UserX, FileDown, Printer } from 'lucide-react';
 import MultiSelect from '@/components/MultiSelect';
+import PrintFilterSummary from '@/components/PrintFilterSummary';
 import * as XLSX from 'xlsx';
 
 // Formatter for currency
@@ -98,12 +99,61 @@ export default function AnulacionesPage() {
         return reasons.reduce((sum, r) => sum + r.count, 0);
     }, [reasons]);
 
+    const handleExportExcel = () => {
+        const filterRows = [
+            ['REPORTE DE ANULACIONES'],
+            ['Filtros Aplicados:', new Date().toLocaleString()],
+            ['Asesor:', filters.comercial.length > 0 ? filters.comercial.join(', ') : 'Todos'],
+            ['Ente:', filters.ente.length > 0 ? filters.ente.join(', ') : 'Todos'],
+            ['Año:', filters.anio.length > 0 ? filters.anio.join(', ') : 'Todos'],
+            ['Mes:', filters.mes.length > 0 ? filters.mes.join(', ') : 'Todos'],
+            ['Estado:', filters.estado.length > 0 ? filters.estado.join(', ') : 'Todos'],
+            [],
+        ];
+
+        const dataToExport = topEntesByAnulaciones.map(item => ({
+            'Ente Comercial': item.ente,
+            'Asesor': item.asesor,
+            'Pólizas Anuladas': item.anulaciones,
+            'Primas Perdidas (€)': item.primas
+        }));
+
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet(filterRows);
+        XLSX.utils.sheet_add_json(ws, dataToExport, { origin: filterRows.length });
+
+        ws['!cols'] = [{ wch: 40 }, { wch: 30 }, { wch: 15 }, { wch: 20 }];
+
+        XLSX.utils.book_append_sheet(wb, ws, "Anulaciones");
+        XLSX.writeFile(wb, `Anulaciones_GrupoData_${new Date().toISOString().split('T')[0]}.xlsx`);
+    };
+
+    const handleExportPDF = () => {
+        window.print();
+    };
+
     return (
         <div className="space-y-8">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-slate-900">Análisis de Anulaciones</h1>
                     <p className="mt-2 text-slate-600">Control de bajas, motivos frecuentes y detección de fugas por Ente</p>
+                </div>
+                <div className="flex flex-wrap gap-2 no-print">
+                    <button
+                        onClick={handleExportExcel}
+                        className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors font-medium shadow-sm"
+                    >
+                        <FileDown className="w-4 h-4 text-green-600" />
+                        Excel
+                    </button>
+                    <button
+                        onClick={handleExportPDF}
+                        className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-medium shadow-sm"
+                    >
+                        <Printer className="w-4 h-4" />
+                        PDF
+                    </button>
                 </div>
             </div>
 
@@ -148,6 +198,9 @@ export default function AnulacionesPage() {
                     <div className="mt-1 text-[10px] text-slate-400 font-bold uppercase tracking-widest">MAYOR NÚMERO DE BAJAS</div>
                 </div>
             </div>
+
+            {/* Print Only: Filter Summary */}
+            <PrintFilterSummary filters={filters} />
 
             {/* Filters */}
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 no-print">
