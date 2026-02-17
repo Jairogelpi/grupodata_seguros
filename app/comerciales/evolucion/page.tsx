@@ -451,7 +451,7 @@ function AdvisorEvolutionContent() {
                 </div>
 
                 {/* Main Chart */}
-                <div className="bg-white p-8 print:p-4 rounded-2xl shadow-sm border border-slate-200 mt-8 break-inside-avoid">
+                <div className="bg-white p-8 print:p-8 rounded-2xl shadow-sm border border-slate-200 mt-8 break-inside-avoid">
                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
                             <BarChart3 className="w-5 h-5 text-amber-500" />

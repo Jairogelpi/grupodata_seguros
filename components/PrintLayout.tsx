@@ -54,13 +54,13 @@ export default function PrintLayout() {
                         margin-right: 0 !important;
                         
                         transform: scale(0.75); /* Reduced scale to fit more content */
-                        transform-origin: top left;
+                        transform-origin: top center;
                         width: 133.3% !important; /* 100 / 0.75 = 133.3% */
                         
-                        margin-left: 0 !important;
-                        margin-right: 0 !important;
-                        padding-left: 20px !important;
-                        padding-right: 20px !important;
+                        margin-left: auto !important;
+                        margin-right: auto !important;
+                        padding-left: 30px !important;
+                        padding-right: 30px !important;
                         
                         overflow: visible !important;
                         display: block !important;
