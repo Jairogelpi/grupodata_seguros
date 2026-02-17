@@ -26,13 +26,19 @@ const MONTHS = [
 interface PolicyDetail {
     poliza: string;
     fechaEfecto: string;
+    fechaAnulacion: string;
+    diasHastaAnula: number | null;
     producto: string;
-    ramo: string;
+    duracion: string;
+    formaPago: string;
     compania: string;
     primas: number;
+    cartera: number;
     estado: string;
     tomador: string;
     dni: string;
+    motivoAnulacion: string;
+    fAlta: string;
 }
 
 function MonthlyDetailsContent() {
@@ -88,12 +94,18 @@ function MonthlyDetailsContent() {
             'Póliza': p.poliza,
             'Tomador': p.tomador,
             'NIF': p.dni,
+            'Fecha Alta': p.fAlta,
             'Fecha Efecto': p.fechaEfecto,
+            'Fecha Anulación': p.fechaAnulacion,
+            'Días Vigor': p.diasHastaAnula || '',
             'Producto': p.producto,
-            'Ramo': p.ramo,
+            'Duración': p.duracion,
+            'Forma Pago': p.formaPago,
             'Compañía': p.compania,
             'Estado': p.estado,
-            'Primas (€)': p.primas
+            'Primas Prod. (€)': p.primas,
+            'Primas Cart. (€)': p.cartera,
+            'Motivo Anulación': p.motivoAnulacion
         }));
 
         const wb = XLSX.utils.book_new();
@@ -102,11 +114,13 @@ function MonthlyDetailsContent() {
 
         // Column widths
         ws['!cols'] = [
-            { wch: 20 }, { wch: 40 }, { wch: 15 }, { wch: 15 },
-            { wch: 30 }, { wch: 20 }, { wch: 25 }, { wch: 15 }, { wch: 15 }
+            { wch: 15 }, { wch: 35 }, { wch: 12 }, { wch: 12 },
+            { wch: 12 }, { wch: 15 }, { wch: 10 }, { wch: 30 },
+            { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 },
+            { wch: 15 }, { wch: 15 }, { wch: 30 }
         ];
 
-        XLSX.utils.book_append_sheet(wb, ws, "Detalle_Mensual");
+        XLSX.utils.book_append_sheet(wb, ws, "Detalle_Extendido");
         XLSX.writeFile(wb, `Detalle_${ente?.replace(/ /g, '_')}_${anio}_${mes}.xlsx`);
     };
 
@@ -147,14 +161,14 @@ function MonthlyDetailsContent() {
                             <p className="text-slate-500 font-bold flex items-center gap-2">
                                 <span className="text-indigo-600 underline decoration-indigo-200">{MONTHS[parseInt(mes) - 1]} {anio}</span>
                                 <span className="text-slate-300">|</span>
-                                <span>Detalle de Pólizas</span>
+                                <span>Reporte Técnico de Pólizas</span>
                             </p>
                         </div>
                     </div>
 
                     <div className="flex gap-8 px-8 py-4 bg-slate-50 rounded-2xl border border-slate-100">
                         <div>
-                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-[2px] mb-1">Total Primas</div>
+                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-[2px] mb-1">Primas Producción</div>
                             <div className="text-2xl font-black text-indigo-600">{currencyFormatter.format(totalPrimas)}</div>
                         </div>
                         <div className="border-l border-slate-200 hidden md:block" />
@@ -173,7 +187,7 @@ function MonthlyDetailsContent() {
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                         <input
                             type="text"
-                            placeholder="Buscar por póliza, tomador o producto..."
+                            placeholder="Buscar en el reporte..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm"
@@ -181,58 +195,69 @@ function MonthlyDetailsContent() {
                     </div>
                     <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-widest bg-white px-4 py-2 rounded-lg border border-slate-100">
                         <Filter className="w-3.5 h-3.5 text-indigo-500" />
-                        {filteredPolizas.length} registros encontrados
+                        {filteredPolizas.length} registros técnicos
                     </div>
                 </div>
 
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm whitespace-nowrap">
+                    <table className="w-full text-left text-[11px] whitespace-nowrap">
                         <thead>
-                            <tr className="bg-slate-50 border-b border-slate-100">
-                                <th className="p-4 font-black text-slate-500 uppercase tracking-widest text-[10px]">Póliza</th>
-                                <th className="p-4 font-black text-slate-500 uppercase tracking-widest text-[10px]">Tomador / NIF</th>
-                                <th className="p-4 font-black text-slate-500 uppercase tracking-widest text-[10px]">F. Efecto</th>
-                                <th className="p-4 font-black text-slate-500 uppercase tracking-widest text-[10px]">Producto / Compañía</th>
-                                <th className="p-4 font-black text-slate-500 uppercase tracking-widest text-[10px] text-right">Primas (€)</th>
-                                <th className="p-4 font-black text-slate-500 uppercase tracking-widest text-[10px] text-center">Estado</th>
+                            <tr className="bg-slate-100 border-b border-slate-200">
+                                <th className="p-3 font-black text-slate-500 uppercase tracking-widest">Póliza</th>
+                                <th className="p-3 font-black text-slate-500 uppercase tracking-widest">Estado</th>
+                                <th className="p-3 font-black text-slate-500 uppercase tracking-widest">Tomador / NIF</th>
+                                <th className="p-3 font-black text-slate-500 uppercase tracking-widest">Producto</th>
+                                <th className="p-3 font-black text-slate-500 uppercase tracking-widest">Compañía</th>
+                                <th className="p-3 font-black text-slate-500 uppercase tracking-widest">F. Efecto</th>
+                                <th className="p-3 font-black text-slate-500 uppercase tracking-widest">F. Anulación</th>
+                                <th className="p-3 font-black text-slate-500 uppercase tracking-widest text-center">Días Vigor</th>
+                                <th className="p-3 font-black text-slate-500 uppercase tracking-widest text-right">Primas Prod.</th>
+                                <th className="p-3 font-black text-slate-500 uppercase tracking-widest text-right">Primas Cart.</th>
+                                <th className="p-3 font-black text-slate-500 uppercase tracking-widest">Motivo Anul.</th>
+                                <th className="p-3 font-black text-slate-500 uppercase tracking-widest text-center">Forma Pago</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {loading ? (
                                 [...Array(5)].map((_, i) => (
                                     <tr key={i} className="animate-pulse">
-                                        <td colSpan={6} className="p-4"><div className="h-8 bg-slate-100 rounded-lg w-full" /></td>
+                                        <td colSpan={12} className="p-4"><div className="h-6 bg-slate-100 rounded-lg w-full" /></td>
                                     </tr>
                                 ))
                             ) : filteredPolizas.length > 0 ? (
                                 filteredPolizas.map((p, i) => (
                                     <tr key={i} className="hover:bg-slate-50/80 transition-colors group">
-                                        <td className="p-4 font-bold text-slate-900">{p.poliza}</td>
-                                        <td className="p-4">
-                                            <div className="font-bold text-slate-700">{p.tomador}</div>
-                                            <div className="text-[10px] text-slate-400 font-mono">{p.dni}</div>
-                                        </td>
-                                        <td className="p-4 text-slate-600 font-medium">{p.fechaEfecto}</td>
-                                        <td className="p-4">
-                                            <div className="font-bold text-slate-700">{p.producto}</div>
-                                            <div className="text-[10px] text-indigo-500 font-black uppercase tracking-wider">{p.compania}</div>
-                                        </td>
-                                        <td className="p-4 text-right font-black text-indigo-600">{currencyFormatter.format(p.primas)}</td>
-                                        <td className="p-4 text-center">
-                                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${p.estado.includes('Vigor') ? 'bg-green-100 text-green-700' :
+                                        <td className="p-3 font-bold text-slate-900 border-r border-slate-50">{p.poliza}</td>
+                                        <td className="p-3">
+                                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${p.estado.includes('Vigor') ? 'bg-green-100 text-green-700' :
                                                     p.estado.includes('Anulada') ? 'bg-red-100 text-red-700' :
                                                         'bg-slate-100 text-slate-600'
                                                 }`}>
                                                 {p.estado}
                                             </span>
                                         </td>
+                                        <td className="p-3">
+                                            <div className="font-bold text-slate-700">{p.tomador}</div>
+                                            <div className="text-[9px] text-slate-400 font-mono">{p.dni}</div>
+                                        </td>
+                                        <td className="p-3 font-medium text-slate-600 truncate max-w-[150px]" title={p.producto}>{p.producto}</td>
+                                        <td className="p-3 font-black text-indigo-500 text-[10px]">{p.compania}</td>
+                                        <td className="p-3 text-slate-600">{p.fechaEfecto}</td>
+                                        <td className="p-3 text-red-600 font-medium">{p.fechaAnulacion || '-'}</td>
+                                        <td className="p-3 text-center">
+                                            {p.diasHastaAnula !== null ? (
+                                                <span className="font-black text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">{p.diasHastaAnula} d</span>
+                                            ) : '-'}
+                                        </td>
+                                        <td className="p-3 text-right font-black text-indigo-600">{currencyFormatter.format(p.primas)}</td>
+                                        <td className="p-3 text-right font-bold text-slate-400">{currencyFormatter.format(p.cartera)}</td>
+                                        <td className="p-3 text-slate-500 italic text-[10px]">{p.motivoAnulacion || '-'}</td>
+                                        <td className="p-3 text-center text-slate-500">{p.formaPago}</td>
                                     </tr>
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan={6} className="p-12 text-center">
-                                        <div className="text-slate-400 font-medium">No se encontraron pólizas para este criterio</div>
-                                    </td>
+                                    <td colSpan={12} className="p-12 text-center text-slate-400">No hay datos</td>
                                 </tr>
                             )}
                         </tbody>

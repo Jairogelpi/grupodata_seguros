@@ -56,17 +56,47 @@ export async function GET(request: Request) {
             const pMes = parseInt(p['MES_Prod']);
 
             return pAnio === targetAnio && pMes === targetMes;
-        }).map(p => ({
-            poliza: p['Poliza'] || p['Nº Póliza'] || 'N/A',
-            fechaEfecto: p['F.Efecto'] || 'N/A',
-            producto: p['D.Producto'] || 'N/A',
-            ramo: p['D.Ramo'] || 'N/A',
-            compania: p['D.Compañia'] || 'N/A',
-            primas: parseFloat(String(p['P.Produccion'] || '0').replace(',', '.')) || 0,
-            estado: p['Estado'] || 'N/A',
-            tomador: p['Nombre Tomador'] || 'N/A',
-            dni: p['NIF Tomador'] || 'N/A'
-        }));
+        }).map(p => {
+            const fEfectoStr = p['F.Efecto'] || '';
+            const fAnulaStr = p['F.Anulación'] || '';
+
+            let diasHastaAnula = null;
+            if (fEfectoStr && fAnulaStr) {
+                try {
+                    // Dates in Spanish format DD/MM/YYYY
+                    const [dE, mE, yE] = fEfectoStr.split('/').map(Number);
+                    const [dA, mA, yA] = fAnulaStr.split('/').map(Number);
+
+                    const dateE = new Date(yE, mE - 1, dE);
+                    const dateA = new Date(yA, mA - 1, dA);
+
+                    if (!isNaN(dateE.getTime()) && !isNaN(dateA.getTime())) {
+                        const diffTime = Math.abs(dateA.getTime() - dateE.getTime());
+                        diasHastaAnula = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    }
+                } catch (e) {
+                    console.error('Error calculando dias de anulación', e);
+                }
+            }
+
+            return {
+                poliza: p['NºPóliza'] || p['Poliza'] || 'N/A',
+                estado: p['Estado'] || 'N/A',
+                tomador: p['Tomador'] || 'N/A',
+                producto: p['Producto'] || 'N/A',
+                fechaEfecto: fEfectoStr,
+                fechaAnulacion: fAnulaStr,
+                diasHastaAnula,
+                dni: p['NIF/CIF Tomador'] || 'N/A',
+                primas: parseFloat(String(p['P.Produccion'] || '0').replace(',', '.')) || 0,
+                cartera: parseFloat(String(p['P.Cartera'] || '0').replace(',', '.')) || 0,
+                motivoAnulacion: p['Mot.Anulación'] || '',
+                compania: p['Abrev.Cía'] || 'N/A',
+                duracion: p['Duración'] || '',
+                formaPago: p['Forma Pago'] || '',
+                fAlta: p['F. Alta'] || ''
+            };
+        });
 
         return NextResponse.json({
             ente: enteName,
