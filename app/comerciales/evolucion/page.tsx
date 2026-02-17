@@ -197,6 +197,13 @@ function AdvisorEvolutionContent() {
             tooltip: { mode: 'index' as const, intersect: false },
             datalabels: { display: false },
         },
+        onClick: (_event: any, elements: any) => {
+            if (elements.length > 0) {
+                const index = elements[0].index;
+                const item = filteredData[index];
+                router.push(`/comerciales/evolucion/mes?asesor=${encodeURIComponent(asesor!)}&anio=${item.anio}&mes=${item.mes}`);
+            }
+        },
         scales: {
             y: { type: 'linear' as const, display: true, position: 'left' as const, title: { display: true, text: 'Primas (€)' } },
             y1: { type: 'linear' as const, display: true, position: 'right' as const, grid: { drawOnChartArea: false }, title: { display: true, text: 'Pólizas / Entes' } }
