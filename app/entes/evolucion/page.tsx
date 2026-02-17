@@ -328,7 +328,10 @@ function EvolutionContent() {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-            legend: { position: 'right' as const, labels: { boxWidth: 12, font: { size: 10 } } },
+            legend: {
+                position: 'bottom' as const,
+                labels: { boxWidth: 10, font: { size: 9 }, padding: 10 }
+            },
             datalabels: {
                 formatter: (val: number, ctx: any) => {
                     const total = ctx.dataset.data.reduce((a: number, b: number) => a + b, 0);
@@ -475,7 +478,7 @@ function EvolutionContent() {
                 </div>
 
                 {/* Main Chart */}
-                <div className="bg-white p-8 print:p-8 rounded-2xl shadow-sm border border-slate-200 mt-8 break-inside-avoid">
+                <div className="bg-white p-8 print:p-6 rounded-2xl shadow-sm border border-slate-200 mt-8 break-inside-avoid">
                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
                             <BarChart3 className="w-5 h-5 text-indigo-500" />
@@ -500,12 +503,12 @@ function EvolutionContent() {
 
             {/* Feature 3: Product Mix Donut */}
             {!loading && productMix.length > 0 && (
-                <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 break-inside-avoid">
+                <div className="bg-white p-8 print:p-6 rounded-2xl shadow-sm border border-slate-200 break-inside-avoid print:w-full">
                     <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2 mb-6">
                         <PieChart className="w-5 h-5 text-purple-500" />
                         Mix de Productos por Ramo
                     </h2>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 print:grid-cols-1">
                         <div className="h-[300px]">
                             <Doughnut data={donutData} options={donutOptions} />
                         </div>

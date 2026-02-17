@@ -25,7 +25,7 @@ export default function RootLayout({
         <Providers>
           <PrintLayout />
           <Navbar />
-          <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 print:py-0 print:px-0 print:mx-auto print:max-w-none">
+          <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 print:py-0 print:px-0 print:mx-0 print:max-w-none">
             {children}
           </main>
         </Providers>
