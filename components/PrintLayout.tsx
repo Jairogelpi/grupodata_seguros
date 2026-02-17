@@ -48,7 +48,7 @@ export default function PrintLayout() {
                     
                     /* Main Content Scaling */
                     main {
-                        margin-top: 250px !important; /* Huge margin to clear fixed header */
+                        margin-top: 20px !important; /* Small margin relative to spacer */
                         margin-bottom: 80px !important;
                         margin-left: 10px !important;
                         margin-right: 10px !important;
@@ -93,6 +93,9 @@ export default function PrintLayout() {
                     <p>Tel: 927 600 000 | www.grupodata.es</p>
                 </div>
             </div>
+
+            {/* SPACER FOR CONTENT - Pushes main content down in the flow */}
+            <div className="hidden print:block w-full" style={{ height: '220px' }}></div>
 
             {/* Footer Structure for Print */}
             <div className="print-footer hidden print:flex justify-between items-end border-t border-slate-200">
