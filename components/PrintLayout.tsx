@@ -10,22 +10,29 @@ export default function PrintLayout() {
                 @media print {
                     @page {
                         margin: 0;
-                        size: A4;
+                       /* Hide browser default header/footer */
                     }
                     body {
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
                     }
-                    /* Fixed Header/Footer */
+
+                    /* Hide Navigation explicitly */
+                    nav, header {
+                        display: none !important;
+                    }
+
+                    /* Fixed Corporate Header/Footer */
                     .print-header {
                         position: fixed;
                         top: 0;
                         left: 0;
                         right: 0;
-                        height: 100px;
+                        height: 120px; /* Slight increase */
                         background: white;
-                        z-index: 1000;
-                        padding: 20px 40px;
+                        z-index: 9999; /* Max z-index */
+                        padding: 30px 40px 10px 40px;
+                        display: flex !important;
                     }
                     .print-footer {
                         position: fixed;
@@ -34,30 +41,35 @@ export default function PrintLayout() {
                         right: 0;
                         height: 50px;
                         background: white;
-                        z-index: 1000;
+                        z-index: 9999;
                         padding: 10px 40px;
+                        display: flex !important;
                     }
+                    
                     /* Main Content Scaling */
                     main {
-                        margin-top: 160px !important; 
-                        margin-bottom: 60px !important;
-                        margin-left: 20px !important;
-                        margin-right: 20px !important;
-                        transform: scale(0.85); /* Scale down to fit wide tables */
-                        transform-origin: top left; /* Changed from top center to be predictable */
-                        width: 115% !important; /* Compensate for scale down */
+                        margin-top: 250px !important; /* Huge margin to clear fixed header */
+                        margin-bottom: 80px !important;
+                        margin-left: 10px !important;
+                        margin-right: 10px !important;
+                        
+                        transform: scale(0.80); /* Smaller scale to fit more columns */
+                        transform-origin: top center; /* Center it */
+                        width: 125% !important; /* 100 / 0.80 = 125% */
+                        
+                        overflow: visible !important;
+                        display: block !important;
                     }
                     
-                    /* Hide scrollbars in print */
-                    ::-webkit-scrollbar {
-                        display: none;
+                    /* Cleanups */
+                    ::-webkit-scrollbar { display: none; }
+                    .no-print { display: none !important; }
+                    
+                    /* Ensure tables don't scroll but show full width */
+                    .overflow-x-auto, .overflow-hidden {
+                        overflow: visible !important;
                     }
                     
-                    .no-print {
-                        display: none !important;
-                    }
-                    
-                    /* Force page breaks */
                     .break-inside-avoid {
                         break-inside: avoid;
                         page-break-inside: avoid;
