@@ -107,25 +107,37 @@ export default function ProductividadPage() {
         if (key === 'ente') setInteractiveEnte(null);
     };
 
-    // Filtered data based on interactive selection
-    const filteredEnteData = useMemo(() => {
+    // Data for charts (filtered by CROSS selection, but NOT by its own selection)
+    const filteredEnteChartData = useMemo(() => {
         let data = [...enteBreakdown];
         if (interactiveAsesor) {
             data = data.filter(item => item.asesor === interactiveAsesor);
         }
+        return data;
+    }, [enteBreakdown, interactiveAsesor]);
+
+    // Data for tables (fully filtered by both interactive selections)
+    const filteredEnteTableData = useMemo(() => {
+        let data = [...filteredEnteChartData];
         if (interactiveEnte) {
             data = data.filter(item => item.ente === interactiveEnte);
         }
         return data;
-    }, [enteBreakdown, interactiveAsesor, interactiveEnte]);
+    }, [filteredEnteChartData, interactiveEnte]);
 
-    const filteredAsesorData = useMemo(() => {
+    const filteredAsesorTableData = useMemo(() => {
         let data = [...asesorBreakdown];
         if (interactiveAsesor) {
             data = data.filter(item => item.asesor === interactiveAsesor);
         }
+        if (interactiveEnte) {
+            const associatedAsesor = enteBreakdown.find(e => e.ente === interactiveEnte)?.asesor;
+            if (associatedAsesor) {
+                data = data.filter(item => item.asesor === associatedAsesor);
+            }
+        }
         return data;
-    }, [asesorBreakdown, interactiveAsesor]);
+    }, [asesorBreakdown, interactiveAsesor, interactiveEnte, enteBreakdown]);
 
     const handleSort = (key: SortKey) => {
         let direction: 'asc' | 'desc' = 'asc';
@@ -135,7 +147,7 @@ export default function ProductividadPage() {
         setSortConfig({ key, direction });
     };
 
-    const sortedAsesorData = [...filteredAsesorData].sort((a, b) => {
+    const sortedAsesorData = [...filteredAsesorTableData].sort((a, b) => {
         const { key, direction } = sortConfig;
         if (key === 'asesor') {
             return direction === 'asc' ? a.asesor.localeCompare(b.asesor) : b.asesor.localeCompare(a.asesor);
@@ -144,7 +156,7 @@ export default function ProductividadPage() {
         return direction === 'asc' ? a[key] - b[key] : b[key] - a[key];
     });
 
-    const sortedEnteData = [...filteredEnteData].sort((a, b) => {
+    const sortedEnteData = [...filteredEnteTableData].sort((a, b) => {
         const { key, direction } = sortConfig;
         if (key === 'ente') {
             return direction === 'asc' ? a.ente.localeCompare(b.ente) : b.ente.localeCompare(a.ente);
@@ -382,7 +394,7 @@ export default function ProductividadPage() {
                     />
                     <BarChart
                         // Show all entes if no asesor selected, or filtered entes if selected
-                        data={[...filteredEnteData].sort((a, b) => b.primas - a.primas)}
+                        data={[...filteredEnteChartData].sort((a, b) => b.primas - a.primas)}
                         dataKey="primas"
                         nameKey="ente"
                         label={interactiveAsesor ? `Entes vinculados a: ${interactiveAsesor}` : "Top Entes por Producción"}
