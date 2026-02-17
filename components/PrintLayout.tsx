@@ -39,13 +39,13 @@ export default function PrintLayout() {
                     }
                     /* Main Content Scaling */
                     main {
-                        margin-top: 110px; 
-                        margin-bottom: 60px;
-                        margin-left: 20px;
-                        margin-right: 20px;
+                        margin-top: 160px !important; 
+                        margin-bottom: 60px !important;
+                        margin-left: 20px !important;
+                        margin-right: 20px !important;
                         transform: scale(0.85); /* Scale down to fit wide tables */
-                        transform-origin: top center;
-                        width: 115%; /* Compensate for scale down */
+                        transform-origin: top left; /* Changed from top center to be predictable */
+                        width: 115% !important; /* Compensate for scale down */
                     }
                     
                     /* Hide scrollbars in print */
