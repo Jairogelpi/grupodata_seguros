@@ -73,6 +73,7 @@ export async function GET(request: Request) {
             entesSet: Set<string>;
             anuladas: number;
             enVigor: number;
+            suspension: number;
             anulacionesTempranas: number;
         }
 
@@ -95,7 +96,7 @@ export async function GET(request: Request) {
             const producto = String(p['Producto'] || 'Sin Producto');
 
             if (!monthlyStats.has(key)) {
-                monthlyStats.set(key, { anio, mes, primas: 0, polizas: 0, entesSet: new Set(), anuladas: 0, enVigor: 0, anulacionesTempranas: 0 });
+                monthlyStats.set(key, { anio, mes, primas: 0, polizas: 0, entesSet: new Set(), anuladas: 0, enVigor: 0, suspension: 0, anulacionesTempranas: 0 });
             }
             const stats = monthlyStats.get(key)!;
             stats.primas += primas;
@@ -110,6 +111,8 @@ export async function GET(request: Request) {
                 }
             } else if (estado.includes('VIGOR')) {
                 stats.enVigor += 1;
+            } else if (estado.includes('SUSPENSIÓN') || estado.includes('SUSPENSION')) {
+                stats.suspension += 1;
             }
 
             // Product mix
@@ -131,6 +134,7 @@ export async function GET(request: Request) {
             entes: s.entesSet.size,
             anuladas: s.anuladas,
             enVigor: s.enVigor,
+            suspension: s.suspension,
             anulacionesTempranas: s.anulacionesTempranas,
             ratioRetencion: s.polizas > 0 ? Math.round((s.polizas - s.anuladas) / s.polizas * 100) : 100
         })).sort((a, b) => {

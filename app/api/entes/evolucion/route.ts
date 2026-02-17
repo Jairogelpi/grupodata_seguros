@@ -65,6 +65,7 @@ export async function GET(request: Request) {
             polizas: number;
             anuladas: number;
             enVigor: number;
+            suspension: number;
             anulacionesTempranas: number; // < 180 days
         }
 
@@ -87,7 +88,7 @@ export async function GET(request: Request) {
 
             // Monthly aggregation
             if (!monthlyStats.has(key)) {
-                monthlyStats.set(key, { anio, mes, primas: 0, polizas: 0, anuladas: 0, enVigor: 0, anulacionesTempranas: 0 });
+                monthlyStats.set(key, { anio, mes, primas: 0, polizas: 0, anuladas: 0, enVigor: 0, suspension: 0, anulacionesTempranas: 0 });
             }
             const stats = monthlyStats.get(key)!;
             stats.primas += primas;
@@ -101,6 +102,8 @@ export async function GET(request: Request) {
                 }
             } else if (estado.includes('VIGOR')) {
                 stats.enVigor += 1;
+            } else if (estado.includes('SUSPENSIÓN') || estado.includes('SUSPENSION')) {
+                stats.suspension += 1;
             }
 
             // Product mix aggregation

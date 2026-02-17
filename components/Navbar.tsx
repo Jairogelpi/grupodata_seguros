@@ -25,7 +25,7 @@ export default function Navbar() {
     return (
         <nav className="sticky top-0 z-50 w-full border-b border-gray-200 bg-white/80 backdrop-blur-md">
             <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-                <div className="flex items-center gap-3 shrink-0">
+                <div className="hidden sm:flex items-center gap-3 shrink-0">
                     <img src="/logo.png" alt="Grupo Data Logo" className="h-8 w-auto" />
                     <span className="hidden lg:block text-lg font-bold tracking-tight text-slate-900 leading-none">
                         Grupo <span className="text-primary">Data Seguros</span>

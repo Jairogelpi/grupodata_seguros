@@ -51,6 +51,7 @@ interface EvolutionData {
     polizas: number;
     anuladas: number;
     enVigor: number;
+    suspension: number;
     anulacionesTempranas: number;
     ratioRetencion: number;
 }
@@ -139,23 +140,6 @@ function EvolutionContent() {
             return currentVal >= startVal && currentVal <= endVal;
         });
     }, [data, startPeriod, endPeriod]);
-
-    // === FEATURE 2: YoY Data ===
-    const yoyData = useMemo(() => {
-        // Find the max year in filtered data
-        if (filteredData.length === 0) return null;
-        const maxYear = Math.max(...filteredData.map(d => d.anio));
-        const prevYear = maxYear - 1;
-        const currentYearData = filteredData.filter(d => d.anio === maxYear);
-        const prevYearData = data.filter(d => d.anio === prevYear);
-        if (prevYearData.length === 0) return null;
-
-        // Map prev year data by month
-        const prevMap = new Map<number, EvolutionData>();
-        prevYearData.forEach(d => prevMap.set(d.mes, d));
-
-        return { currentYearData, prevYearData, prevMap, maxYear, prevYear };
-    }, [filteredData, data]);
 
     // === MoM % Change ===
     const momChanges = useMemo(() => {
@@ -254,30 +238,33 @@ function EvolutionContent() {
                 tension: 0.3,
                 borderDash: [3, 3],
                 pointStyle: 'triangle',
+            },
+            {
+                label: 'Cartera Activa',
+                data: filteredData.map(d => d.enVigor),
+                borderColor: '#10b981',
+                backgroundColor: 'rgba(16, 185, 129, 0.4)',
+                fill: false, yAxisID: 'y1', tension: 0.1,
+                borderDash: [5, 5],
+            },
+            {
+                label: 'Anuladas',
+                data: filteredData.map(d => d.anuladas),
+                borderColor: '#ef4444',
+                backgroundColor: 'rgba(239, 68, 68, 0.8)',
+                fill: false, yAxisID: 'y1', tension: 0.1,
+            },
+            {
+                label: 'En Suspensión',
+                data: filteredData.map(d => d.suspension),
+                borderColor: '#f59e0b',
+                backgroundColor: 'rgba(245, 158, 11, 0.8)',
+                fill: false, yAxisID: 'y1', tension: 0.1,
             }
         ];
 
-        // Feature 2: YoY overlay
-        if (yoyData) {
-            const prevPrimasForCurrentMonths = filteredData.map(d => {
-                const prev = yoyData.prevMap.get(d.mes);
-                return prev ? prev.primas : null;
-            });
-            datasets.push({
-                label: `Primas ${yoyData.prevYear} (YoY)`,
-                data: prevPrimasForCurrentMonths,
-                borderColor: 'rgba(79, 70, 229, 0.3)',
-                backgroundColor: 'transparent',
-                fill: false,
-                yAxisID: 'y',
-                tension: 0.1,
-                borderDash: [8, 4],
-                pointRadius: 3,
-            });
-        }
-
         return { labels, datasets };
-    }, [filteredData, yoyData]);
+    }, [filteredData]);
 
     const chartOptions = {
         responsive: true,
@@ -380,11 +367,11 @@ function EvolutionContent() {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 no-print">
                 <button onClick={() => router.back()} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors">
                     <ArrowLeft className="w-5 h-5" /> Volver
                 </button>
-                <div className="flex gap-2 no-print">
+                <div className="flex gap-2">
                     <button onClick={handleExportExcel} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all shadow-sm text-sm font-medium">
                         <FileDown className="w-4 h-4 text-green-600" /> Excel
                     </button>
@@ -484,7 +471,7 @@ function EvolutionContent() {
                             <button onClick={() => setChartType('bar')} className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${chartType === 'bar' ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Barras</button>
                         </div>
                     </div>
-                    <div className="h-[400px] w-full">
+                    <div className="h-[400px] w-full print:h-[500px] print:w-[95%]">
                         {loading ? (
                             <div className="h-full w-full bg-slate-50 animate-pulse rounded-2xl flex items-center justify-center text-slate-400 font-medium">Cargando histórico...</div>
                         ) : filteredData.length > 0 ? (
@@ -493,9 +480,6 @@ function EvolutionContent() {
                             <div className="h-full w-full bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400">No hay datos para el periodo seleccionado</div>
                         )}
                     </div>
-                    {yoyData && (
-                        <p className="text-xs text-slate-400 mt-2 text-center italic">La línea discontinua muestra las primas de {yoyData.prevYear} para comparación interanual.</p>
-                    )}
                 </div>
             </div>
 

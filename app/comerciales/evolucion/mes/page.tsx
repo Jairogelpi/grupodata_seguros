@@ -131,7 +131,7 @@ function MonthlyDetailsContent() {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 no-print">
                 <button
                     onClick={() => router.back()}
                     className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-medium group"
@@ -139,7 +139,7 @@ function MonthlyDetailsContent() {
                     <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
                     Volver a Evolución
                 </button>
-                <div className="flex gap-2 no-print">
+                <div className="flex gap-2">
                     <button onClick={handleExportExcel} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all shadow-sm text-sm font-bold">
                         <FileDown className="w-4 h-4 text-green-600" /> Excel
                     </button>
