@@ -52,6 +52,12 @@ interface EvolutionData {
     ratioRetencion: number;
 }
 
+interface GlobalStats {
+    active: number;
+    suspension: number;
+    totalAnuladas: number;
+}
+
 interface ProductMixItem {
     producto: string;
     primas: number;
@@ -85,6 +91,7 @@ function EvolutionContent() {
     const ente = searchParams.get('ente');
 
     const [data, setData] = useState<EvolutionData[]>([]);
+    const [globalStats, setGlobalStats] = useState<GlobalStats>({ active: 0, suspension: 0, totalAnuladas: 0 });
     const [productMix, setProductMix] = useState<ProductMixItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [chartType, setChartType] = useState<'line' | 'bar'>('line');
@@ -104,6 +111,7 @@ function EvolutionContent() {
             const json = await res.json();
             if (json.evolution) {
                 setData(json.evolution);
+                setGlobalStats(json.globalStats || { active: 0, suspension: 0, totalAnuladas: 0 });
                 setProductMix(json.productMix || []);
                 const years = Array.from(new Set(json.evolution.map((d: any) => d.anio))) as number[];
                 setAvailableYears(years.sort((a, b) => a - b));
@@ -152,6 +160,16 @@ function EvolutionContent() {
             const prev = filteredData[i - 1].primas;
             if (prev === 0) return d.primas > 0 ? 100 : 0;
             return Math.round(((d.primas - prev) / prev) * 100);
+        });
+    }, [filteredData]);
+
+    // === MoM % Change Polizas ===
+    const momChangesPolizas = useMemo(() => {
+        return filteredData.map((d, i) => {
+            if (i === 0) return null;
+            const prev = filteredData[i - 1].polizas;
+            if (prev === 0) return d.polizas > 0 ? 100 : 0;
+            return Math.round(((d.polizas - prev) / prev) * 100);
         });
     }, [filteredData]);
 
@@ -338,38 +356,42 @@ function EvolutionContent() {
                     </div>
                 </div>
 
-                {/* Feature 1: Retention KPI Cards */}
+                {/* Feature 1: Refined KPIs (Global Stock vs Period Flow) */}
                 {!loading && (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                        <KPITooltip text="Suma total de pólizas activas en el periodo seleccionado.">
-                            <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 h-full transition-colors hover:border-primary/20 cursor-help">
-                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Pólizas</p>
-                                <p className="text-2xl font-extrabold text-slate-800 mt-1">{numberFormatter.format(retentionKPIs.total)}</p>
-                            </div>
-                        </KPITooltip>
-
-                        <KPITooltip text="Porcentaje de pólizas que permanecen activas. Cálculo: (Total - Anuladas) / Total.">
-                            <div className={`rounded-xl p-4 border h-full transition-colors cursor-help ${retentionKPIs.ratio >= 70 ? 'bg-green-50 border-green-100 hover:border-green-300' : 'bg-red-50 border-red-100 hover:border-red-300'}`}>
-                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                                    <ShieldCheck className="w-3 h-3" /> Retención
+                        {/* 1. CARTERA ACTIVA (Global Stock) */}
+                        <KPITooltip text="Número total de pólizas actualmente EN VIGOR (Cartera Activa), independientemente de la fecha de producción.">
+                            <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100 h-full transition-colors hover:border-emerald-300 cursor-help">
+                                <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-1">
+                                    <ShieldCheck className="w-3 h-3" /> Cartera Activa
                                 </p>
-                                <p className={`text-2xl font-extrabold mt-1 ${retentionKPIs.ratio >= 70 ? 'text-green-700' : 'text-red-700'}`}>{retentionKPIs.ratio}%</p>
+                                <p className="text-2xl font-extrabold text-emerald-700 mt-1">{numberFormatter.format(globalStats.active)}</p>
                             </div>
                         </KPITooltip>
 
-                        <KPITooltip text="Número total de pólizas canceladas o dadas de baja durante el periodo seleccionado.">
-                            <div className="bg-orange-50 rounded-xl p-4 border border-orange-100 h-full transition-colors hover:border-orange-300 cursor-help">
-                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Anuladas</p>
-                                <p className="text-2xl font-extrabold text-orange-700 mt-1">{numberFormatter.format(retentionKPIs.anuladas)}</p>
-                            </div>
-                        </KPITooltip>
-
-                        <KPITooltip text="Pólizas canceladas dentro de los primeros 180 días de vigencia (Fuga temprana).">
-                            <div className={`rounded-xl p-4 border h-full transition-colors cursor-help ${retentionKPIs.tempranas > 0 ? 'bg-red-50 border-red-200 hover:border-red-400' : 'bg-slate-50 border-slate-100 hover:border-primary/20'}`}>
-                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                                    <AlertTriangle className="w-3 h-3" /> Tempranas (&lt;180d)
+                        {/* 2. EN SUSPENSIÓN (Global Stock) */}
+                        <KPITooltip text="Número total de pólizas actualmente en estado de SUSPENSIÓN.">
+                            <div className="bg-amber-50 rounded-xl p-4 border border-amber-100 h-full transition-colors hover:border-amber-300 cursor-help">
+                                <p className="text-xs font-bold text-amber-600 uppercase tracking-wider flex items-center gap-1">
+                                    <AlertTriangle className="w-3 h-3" /> En Suspensión
                                 </p>
-                                <p className={`text-2xl font-extrabold mt-1 ${retentionKPIs.tempranas > 0 ? 'text-red-700' : 'text-slate-400'}`}>{numberFormatter.format(retentionKPIs.tempranas)}</p>
+                                <p className="text-2xl font-extrabold text-amber-700 mt-1">{numberFormatter.format(globalStats.suspension)}</p>
+                            </div>
+                        </KPITooltip>
+
+                        {/* 3. RETENCIÓN DEL PERIODO (Flow) */}
+                        <KPITooltip text="Porcentaje de pólizas producidas en el periodo seleccionado que NO han sido anuladas.">
+                            <div className={`rounded-xl p-4 border h-full transition-colors cursor-help ${retentionKPIs.ratio >= 70 ? 'bg-white border-slate-200' : 'bg-red-50 border-red-100'}`}>
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Retención Periodo</p>
+                                <p className={`text-2xl font-extrabold mt-1 ${retentionKPIs.ratio >= 70 ? 'text-slate-700' : 'text-red-700'}`}>{retentionKPIs.ratio}%</p>
+                            </div>
+                        </KPITooltip>
+
+                        {/* 4. ANULADAS DEL PERIODO (Flow) */}
+                        <KPITooltip text="Pólizas producidas en el periodo seleccionado que han sido anuladas.">
+                            <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 h-full transition-colors hover:border-slate-300 cursor-help">
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Anuladas Periodo</p>
+                                <p className="text-2xl font-extrabold text-slate-700 mt-1">{numberFormatter.format(retentionKPIs.anuladas)}</p>
                             </div>
                         </KPITooltip>
                     </div>
@@ -484,8 +506,9 @@ function EvolutionContent() {
                             <tr className="bg-slate-50 border-b border-slate-100">
                                 <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs">Periodo</th>
                                 <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right">Primas (€)</th>
-                                <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right">Var. %</th>
+                                <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right">Var. Primas</th>
                                 <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right">Pólizas</th>
+                                <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right">Var. Pólizas</th>
                                 <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right">Ticket Medio</th>
                                 <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right">Retención</th>
                                 <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right">Anuladas</th>
@@ -511,6 +534,14 @@ function EvolutionContent() {
                                             {pct !== null ? `${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct)}%` : '—'}
                                         </td>
                                         <td className="p-4 text-right font-semibold text-slate-700">{numberFormatter.format(d.polizas)}</td>
+                                        {(() => {
+                                            const pctPol = momChangesPolizas[origIdx];
+                                            return (
+                                                <td className={`p-4 text-right font-bold text-xs ${pctPol === null ? 'text-slate-300' : pctPol >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                    {pctPol !== null ? `${pctPol >= 0 ? '▲' : '▼'} ${Math.abs(pctPol)}%` : '—'}
+                                                </td>
+                                            );
+                                        })()}
                                         <td className="p-4 text-right text-amber-600 font-bold">{currencyFormatter.format(d.polizas > 0 ? d.primas / d.polizas : 0)}</td>
                                         <td className={`p-4 text-right font-bold ${d.ratioRetencion >= 70 ? 'text-green-600' : 'text-red-600'}`}>{d.ratioRetencion}%</td>
                                         <td className="p-4 text-right text-orange-600 font-mono">{d.anuladas}</td>

@@ -138,6 +138,23 @@ export async function GET(request: Request) {
             return a.mes - b.mes;
         });
 
+        // 5. Global Stats (Stock)
+        const globalStats = {
+            active: 0,
+            suspension: 0,
+            totalAnuladas: 0
+        };
+
+        polizas.forEach(p => {
+            const asesor = getPolizaAsesor(p);
+            if (asesor !== asesorName) return;
+
+            const estado = String(p['Estado'] || '').toUpperCase();
+            if (estado.includes('VIGOR')) globalStats.active++;
+            else if (estado.includes('SUSPENSIÓN') || estado.includes('SUSPENSION')) globalStats.suspension++;
+            else if (estado.includes('ANULADA')) globalStats.totalAnuladas++;
+        });
+
         const productMixArray = Array.from(productMix.entries())
             .map(([producto, data]) => ({ producto, ...data }))
             .sort((a, b) => b.primas - a.primas);
@@ -145,6 +162,7 @@ export async function GET(request: Request) {
         return NextResponse.json({
             asesor: asesorName,
             evolution,
+            globalStats,
             productMix: productMixArray
         });
 

@@ -130,9 +130,27 @@ export async function GET(request: Request) {
             .map(([producto, data]) => ({ producto, ...data }))
             .sort((a, b) => b.primas - a.primas);
 
+        // 5. Global Stats (Stock)
+        const globalStats = {
+            active: 0,
+            suspension: 0,
+            totalAnuladas: 0
+        };
+
+        polizas.forEach(p => {
+            const name = getPolizaEnteName(p);
+            if (name !== enteName) return;
+
+            const estado = String(p['Estado'] || '').toUpperCase();
+            if (estado.includes('VIGOR')) globalStats.active++;
+            else if (estado.includes('SUSPENSIÓN') || estado.includes('SUSPENSION')) globalStats.suspension++;
+            else if (estado.includes('ANULADA')) globalStats.totalAnuladas++;
+        });
+
         return NextResponse.json({
             ente: enteName,
             evolution,
+            globalStats,
             productMix: productMixArray
         });
 
