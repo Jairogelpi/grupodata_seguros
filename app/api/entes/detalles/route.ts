@@ -59,20 +59,50 @@ export async function GET(request: Request) {
         }).map(p => {
             const fEfectoStr = p['F.Efecto'] || '';
             const fAnulaStr = p['F.Anulación'] || '';
+            const estado = p['Estado'] || '';
 
             let diasHastaAnula = null;
-            if (fEfectoStr && fAnulaStr) {
+
+            if (fEfectoStr) {
                 try {
                     // Dates in Spanish format DD/MM/YYYY
                     const [dE, mE, yE] = fEfectoStr.split('/').map(Number);
-                    const [dA, mA, yA] = fAnulaStr.split('/').map(Number);
-
                     const dateE = new Date(yE, mE - 1, dE);
-                    const dateA = new Date(yA, mA - 1, dA);
 
-                    if (!isNaN(dateE.getTime()) && !isNaN(dateA.getTime())) {
-                        const diffTime = Math.abs(dateA.getTime() - dateE.getTime());
-                        diasHastaAnula = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    if (!isNaN(dateE.getTime())) {
+                        let targetDate: Date;
+
+                        if (fAnulaStr) {
+                            const [dA, mA, yA] = fAnulaStr.split('/').map(Number);
+                            targetDate = new Date(yA, mA - 1, dA);
+                        } else if (estado.toUpperCase().includes('VIGOR')) {
+                            // If still in vigor, use current date
+                            targetDate = new Date();
+                        } else {
+                            // Other states without cancellation date don't get a "days" calculation
+                            return {
+                                poliza: p['NºPóliza'] || p['Poliza'] || 'N/A',
+                                estado: p['Estado'] || 'N/A',
+                                tomador: p['Tomador'] || 'N/A',
+                                producto: p['Producto'] || 'N/A',
+                                fechaEfecto: fEfectoStr,
+                                fechaAnulacion: fAnulaStr,
+                                diasHastaAnula: null,
+                                dni: p['NIF/CIF Tomador'] || 'N/A',
+                                primas: parseFloat(String(p['P.Produccion'] || '0').replace(',', '.')) || 0,
+                                cartera: parseFloat(String(p['P.Cartera'] || '0').replace(',', '.')) || 0,
+                                motivoAnulacion: p['Mot.Anulación'] || '',
+                                compania: p['Abrev.Cía'] || 'N/A',
+                                duracion: p['Duración'] || '',
+                                formaPago: p['Forma Pago'] || '',
+                                fAlta: p['F. Alta'] || ''
+                            };
+                        }
+
+                        if (!isNaN(targetDate.getTime())) {
+                            const diffTime = Math.abs(targetDate.getTime() - dateE.getTime());
+                            diasHastaAnula = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        }
                     }
                 } catch (e) {
                     console.error('Error calculando dias de anulación', e);

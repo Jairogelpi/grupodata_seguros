@@ -52,11 +52,19 @@ h6 {
         }
 
         nav,
-        button,
         .no-print,
         #file-upload-section,
         .filters-container {
             display: none !important;
+        }
+
+        /* Ensure buttons that act as labels (like month links) are visible but not styled as action buttons */
+        button:not(.no-print) {
+            display: inline-block !important;
+            border: none !important;
+            background: transparent !important;
+            padding: 0 !important;
+            color: inherit !important;
         }
 
         body {

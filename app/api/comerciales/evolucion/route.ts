@@ -7,10 +7,10 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
-        const enteName = searchParams.get('ente');
+        const asesorName = searchParams.get('asesor');
 
-        if (!enteName) {
-            return NextResponse.json({ error: 'Falta el parámetro ente' }, { status: 400 });
+        if (!asesorName) {
+            return NextResponse.json({ error: 'Falta el parámetro asesor' }, { status: 400 });
         }
 
         // 1. Read Data
@@ -19,27 +19,34 @@ export async function GET(request: Request) {
             getLinks(),
         ]);
 
-        // 2. Index Ente Code
-        const validEnteNames = new Set<string>();
-        const codeToNameMap = new Map<string, string>();
+        // 2. Index Advisor mapping via Ente Code
+        const codeToAsesorMap = new Map<string, string>();
+        const validEnteCodes = new Set<string>();
 
         links.forEach(l => {
             const val = String(l['ENTE']);
-            validEnteNames.add(val);
             const parts = val.split(' - ');
             const code = parts.length > 1 ? parts[parts.length - 1].trim() : val.trim();
-            codeToNameMap.set(code, val);
+            const asesor = String(l['ASESOR'] || '').trim();
+            codeToAsesorMap.set(code, asesor);
+            validEnteCodes.add(code);
         });
 
-        const getPolizaEnteName = (p: any) => {
+        const getPolizaAsesor = (p: any) => {
             const enteComercial = String(p['Ente Comercial'] || '');
-            if (validEnteNames.has(enteComercial)) return enteComercial;
-
             const parts = enteComercial.split(' - ');
             const codeFromEnte = parts.length > 1 ? parts[parts.length - 1].trim() : enteComercial.trim();
             const codeDirect = String(p['Código'] || '');
+            const code = validEnteCodes.has(codeFromEnte) ? codeFromEnte : (validEnteCodes.has(codeDirect) ? codeDirect : null);
+            return code ? codeToAsesorMap.get(code) : null;
+        };
 
-            return codeToNameMap.get(codeFromEnte) || codeToNameMap.get(codeDirect) || null;
+        const getPolizaEnteCode = (p: any) => {
+            const enteComercial = String(p['Ente Comercial'] || '');
+            const parts = enteComercial.split(' - ');
+            const codeFromEnte = parts.length > 1 ? parts[parts.length - 1].trim() : enteComercial.trim();
+            const codeDirect = String(p['Código'] || '');
+            return validEnteCodes.has(codeFromEnte) ? codeFromEnte : (validEnteCodes.has(codeDirect) ? codeDirect : null);
         };
 
         // Helper: calculate days between two Spanish-format dates
@@ -57,23 +64,24 @@ export async function GET(request: Request) {
             return null;
         };
 
-        // 3. Aggregate Monthly Data with retention + product mix
+        // 3. Aggregate Monthly Data
         interface MonthlyBucket {
             anio: number;
             mes: number;
             primas: number;
             polizas: number;
+            entesSet: Set<string>;
             anuladas: number;
             enVigor: number;
-            anulacionesTempranas: number; // < 180 days
+            anulacionesTempranas: number;
         }
 
         const monthlyStats = new Map<string, MonthlyBucket>();
         const productMix = new Map<string, { primas: number; polizas: number }>();
 
         polizas.forEach(p => {
-            const name = getPolizaEnteName(p);
-            if (name !== enteName) return;
+            const asesor = getPolizaAsesor(p);
+            if (asesor !== asesorName) return;
 
             const anio = parseInt(p['AÑO_PROD']);
             const mes = parseInt(p['MES_Prod']);
@@ -82,16 +90,17 @@ export async function GET(request: Request) {
             const key = `${anio}-${String(mes).padStart(2, '0')}`;
             const pStr = String(p['P.Produccion'] || '0').replace(',', '.');
             const primas = parseFloat(pStr) || 0;
+            const enteCode = getPolizaEnteCode(p) || 'unknown';
             const estado = String(p['Estado'] || '').toUpperCase();
             const producto = String(p['Producto'] || 'Sin Producto');
 
-            // Monthly aggregation
             if (!monthlyStats.has(key)) {
-                monthlyStats.set(key, { anio, mes, primas: 0, polizas: 0, anuladas: 0, enVigor: 0, anulacionesTempranas: 0 });
+                monthlyStats.set(key, { anio, mes, primas: 0, polizas: 0, entesSet: new Set(), anuladas: 0, enVigor: 0, anulacionesTempranas: 0 });
             }
             const stats = monthlyStats.get(key)!;
             stats.primas += primas;
             stats.polizas += 1;
+            stats.entesSet.add(enteCode);
 
             if (estado.includes('ANULADA')) {
                 stats.anuladas += 1;
@@ -103,8 +112,7 @@ export async function GET(request: Request) {
                 stats.enVigor += 1;
             }
 
-            // Product mix aggregation
-            // Extract ramo prefix like "<A> AUTOS" -> just take the whole product name
+            // Product mix
             const ramo = producto.replace(/^<[A-Z]>\s*/, '').split('(')[0].trim() || producto;
             if (!productMix.has(ramo)) {
                 productMix.set(ramo, { primas: 0, polizas: 0 });
@@ -114,30 +122,34 @@ export async function GET(request: Request) {
             pm.polizas += 1;
         });
 
-        // 4. Sort and return
-        const evolution = Array.from(monthlyStats.values())
-            .map(s => ({
-                ...s,
-                ratioRetencion: s.polizas > 0 ? Math.round((s.polizas - s.anuladas) / s.polizas * 100) : 100
-            }))
-            .sort((a, b) => {
-                if (a.anio !== b.anio) return a.anio - b.anio;
-                return a.mes - b.mes;
-            });
+        // 4. Sort and return with numEntes + retention
+        const evolution = Array.from(monthlyStats.values()).map(s => ({
+            anio: s.anio,
+            mes: s.mes,
+            primas: s.primas,
+            polizas: s.polizas,
+            entes: s.entesSet.size,
+            anuladas: s.anuladas,
+            enVigor: s.enVigor,
+            anulacionesTempranas: s.anulacionesTempranas,
+            ratioRetencion: s.polizas > 0 ? Math.round((s.polizas - s.anuladas) / s.polizas * 100) : 100
+        })).sort((a, b) => {
+            if (a.anio !== b.anio) return a.anio - b.anio;
+            return a.mes - b.mes;
+        });
 
-        // Product mix sorted by primas desc
         const productMixArray = Array.from(productMix.entries())
             .map(([producto, data]) => ({ producto, ...data }))
             .sort((a, b) => b.primas - a.primas);
 
         return NextResponse.json({
-            ente: enteName,
+            asesor: asesorName,
             evolution,
             productMix: productMixArray
         });
 
     } catch (error) {
         console.error(error);
-        return NextResponse.json({ error: 'Failed to fetch evolution data' }, { status: 500 });
+        return NextResponse.json({ error: 'Failed to fetch advisor evolution data' }, { status: 500 });
     }
 }

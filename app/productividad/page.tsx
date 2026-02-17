@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { Users, FileText, LayoutList, ArrowUpDown, ArrowUp, ArrowDown, FileDown, Printer, BarChart2, TrendingUp, Info, MousePointer2, XCircle } from 'lucide-react';
 import MultiSelect from '@/components/MultiSelect';
 import PrintFilterSummary from '@/components/PrintFilterSummary';
@@ -41,6 +42,7 @@ interface FilterOptions {
 type SortKey = 'asesor' | 'numEntes' | 'totalPrimas' | 'avgPrimas' | 'ente' | 'primas' | 'polizas';
 
 export default function ProductividadPage() {
+    const router = useRouter();
     const [asesorBreakdown, setAsesorBreakdown] = useState<AsesorBreakdownItem[]>([]);
     const [enteBreakdown, setEnteBreakdown] = useState<EnteBreakdownItem[]>([]);
     const [loading, setLoading] = useState(true);
@@ -419,11 +421,14 @@ export default function ProductividadPage() {
                                     <th onClick={() => handleSort('avgPrimas')} className="px-6 py-3 text-right text-[10px] font-bold text-primary uppercase tracking-wider cursor-pointer">
                                         Media/Ente <SortIcon col="avgPrimas" />
                                     </th>
+                                    <th className="px-6 py-3 text-center text-[10px] font-bold text-slate-400 uppercase tracking-wider no-print">
+                                        Acción
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-slate-200">
                                 {loading ? (
-                                    <tr><td colSpan={4} className="px-6 py-4 text-center animate-pulse text-slate-400">Cargando datos...</td></tr>
+                                    <tr><td colSpan={5} className="px-6 py-4 text-center animate-pulse text-slate-400">Cargando datos...</td></tr>
                                 ) : sortedAsesorData.map((item, idx) => (
                                     <tr
                                         key={idx}
@@ -434,6 +439,18 @@ export default function ProductividadPage() {
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 text-right font-mono">{item.numEntes}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-primary text-right font-bold font-mono">{currencyFormatter.format(item.totalPrimas)}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-right font-mono">{currencyFormatter.format(item.avgPrimas)}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-center no-print">
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    router.push(`/comerciales/evolucion?asesor=${encodeURIComponent(item.asesor)}`);
+                                                }}
+                                                className="p-2 hover:bg-white rounded-lg text-primary transition-all hover:shadow-md border border-transparent hover:border-slate-100"
+                                                title="Ver Evolución Asesor"
+                                            >
+                                                <TrendingUp className="w-5 h-5" />
+                                            </button>
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -442,16 +459,16 @@ export default function ProductividadPage() {
                 </div>
 
                 {/* Ente Detail Side Table */}
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden print:overflow-visible">
                     <div className="px-4 py-4 border-b border-slate-200 bg-slate-50 text-slate-800">
                         <h3 className="text-sm font-bold flex items-center gap-2">
                             <Users className="w-4 h-4 text-primary" />
                             Productividad por Ente
                         </h3>
                     </div>
-                    <div className="h-[500px] overflow-y-auto custom-scrollbar">
+                    <div className="h-[500px] overflow-y-auto custom-scrollbar print:h-auto print:overflow-visible">
                         <table className="min-w-full divide-y divide-slate-200">
-                            <thead className="bg-slate-50 sticky top-0">
+                            <thead className="bg-slate-50 sticky top-0 print:static">
                                 <tr>
                                     <th className="px-4 py-2 text-left text-[10px] font-bold text-slate-500 uppercase">Ente</th>
                                     <th className="px-4 py-2 text-right text-[10px] font-bold text-primary uppercase">Ticket M.</th>
@@ -460,9 +477,15 @@ export default function ProductividadPage() {
                             </thead>
                             <tbody className="bg-white divide-y divide-slate-200">
                                 {sortedEnteData.map((item, idx) => (
-                                    <tr key={idx} className={`hover:bg-slate-50 ${interactiveEnte === item.ente ? 'bg-primary/5 font-bold' : ''}`}>
+                                    <tr
+                                        key={idx}
+                                        className={`hover:bg-slate-50 cursor-pointer ${interactiveEnte === item.ente ? 'bg-primary/5 font-bold' : ''}`}
+                                        onClick={() => router.push(`/entes/evolucion?ente=${encodeURIComponent(item.ente)}`)}
+                                    >
                                         <td className="px-4 py-3 text-[11px] text-slate-700 leading-tight">
-                                            {item.ente}
+                                            <div className="hover:text-primary transition-colors hover:underline">
+                                                {item.ente}
+                                            </div>
                                             <div className="text-[9px] text-slate-400 font-normal uppercase">{item.asesor}</div>
                                         </td>
                                         <td className="px-4 py-3 text-[11px] text-primary text-right font-bold font-mono">
