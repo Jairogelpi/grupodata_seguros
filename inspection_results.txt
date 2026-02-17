@@ -1,0 +1,73 @@
+Inspecting file: C:\Users\jairo.gelpi\Desktop\metricas_carlos\data\listado_polizas.xlsx
+Sheet Names: ["Hoja1"]
+Total rows in 'Hoja1': 10197
+Headers: ["Código","NºPóliza","Abrev.Cía","Duración","Forma Pago","Estado","Tomador","Producto","F.Efecto","F.Anulación","NIF/CIF Tomador","Ente Comercial","P.Produccion","P.Cartera","Mot.Anulación","F. Alta","ENTE COMERCIAL2","AÑO_PROD","MES_Prod","Código3"]
+Unique values in 'Abrev.Cía': ["ALLIANZ"]
+First 3 rows sample: [
+  {
+    "Código": "1",
+    "NºPóliza": "49034369",
+    "Abrev.Cía": "ALLIANZ",
+    "Duración": "A.P.",
+    "Forma Pago": "ANUAL",
+    "Estado": "EN VIGOR",
+    "Tomador": "PALOMINO SOLANO, JUAN JESUS",
+    "Producto": "<A> AUTOS CAT.1 (TURISMOS/FURGO.)",
+    "F.Efecto": "04/07/2021",
+    "F.Anulación": "",
+    "NIF/CIF Tomador": "76019787A",
+    "Ente Comercial": "BESSIE PARRA GARCIA - 55",
+    "P.Produccion": 158.32,
+    "P.Cartera": 205.47,
+    "Mot.Anulación": "",
+    "F. Alta": "27/07/2021",
+    "ENTE COMERCIAL2": "BESSIE PARRA GARCIA",
+    "AÑO_PROD": 2021,
+    "MES_Prod": 7,
+    "Código3": "55"
+  },
+  {
+    "Código": "1",
+    "NºPóliza": "49034369",
+    "Abrev.Cía": "ALLIANZ",
+    "Duración": "TEMPORAL",
+    "Forma Pago": "UNICA",
+    "Estado": "ANULADA",
+    "Tomador": "EX5 FACTORY BASKET",
+    "Producto": "<D> ACCIDENTES (ACC.INDIVIDUAL)",
+    "F.Efecto": "04/07/2021",
+    "F.Anulación": "10/07/2021",
+    "NIF/CIF Tomador": "G10503449",
+    "Ente Comercial": "SORAYA GUARDADO JORGE - 4",
+    "P.Produccion": 357.38,
+    "P.Cartera": 357.38,
+    "Mot.Anulación": "FIN DEL RIESGO",
+    "F. Alta": "29/07/2021",
+    "ENTE COMERCIAL2": "SORAYA GUARDADO JORGE",
+    "AÑO_PROD": 2021,
+    "MES_Prod": 7,
+    "Código3": "4"
+  },
+  {
+    "Código": "1",
+    "NºPóliza": "49034369",
+    "Abrev.Cía": "ALLIANZ",
+    "Duración": "TEMPORAL",
+    "Forma Pago": "UNICA",
+    "Estado": "ANULADA",
+    "Tomador": "MARBELLA FUTBOL CENTRO DEPORTI",
+    "Producto": "<D> ACCIDENTES (ACC.INDIVIDUAL)",
+    "F.Efecto": "05/07/2021",
+    "F.Anulación": "20/08/2021",
+    "NIF/CIF Tomador": "G93487817",
+    "Ente Comercial": "JOSE MARIA CERCOS BLAZQUEZ - 5",
+    "P.Produccion": 139.75,
+    "P.Cartera": 139.75,
+    "Mot.Anulación": "FIN DEL RIESGO",
+    "F. Alta": "29/07/2021",
+    "ENTE COMERCIAL2": "JOSE MARIA CERCOS BLAZQUEZ",
+    "AÑO_PROD": 2021,
+    "MES_Prod": 7,
+    "Código3": "5"
+  }
+]

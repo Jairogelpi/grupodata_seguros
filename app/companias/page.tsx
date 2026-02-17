@@ -384,37 +384,70 @@ export default function CompaniasPage() {
                                     </td>
                                 </tr>
                             ) : (
-                                sortedData.map((d, i) => (
-                                    <tr key={i} className="hover:bg-slate-50/80 transition-colors group">
-                                        <td className="p-4 font-medium text-slate-900">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold text-xs">
-                                                    {d.company.substring(0, 2).toUpperCase()}
+                                sortedData.map((d, i) => {
+                                    const totalPrimas = metrics.primasNP || 1;
+                                    const totalPolizas = metrics.numPolizas || 1;
+                                    const percentPrimas = (d.primas / totalPrimas) * 100;
+                                    const percentPolizas = (d.polizas / totalPolizas) * 100;
+
+                                    return (
+                                        <tr key={i} className="hover:bg-slate-50/80 transition-colors group">
+                                            <td className="p-4 font-medium text-slate-900">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold text-xs">
+                                                        {d.company.substring(0, 2).toUpperCase()}
+                                                    </div>
+                                                    {d.company}
                                                 </div>
-                                                {d.company}
-                                            </div>
-                                        </td>
-                                        <td className="p-4 text-right font-bold text-indigo-600 bg-indigo-50/10">
-                                            {currencyFormatter.format(d.primas)}
-                                        </td>
-                                        <td className="p-4 text-right font-semibold text-slate-700">
-                                            {numberFormatter.format(d.polizas)}
-                                        </td>
-                                        <td className="p-4 text-right text-slate-600">
-                                            {currencyFormatter.format(d.ticketMedio)}
-                                        </td>
-                                        <td className="p-4 text-center">
-                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                                {d.numAsesores}
-                                            </span>
-                                        </td>
-                                        <td className="p-4 text-center">
-                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
-                                                {d.numEntes}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                ))
+                                            </td>
+                                            <td className="p-4 text-right">
+                                                <div className="font-bold text-indigo-600">
+                                                    {currencyFormatter.format(d.primas)}
+                                                </div>
+                                                <div className="flex items-center justify-end gap-2 mt-1">
+                                                    <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                        <div
+                                                            className="h-full bg-indigo-500 rounded-full"
+                                                            style={{ width: `${Math.min(percentPrimas, 100)}%` }}
+                                                        />
+                                                    </div>
+                                                    <span className="text-xs text-slate-500 font-medium w-8 text-right">
+                                                        {percentPrimas.toFixed(1)}%
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td className="p-4 text-right">
+                                                <div className="font-semibold text-slate-700">
+                                                    {numberFormatter.format(d.polizas)}
+                                                </div>
+                                                <div className="flex items-center justify-end gap-2 mt-1">
+                                                    <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                        <div
+                                                            className="h-full bg-emerald-500 rounded-full"
+                                                            style={{ width: `${Math.min(percentPolizas, 100)}%` }}
+                                                        />
+                                                    </div>
+                                                    <span className="text-xs text-slate-500 font-medium w-8 text-right">
+                                                        {percentPolizas.toFixed(1)}%
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td className="p-4 text-right text-slate-600">
+                                                {currencyFormatter.format(d.ticketMedio)}
+                                            </td>
+                                            <td className="p-4 text-center">
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                    {d.numAsesores}
+                                                </span>
+                                            </td>
+                                            <td className="p-4 text-center">
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                                                    {d.numEntes}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    );
+                                })
                             )}
                         </tbody>
                     </table>
