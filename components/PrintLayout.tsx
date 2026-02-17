@@ -59,11 +59,12 @@ export default function PrintLayout() {
                         
                         margin-left: 0 !important;
                         margin-right: 0 !important;
-                        padding-left: 40px !important;
-                        padding-right: 40px !important;
+                        padding-left: 20px !important;
+                        padding-right: 20px !important;
                         
                         overflow: visible !important;
                         display: block !important;
+                        width: 133.3% !important;
                     }
                     
                     /* Table Condensation for Print */

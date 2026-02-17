@@ -270,7 +270,10 @@ function EvolutionContent() {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-            legend: { position: 'top' as const },
+            legend: {
+                position: 'bottom' as const,
+                labels: { boxWidth: 10, font: { size: 9 }, padding: 8 }
+            },
             tooltip: { mode: 'index' as const, intersect: false },
             datalabels: { display: false },
         },
@@ -282,8 +285,20 @@ function EvolutionContent() {
             }
         },
         scales: {
-            y: { type: 'linear' as const, display: true, position: 'left' as const, title: { display: true, text: 'Primas (€)' } },
-            y1: { type: 'linear' as const, display: true, position: 'right' as const, grid: { drawOnChartArea: false }, title: { display: true, text: 'Nº Pólizas' } }
+            y: {
+                type: 'linear' as const, display: true, position: 'left' as const,
+                title: { display: true, text: 'Primas (€)', font: { size: 9 } },
+                ticks: { font: { size: 8 } }
+            },
+            y1: {
+                type: 'linear' as const, display: true, position: 'right' as const,
+                grid: { drawOnChartArea: false },
+                title: { display: true, text: 'Nº Pólizas', font: { size: 9 } },
+                ticks: { font: { size: 8 } }
+            },
+            x: {
+                ticks: { font: { size: 8 }, maxRotation: 45, minRotation: 45 }
+            }
         }
     };
 
