@@ -148,7 +148,7 @@ export async function GET(request: Request) {
             const primas = parseFloat(pStr) || 0;
             const producto = String(p['Producto'] || 'Otros');
             const estado = String(p['Estado'] || 'Otros');
-            const company = String(p['Abrev.Cia'] || 'Desconocida').trim();
+            const company = String(p['Abrev.Cía'] || 'Desconocida').trim();
             const asesor = codeToAsesorMap.get(code) || 'Sin Asesor';
             const fAnulacion = p['F.Anulación'];
             const motAnulacion = String(p['Mot.Anulación'] || '').trim();
