@@ -140,7 +140,7 @@ function AdvisorEvolutionContent() {
         });
     }, [filteredData]);
 
-    // === CHART DATA with Ticket Medio + YoY + MoM ===
+    // === CHART DATA with Ticket Medio + YoY ===
     const chartData = useMemo(() => {
         const labels = filteredData.map(d => `${MONTHS[d.mes - 1]} ${d.anio}`);
         const datasets: any[] = [
@@ -150,22 +150,6 @@ function AdvisorEvolutionContent() {
                 borderColor: '#4f46e5',
                 backgroundColor: 'rgba(79, 70, 229, 0.8)',
                 fill: false, yAxisID: 'y', tension: 0.1,
-                datalabels: {
-                    align: 'end' as const, anchor: 'end' as const,
-                    formatter: (val: number, ctx: any) => {
-                        const idx = ctx.dataIndex;
-                        const pct = momChanges[idx];
-                        const pctStr = pct !== null ? ` (${pct >= 0 ? '+' : ''}${pct}%)` : '';
-                        return currencyFormatter.format(val) + pctStr;
-                    },
-                    color: (ctx: any) => {
-                        const pct = momChanges[ctx.dataIndex];
-                        if (pct === null) return '#4f46e5';
-                        return pct >= 0 ? '#059669' : '#dc2626';
-                    },
-                    font: { weight: 'bold' as const, size: 8 },
-                    display: (ctx: any) => ctx.chart.width > 600
-                }
             },
             {
                 label: 'Nº Pólizas',
@@ -173,12 +157,6 @@ function AdvisorEvolutionContent() {
                 borderColor: '#10b981',
                 backgroundColor: 'rgba(16, 185, 129, 0.8)',
                 fill: false, yAxisID: 'y1', tension: 0.1,
-                datalabels: {
-                    align: 'start' as const, anchor: 'start' as const,
-                    formatter: (val: number) => numberFormatter.format(val),
-                    color: '#10b981', font: { weight: 'bold' as const, size: 8 },
-                    display: (ctx: any) => ctx.chart.width > 600
-                }
             },
             {
                 label: 'Nº Entes',
@@ -186,7 +164,6 @@ function AdvisorEvolutionContent() {
                 borderColor: '#f59e0b',
                 backgroundColor: 'rgba(245, 158, 11, 0.8)',
                 fill: false, yAxisID: 'y1', tension: 0.1,
-                datalabels: { display: false }
             },
             {
                 label: 'Ticket Medio (€)',
@@ -195,7 +172,6 @@ function AdvisorEvolutionContent() {
                 backgroundColor: 'transparent',
                 fill: false, yAxisID: 'y', tension: 0.3,
                 borderDash: [3, 3], pointStyle: 'triangle',
-                datalabels: { display: false }
             }
         ];
 
@@ -208,7 +184,6 @@ function AdvisorEvolutionContent() {
                 backgroundColor: 'transparent',
                 fill: false, yAxisID: 'y', tension: 0.1,
                 borderDash: [8, 4], pointRadius: 3,
-                datalabels: { display: false }
             });
         }
 
@@ -220,12 +195,7 @@ function AdvisorEvolutionContent() {
         plugins: {
             legend: { position: 'top' as const },
             tooltip: { mode: 'index' as const, intersect: false },
-            datalabels: {
-                backgroundColor: 'rgba(255, 255, 255, 0.7)',
-                borderRadius: 4, padding: 2,
-                font: { size: 9, weight: 'bold' as const },
-                display: (context: any) => context.dataset.data[context.dataIndex] > 0
-            }
+            datalabels: { display: false },
         },
         scales: {
             y: { type: 'linear' as const, display: true, position: 'left' as const, title: { display: true, text: 'Primas (€)' } },
