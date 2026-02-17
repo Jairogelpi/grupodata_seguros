@@ -28,50 +28,18 @@ export async function GET(request: Request) {
             getEntes(),
         ]);
 
-        // 2. Prepare Filter Options (Fast sets)
-        const uniqueAnios = Array.from(new Set(polizas.map(p => p['AÑO_PROD']))).filter(Boolean).sort();
-        const uniqueMeses = Array.from(new Set(polizas.map(p => p['MES_Prod']))).filter(Boolean).sort();
-        const uniqueEstados = Array.from(new Set(polizas.map(p => p['Estado']))).filter(Boolean).sort();
+        // 2. Collect Base Asesor List
         const asesoresOptions = asesoresList.map(a => a['ASESOR']).filter(Boolean).sort();
-        const uniqueEntesOptions = Array.from(new Set(links.map(l => String(l['ENTE']).trim()))).filter(Boolean).sort();
 
         // 3. Performance Indexing
-        // Map: Ente Code -> Display Name
+        // Map: Ente Code -> Full Display Name (from registry)
         const codeToNameMap = new Map<string, string>();
         // Map: Ente Code -> Asesor Name
         const codeToAsesorMap = new Map<string, string>();
-        // Map: Ente Code -> First Policy Year (DYNAMIC SENIORITY)
-        const codeToFirstYearMap = new Map<string, number>();
-        // Set: Codes that are actually ENTES (not colaboradores)
-        const enteOnlyCodes = new Set<string>();
+        // Set of valid Ente codes present in our registry
+        const validEnteCodes = new Set<string>();
 
-        // Build Ente Type Index - Exclude Colaboradores to satisfy "Entes no Colaboradores"
-        entesData.forEach((e: any) => {
-            const code = String(e['Código'] || '').trim();
-            const tipo = String(e['Tipo'] || '').toUpperCase().trim();
-
-            // Inclusion logic: Not a collaborator, and not empty
-            if (code && !tipo.includes('COLABORADOR')) {
-                enteOnlyCodes.add(code);
-            }
-        });
-
-        // Build Index and Calculate Real Seniority (First Policy Year)
-        polizas.forEach((p: any) => {
-            const enteComercial = String(p['Ente Comercial'] || '');
-            const parts = enteComercial.split(' - ');
-            const codeFromEnte = parts.length > 1 ? parts[parts.length - 1].trim() : enteComercial.trim();
-            const year = parseInt(String(p['AÑO_PROD'] || '0'));
-
-            if (codeFromEnte && year > 1900) {
-                const currentMin = codeToFirstYearMap.get(codeFromEnte);
-                if (!currentMin || year < currentMin) {
-                    codeToFirstYearMap.set(codeFromEnte, year);
-                }
-            }
-        });
-
-        // Build Link Index
+        // Build Index from links
         links.forEach(l => {
             const val = String(l['ENTE']);
             const parts = val.split(' - ');
@@ -79,42 +47,21 @@ export async function GET(request: Request) {
             const asesor = String(l['ASESOR'] || 'Sin Asesor');
             codeToNameMap.set(code, val);
             codeToAsesorMap.set(code, asesor);
+            validEnteCodes.add(code);
         });
 
-        // Determine Allowed Codes based on Comercial/Ente filters
-        const targetEntesCodes = new Set<string>();
-        links.forEach(l => {
-            const asesor = String(l['ASESOR'] || 'Sin Asesor');
-            const enteVal = String(l['ENTE']).trim();
-            const parts = enteVal.split(' - ');
-            const code = parts.length > 1 ? parts[parts.length - 1].trim() : enteVal.trim();
-
-            const matchAsesor = comerciales.length === 0 || comerciales.includes(asesor);
-            const matchEnte = entesFilter.length === 0 || entesFilter.includes(enteVal);
-
-            if (matchAsesor && matchEnte) {
-                targetEntesCodes.add(code);
-            }
-        });
-
-        // 4. Optimized Logic: Single Pass
-        const currentYearValue = new Date().getFullYear();
-        const getTenureLabel = (tenure: number) => {
-            if (tenure <= 0) return "Año 0 (Nuevo)";
-            if (tenure === 1) return "Año 1";
-            if (tenure === 2) return "Año 2";
-            return "Año 3+ (Senior)";
-        };
-
+        // Helper to get Ente Code from policy (validating against registry)
         const getPolizaEnteCode = (p: any) => {
             const enteComercial = String(p['Ente Comercial'] || '');
             const parts = enteComercial.split(' - ');
             const codeFromEnte = parts.length > 1 ? parts[parts.length - 1].trim() : enteComercial.trim();
             const codeDirect = String(p['Código'] || '');
-            return targetEntesCodes.has(codeFromEnte) ? codeFromEnte : (targetEntesCodes.has(codeDirect) ? codeDirect : null);
+            if (validEnteCodes.has(codeFromEnte)) return codeFromEnte;
+            if (validEnteCodes.has(codeDirect)) return codeDirect;
+            return null;
         };
 
-        // Aggregators
+        // Aggregators for metrics
         let currentPrimas = 0;
         let currentCount = 0;
         const breakdownMap = new Map<string, { ente: string, primas: number, polizas: number, asesor: string, anulaciones: number }>();
@@ -122,81 +69,104 @@ export async function GET(request: Request) {
         const productStats = new Map<string, { producto: string, primas: number, polizas: number }>();
         const estadoStats = new Map<string, { estado: string, primas: number, polizas: number }>();
         const companyStats = new Map<string, { company: string, primas: number, polizas: number, entes: Set<string>, asesores: Set<string> }>();
-        const tenureStats = new Map<string, { label: string, primas: number, polizas: number, countEntes: Set<string> }>();
         const cancellationReasons = new Map<string, number>();
 
-        // Pre-fill asesores with entes count for productivity
+        // Pre-fill asesores from the registry to ensure they all appear in base lists if needed
         asesoresOptions.forEach(a => asesoresStats.set(a, { asesor: a, numEntes: 0, totalPrimas: 0, numPolizos: 0 }));
         links.forEach(l => {
             const asesor = String(l['ASESOR']);
             if (asesoresStats.has(asesor)) asesoresStats.get(asesor)!.numEntes += 1;
         });
 
-        // Main Loop
-        polizas.forEach(p => {
-            // Apply Date Filters First
-            if (anios.length > 0 && !anios.includes(String(p['AÑO_PROD']))) return;
-            if (meses.length > 0 && !meses.includes(String(p['MES_Prod']))) return;
-            if (estados.length > 0 && !estados.includes(String(p['Estado']))) return;
+        // Sets for Dynamic Filter Options (Cross-Filtering)
+        const dynAnios = new Set<string>();
+        const dynMeses = new Set<string>();
+        const dynEstados = new Set<string>();
+        const dynAsesores = new Set<string>();
+        const dynEntes = new Set<string>();
 
-            // Apply Ente/Asesor Filter
+        // Main Loop: Single pass for stats and cross-filtering options
+        polizas.forEach(p => {
+            const pAnio = String(p['AÑO_PROD'] || '');
+            const pMes = String(p['MES_Prod'] || '');
+            const pEstado = String(p['Estado'] || '');
             const code = getPolizaEnteCode(p);
+
             if (!code) return;
 
-            // Stats parsing
-            let pStr = String(p['P.Produccion'] || '0').replace(',', '.');
+            const pAsesor = codeToAsesorMap.get(code) || 'Sin Asesor';
+            const pEnteName = codeToNameMap.get(code) || code;
+
+            const matchAnio = anios.length === 0 || anios.includes(pAnio);
+            const matchMes = meses.length === 0 || meses.includes(pMes);
+            const matchEstado = estados.length === 0 || estados.includes(pEstado);
+            const matchAsesor = comerciales.length === 0 || comerciales.includes(pAsesor);
+            const matchEnte = entesFilter.length === 0 || entesFilter.includes(pEnteName);
+
+            // Cross-Filtering logic: Update options for each filter independently
+            if (matchMes && matchEstado && matchAsesor && matchEnte) {
+                if (pAnio) dynAnios.add(pAnio);
+            }
+            if (matchAnio && matchEstado && matchAsesor && matchEnte) {
+                if (pMes) dynMeses.add(pMes);
+            }
+            if (matchAnio && matchMes && matchAsesor && matchEnte) {
+                if (pEstado) dynEstados.add(pEstado);
+            }
+            if (matchAnio && matchMes && matchEstado && matchEnte) {
+                if (pAsesor) dynAsesores.add(pAsesor);
+            }
+            if (matchAnio && matchMes && matchEstado && matchAsesor) {
+                if (pEnteName) dynEntes.add(pEnteName);
+            }
+
+            // Metrics application: Must match ALL filters
+            if (!matchAnio || !matchMes || !matchEstado || !matchAsesor || !matchEnte) return;
+
+            const pStr = String(p['P.Produccion'] || '0').replace(',', '.');
             const primas = parseFloat(pStr) || 0;
             const producto = String(p['Producto'] || 'Otros');
-            const estado = String(p['Estado'] || 'Otros');
             const company = String(p['Abrev.Cía'] || 'Desconocida').trim();
-            const asesor = codeToAsesorMap.get(code) || 'Sin Asesor';
             const fAnulacion = p['F.Anulación'];
             const motAnulacion = String(p['Mot.Anulación'] || '').trim();
 
-            // Global Totals
             currentPrimas += primas;
             currentCount += 1;
 
-            // Breakdown (Ente)
             if (!breakdownMap.has(code)) {
-                breakdownMap.set(code, { ente: codeToNameMap.get(code) || code, primas: 0, polizas: 0, asesor, anulaciones: 0 });
+                breakdownMap.set(code, { ente: pEnteName, primas: 0, polizas: 0, asesor: pAsesor, anulaciones: 0 });
             }
             const b = breakdownMap.get(code)!;
             b.primas += primas;
             b.polizas += 1;
             if (fAnulacion) b.anulaciones += 1;
 
-            // Cancellation Reasons
             if (fAnulacion && motAnulacion) {
                 cancellationReasons.set(motAnulacion, (cancellationReasons.get(motAnulacion) || 0) + 1);
             }
 
-            // Asesores
-            const a = asesoresStats.get(asesor);
+            const a = asesoresStats.get(pAsesor);
             if (a) {
                 a.totalPrimas += primas;
                 a.numPolizos += 1;
             }
 
-            // Products
             if (!productStats.has(producto)) productStats.set(producto, { producto, primas: 0, polizas: 0 });
             const ps = productStats.get(producto)!;
             ps.primas += primas;
             ps.polizas += 1;
 
-            // States
-            if (!estadoStats.has(estado)) estadoStats.set(estado, { estado, primas: 0, polizas: 0 });
-            const es = estadoStats.get(estado)!;
+            if (!estadoStats.has(pEstado)) estadoStats.set(pEstado, { estado: pEstado, primas: 0, polizas: 0 });
+            const es = estadoStats.get(pEstado)!;
             es.primas += primas;
             es.polizas += 1;
 
-            // Companies
             if (!companyStats.has(company)) companyStats.set(company, { company, primas: 0, polizas: 0, entes: new Set(), asesores: new Set() });
             const cs = companyStats.get(company)!;
             cs.primas += primas;
             cs.polizas += 1;
             cs.entes.add(code);
-            if (asesor !== 'Sin Asesor') cs.asesores.add(asesor);
+            if (pAsesor !== 'Sin Asesor') cs.asesores.add(pAsesor);
         });
 
         // Trend calculation
@@ -212,13 +182,19 @@ export async function GET(request: Request) {
             if (prevM === 0) { prevM = 12; prevY -= 1; }
 
             polizas.forEach(p => {
-                if (String(p['AÑO_PROD']) !== String(prevY)) return;
-                if (String(p['MES_Prod']) !== String(prevM)) return;
-                if (estados.length > 0 && !estados.includes(String(p['Estado']))) return;
                 const code = getPolizaEnteCode(p);
                 if (!code) return;
 
-                let pStr = String(p['P.Produccion'] || '0').replace(',', '.');
+                const pAsesor = codeToAsesorMap.get(code) || 'Sin Asesor';
+                const pEnteName = codeToNameMap.get(code) || code;
+
+                if (String(p['AÑO_PROD']) !== String(prevY)) return;
+                if (String(p['MES_Prod']) !== String(prevM)) return;
+                if (estados.length > 0 && !estados.includes(String(p['Estado']))) return;
+                if (comerciales.length > 0 && !comerciales.includes(pAsesor)) return;
+                if (entesFilter.length > 0 && !entesFilter.includes(pEnteName)) return;
+
+                const pStr = String(p['P.Produccion'] || '0').replace(',', '.');
                 prevPrimas += (parseFloat(pStr) || 0);
                 prevCount += 1;
             });
@@ -237,7 +213,13 @@ export async function GET(request: Request) {
                 primasTrend: calculateTrend ? calculatePercentage(currentPrimas, prevPrimas) : 0,
                 polizasTrend: calculateTrend ? calculatePercentage(currentCount, prevCount) : 0
             },
-            filters: { anios: uniqueAnios, meses: uniqueMeses, estados: uniqueEstados, asesores: asesoresOptions, entes: uniqueEntesOptions },
+            filters: {
+                anios: Array.from(dynAnios).sort(),
+                meses: Array.from(dynMeses).sort((a, b) => parseInt(a) - parseInt(b)),
+                estados: Array.from(dynEstados).sort(),
+                asesores: Array.from(dynAsesores).sort(),
+                entes: Array.from(dynEntes).sort()
+            },
             breakdown: Array.from(breakdownMap.values()).map(b => ({
                 ...b,
                 ticketMedio: b.polizas > 0 ? b.primas / b.polizas : 0
