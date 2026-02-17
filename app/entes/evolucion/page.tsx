@@ -231,8 +231,8 @@ function EvolutionContent() {
             {
                 label: 'Ticket Medio (€)',
                 data: filteredData.map(d => d.polizas > 0 ? d.primas / d.polizas : 0),
-                borderColor: '#f59e0b',
-                backgroundColor: 'rgba(245, 158, 11, 0.4)',
+                borderColor: '#ec4899',
+                backgroundColor: 'transparent',
                 fill: false,
                 yAxisID: 'y',
                 tension: 0.3,
@@ -381,7 +381,7 @@ function EvolutionContent() {
                 </div>
             </div>
 
-            <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 break-inside-avoid">
+            <div className="bg-white p-8 print:p-4 rounded-2xl shadow-sm border border-slate-200 break-inside-avoid">
                 <div className="flex items-center gap-4 mb-6">
                     <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
                         <TrendingUp className="w-6 h-6" />
@@ -471,7 +471,7 @@ function EvolutionContent() {
                             <button onClick={() => setChartType('bar')} className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${chartType === 'bar' ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Barras</button>
                         </div>
                     </div>
-                    <div className="h-[400px] w-full print:h-[500px] print:w-[95%]">
+                    <div className="h-[400px] w-full print:h-[500px] print:w-[75%] mx-auto">
                         {loading ? (
                             <div className="h-full w-full bg-slate-50 animate-pulse rounded-2xl flex items-center justify-center text-slate-400 font-medium">Cargando histórico...</div>
                         ) : filteredData.length > 0 ? (

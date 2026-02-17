@@ -50,8 +50,8 @@ export default function PrintLayout() {
                     main {
                         margin-top: 20px !important; /* Small margin relative to spacer */
                         margin-bottom: 80px !important;
-                        margin-left: 10px !important;
-                        margin-right: 10px !important;
+                        margin-left: 0 !important;
+                        margin-right: 0 !important;
                         
                         transform: scale(0.80); /* Smaller scale to fit more columns */
                         transform-origin: top center; /* Center it */
