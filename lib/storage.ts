@@ -99,7 +99,7 @@ function readFromDisk(filename: string): any[] {
 // ============================================================
 // VERCEL BLOB IMPLEMENTATION
 // ============================================================
-const BLOB_PREFIX = 'data/'; // All files stored under data/ prefix
+const BLOB_PREFIX = ''; // Files are at root of Blob store
 
 async function readFromBlob(filename: string): Promise<any[]> {
     const blobPath = BLOB_PREFIX + filename;
