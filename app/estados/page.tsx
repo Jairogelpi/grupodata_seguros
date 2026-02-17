@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from 'react';
-import { Activity, FileText, LayoutList, ArrowUpDown, ArrowUp, ArrowDown, FileDown, Printer, BarChart2, TrendingUp, Info, ShieldCheck, ShieldAlert, Target } from 'lucide-react';
+import { Activity, FileText, LayoutList, ArrowUpDown, ArrowUp, ArrowDown, FileDown, Printer, BarChart2, TrendingUp, Info, ShieldCheck, ShieldAlert, AlertTriangle } from 'lucide-react';
 import MultiSelect from '@/components/MultiSelect';
 import * as XLSX from 'xlsx';
 
@@ -113,20 +113,19 @@ export default function EstadosPage() {
     // KPI Calculations
     const kpis = useMemo(() => {
         const totalPolizas = breakdown.reduce((sum, d) => sum + d.polizas, 0);
-        const totalPrimas = breakdown.reduce((sum, d) => sum + d.primas, 0);
 
-        const vigor = breakdown.find(d => d.estado.toLowerCase().includes('vigor'))?.polizas || 0;
-        const anuladas = breakdown.find(d => d.estado.toLowerCase().includes('anulada'))?.polizas || 0;
-        const pendientes = breakdown.find(d => d.estado.toLowerCase().includes('pendiente'))?.polizas || 0;
+        const vigor = breakdown.find(d => d.estado.toUpperCase().includes('VIGOR'))?.polizas || 0;
+        const anuladas = breakdown.find(d => d.estado.toUpperCase().includes('ANULADA'))?.polizas || 0;
+        const suspension = breakdown.find(d => d.estado.toUpperCase().includes('SUSPENS'))?.polizas || 0;
 
         return {
             totalPolizas,
-            totalPrimas,
             vigor,
             anuladas,
-            pendientes,
-            retentionRate: totalPolizas > 0 ? (vigor / totalPolizas) * 100 : 0,
-            cancellationRate: totalPolizas > 0 ? (anuladas / totalPolizas) * 100 : 0
+            suspension,
+            vigorRate: totalPolizas > 0 ? (vigor / totalPolizas) * 100 : 0,
+            cancellationRate: totalPolizas > 0 ? (anuladas / totalPolizas) * 100 : 0,
+            suspensionRate: totalPolizas > 0 ? (suspension / totalPolizas) * 100 : 0,
         };
     }, [breakdown]);
 
@@ -222,33 +221,36 @@ export default function EstadosPage() {
                 </div>
             </div>
 
-            {/* Main KPIs */}
+            {/* Main KPIs: En Vigor, Anulada, Suspensión de Garantías */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col items-center justify-center text-center">
                     <div className="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center mb-3">
                         <ShieldCheck className="w-6 h-6 text-green-600" />
                     </div>
-                    <div className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-1">Tasa de Retención</div>
-                    <div className="text-4xl font-extrabold text-slate-900">{kpis.retentionRate.toFixed(1)}%</div>
-                    <div className="mt-2 text-[10px] text-slate-400 font-medium">PÓLIZAS EN VIGOR DEL TOTAL</div>
+                    <div className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-1">En Vigor</div>
+                    <div className="text-4xl font-extrabold text-slate-900">{numberFormatter.format(kpis.vigor)}</div>
+                    <div className="mt-2 text-lg font-bold text-green-600">{kpis.vigorRate.toFixed(1)}%</div>
+                    <div className="mt-1 text-[10px] text-slate-400 font-medium">DEL TOTAL DE PÓLIZAS</div>
                 </div>
 
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col items-center justify-center text-center">
                     <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center mb-3">
                         <ShieldAlert className="w-6 h-6 text-red-600" />
                     </div>
-                    <div className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-1">Tasa de Anulación</div>
-                    <div className="text-4xl font-extrabold text-slate-900">{kpis.cancellationRate.toFixed(1)}%</div>
-                    <div className="mt-2 text-[10px] text-slate-400 font-medium">PÓLIZAS ANULADAS DEL TOTAL</div>
+                    <div className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-1">Anuladas</div>
+                    <div className="text-4xl font-extrabold text-slate-900">{numberFormatter.format(kpis.anuladas)}</div>
+                    <div className="mt-2 text-lg font-bold text-red-600">{kpis.cancellationRate.toFixed(1)}%</div>
+                    <div className="mt-1 text-[10px] text-slate-400 font-medium">DEL TOTAL DE PÓLIZAS</div>
                 </div>
 
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col items-center justify-center text-center">
-                    <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-3">
-                        <Target className="w-6 h-6 text-primary" />
+                    <div className="w-12 h-12 bg-amber-50 rounded-full flex items-center justify-center mb-3">
+                        <AlertTriangle className="w-6 h-6 text-amber-600" />
                     </div>
-                    <div className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-1">Éxito Emisión</div>
-                    <div className="text-4xl font-extrabold text-slate-900">{(100 - kpis.cancellationRate).toFixed(1)}%</div>
-                    <div className="mt-2 text-[10px] text-slate-400 font-medium">PÓLIZAS ACTIVAS O PENDIENTES</div>
+                    <div className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-1">Susp. Garantías</div>
+                    <div className="text-4xl font-extrabold text-slate-900">{numberFormatter.format(kpis.suspension)}</div>
+                    <div className="mt-2 text-lg font-bold text-amber-600">{kpis.suspensionRate.toFixed(1)}%</div>
+                    <div className="mt-1 text-[10px] text-slate-400 font-medium">DEL TOTAL DE PÓLIZAS</div>
                 </div>
             </div>
 
@@ -354,7 +356,7 @@ export default function EstadosPage() {
                                         <tr key={idx} className={`hover:bg-slate-50 transition-colors ${selectedStatus === item.estado ? 'bg-primary/5 font-bold' : ''}`}>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900 uppercase">
                                                 <span className={`inline-block w-2 h-2 rounded-full mr-2 ${item.estado.toLowerCase().includes('vigor') ? 'bg-green-500' :
-                                                        item.estado.toLowerCase().includes('anulada') ? 'bg-red-500' : 'bg-slate-300'
+                                                    item.estado.toLowerCase().includes('anulada') ? 'bg-red-500' : 'bg-slate-300'
                                                     }`}></span>
                                                 {item.estado}
                                             </td>
