@@ -48,7 +48,7 @@ export default function Navbar() {
                                     }`}
                             >
                                 <Icon className="h-4 w-4" />
-                                <span className={`${item.name.length > 5 ? 'hidden xl:block' : 'block'}`}>{item.name}</span>
+                                <span className="hidden md:block">{item.name}</span>
                             </Link>
                         );
                     })}

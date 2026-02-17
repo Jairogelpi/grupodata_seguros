@@ -181,8 +181,8 @@ export default function Dashboard() {
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900">Panel de Control</h1>
-                    <p className="mt-2 text-slate-600">Métricas de producción de Grupo Data</p>
+                    <h1 className="text-2xl md:text-3xl font-bold text-slate-900">Panel de Control</h1>
+                    <p className="mt-1 md:mt-2 text-sm md:text-base text-slate-600">Métricas de producción de Grupo Data</p>
                 </div>
                 <div className="flex flex-wrap gap-2 no-print">
                     <button
@@ -269,7 +269,7 @@ export default function Dashboard() {
                         {loading ? (
                             <div className="h-10 w-32 bg-slate-200 animate-pulse rounded"></div>
                         ) : (
-                            <span className="text-4xl font-extrabold text-primary">
+                            <span className="text-3xl md:text-4xl font-extrabold text-primary">
                                 {metrics ? currencyFormatter.format(metrics.primasNP) : '0,00 €'}
                             </span>
                         )}
@@ -291,7 +291,7 @@ export default function Dashboard() {
                         {loading ? (
                             <div className="h-10 w-16 bg-slate-200 animate-pulse rounded"></div>
                         ) : (
-                            <span className="text-4xl font-extrabold text-slate-900">
+                            <span className="text-3xl md:text-4xl font-extrabold text-slate-900">
                                 {metrics ? numberFormatter.format(metrics.numPolizas) : '0'}
                             </span>
                         )}
@@ -310,7 +310,7 @@ export default function Dashboard() {
                         <span className="text-xs font-medium text-slate-400 uppercase tracking-widest">Tendencia vs Mes Anterior</span>
                     )}
                 </div>
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto hidden md:block">
                     <table className="min-w-full divide-y divide-slate-200">
                         <thead className="bg-white border-b-2 border-primary/5">
                             <tr>
@@ -369,13 +369,65 @@ export default function Dashboard() {
                         </tbody>
                     </table>
                 </div>
+
+                {/* Mobile Card View */}
+                <div className="block md:hidden">
+                    <div className="bg-slate-50 p-4 border-b border-slate-200 flex justify-between items-center">
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Mostrando {sortedData.length} registros</span>
+                        <span className="text-[10px] text-slate-400 italic">Ordenado por: {sortConfig.key}</span>
+                    </div>
+                    <div className="divide-y divide-slate-100">
+                        {loading ? (
+                            [...Array(3)].map((_, i) => (
+                                <div key={i} className="p-4 bg-white animate-pulse space-y-3">
+                                    <div className="h-4 bg-slate-100 rounded w-3/4"></div>
+                                    <div className="flex justify-between">
+                                        <div className="h-4 bg-slate-100 rounded w-1/3"></div>
+                                        <div className="h-4 bg-slate-100 rounded w-1/4"></div>
+                                    </div>
+                                </div>
+                            ))
+                        ) : sortedData.length > 0 ? (
+                            sortedData.map((item, idx) => (
+                                <div key={idx} className="p-4 bg-white hover:bg-slate-50 transition-colors">
+                                    <Link
+                                        href={`/entes/evolucion?ente=${encodeURIComponent(item.ente)}`}
+                                        className="text-base font-bold text-indigo-600 hover:text-indigo-800 mb-3 block"
+                                    >
+                                        {item.ente}
+                                    </Link>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Primas NP</p>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-lg font-bold text-slate-900">{currencyFormatter.format(item.primas)}</span>
+                                                {(filters.anio.length === 1 && filters.mes.length === 1) && <TrendBadge value={item.trendPrimas} />}
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Pólizas</p>
+                                            <div className="flex items-center justify-end gap-2">
+                                                <span className="text-lg font-bold text-slate-700">{numberFormatter.format(item.polizas)}</span>
+                                                {(filters.anio.length === 1 && filters.mes.length === 1) && <TrendBadge value={item.trendPolizas} />}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="p-8 text-center text-slate-500 text-sm">
+                                No hay datos para mostrar
+                            </div>
+                        )}
+                    </div>
+                </div>
+
                 {!loading && sortedData.length > 0 && (
-                    <div className="px-6 py-3 bg-slate-50 border-t border-slate-200 text-xs text-slate-500 text-right">
+                    <div className="px-6 py-3 bg-slate-50 border-t border-slate-200 text-xs text-slate-500 text-right hidden md:block">
                         Mostrando {sortedData.length} registros
                     </div>
                 )}
             </div>
-
         </div>
     );
 }

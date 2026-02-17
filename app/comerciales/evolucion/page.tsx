@@ -69,6 +69,16 @@ const DONUT_COLORS = [
     '#14b8a6', '#e11d48'
 ];
 
+const KPITooltip = ({ children, text }: { children: React.ReactNode, text: string }) => (
+    <div className="group relative">
+        {children}
+        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block w-56 p-3 bg-slate-800 text-white text-[11px] leading-tight rounded-lg shadow-xl z-50 text-center pointer-events-none">
+            {text}
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-800"></div>
+        </div>
+    </div>
+);
+
 function AdvisorEvolutionContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -295,26 +305,37 @@ function AdvisorEvolutionContent() {
                 {/* Feature 1: Retention KPI Cards */}
                 {!loading && (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                        <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Pólizas</p>
-                            <p className="text-2xl font-extrabold text-slate-800 mt-1">{numberFormatter.format(retentionKPIs.total)}</p>
-                        </div>
-                        <div className={`rounded-xl p-4 border ${retentionKPIs.ratio >= 70 ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                                <ShieldCheck className="w-3 h-3" /> Retención
-                            </p>
-                            <p className={`text-2xl font-extrabold mt-1 ${retentionKPIs.ratio >= 70 ? 'text-green-700' : 'text-red-700'}`}>{retentionKPIs.ratio}%</p>
-                        </div>
-                        <div className="bg-orange-50 rounded-xl p-4 border border-orange-100">
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Anuladas</p>
-                            <p className="text-2xl font-extrabold text-orange-700 mt-1">{numberFormatter.format(retentionKPIs.anuladas)}</p>
-                        </div>
-                        <div className={`rounded-xl p-4 border ${retentionKPIs.tempranas > 0 ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-100'}`}>
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                                <AlertTriangle className="w-3 h-3" /> Tempranas (&lt;180d)
-                            </p>
-                            <p className={`text-2xl font-extrabold mt-1 ${retentionKPIs.tempranas > 0 ? 'text-red-700' : 'text-slate-400'}`}>{numberFormatter.format(retentionKPIs.tempranas)}</p>
-                        </div>
+                        <KPITooltip text="Suma total de pólizas activas en el periodo seleccionado.">
+                            <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 h-full transition-colors hover:border-primary/20 cursor-help">
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Pólizas</p>
+                                <p className="text-2xl font-extrabold text-slate-800 mt-1">{numberFormatter.format(retentionKPIs.total)}</p>
+                            </div>
+                        </KPITooltip>
+
+                        <KPITooltip text="Porcentaje de pólizas que permanecen activas. Cálculo: (Total - Anuladas) / Total.">
+                            <div className={`rounded-xl p-4 border h-full transition-colors cursor-help ${retentionKPIs.ratio >= 70 ? 'bg-green-50 border-green-100 hover:border-green-300' : 'bg-red-50 border-red-100 hover:border-red-300'}`}>
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                                    <ShieldCheck className="w-3 h-3" /> Retención
+                                </p>
+                                <p className={`text-2xl font-extrabold mt-1 ${retentionKPIs.ratio >= 70 ? 'text-green-700' : 'text-red-700'}`}>{retentionKPIs.ratio}%</p>
+                            </div>
+                        </KPITooltip>
+
+                        <KPITooltip text="Número total de pólizas canceladas o dadas de baja durante el periodo seleccionado.">
+                            <div className="bg-orange-50 rounded-xl p-4 border border-orange-100 h-full transition-colors hover:border-orange-300 cursor-help">
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Anuladas</p>
+                                <p className="text-2xl font-extrabold text-orange-700 mt-1">{numberFormatter.format(retentionKPIs.anuladas)}</p>
+                            </div>
+                        </KPITooltip>
+
+                        <KPITooltip text="Pólizas canceladas dentro de los primeros 180 días de vigencia (Fuga temprana).">
+                            <div className={`rounded-xl p-4 border h-full transition-colors cursor-help ${retentionKPIs.tempranas > 0 ? 'bg-red-50 border-red-200 hover:border-red-400' : 'bg-slate-50 border-slate-100 hover:border-primary/20'}`}>
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                                    <AlertTriangle className="w-3 h-3" /> Tempranas (&lt;180d)
+                                </p>
+                                <p className={`text-2xl font-extrabold mt-1 ${retentionKPIs.tempranas > 0 ? 'text-red-700' : 'text-slate-400'}`}>{numberFormatter.format(retentionKPIs.tempranas)}</p>
+                            </div>
+                        </KPITooltip>
                     </div>
                 )}
 
