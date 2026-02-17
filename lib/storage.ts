@@ -120,8 +120,8 @@ async function readFromBlob(filename: string): Promise<any[]> {
             return [];
         }
 
-        // Download the blob content
-        const response = await fetch(blob.url);
+        // Download the blob content (bypass Next.js cache)
+        const response = await fetch(blob.url, { cache: 'no-store' });
         const arrayBuffer = await response.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
 
