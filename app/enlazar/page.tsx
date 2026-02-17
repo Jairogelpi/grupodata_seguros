@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Link as LinkIcon, UserCheck, Building2, AlertCircle, Check } from 'lucide-react';
-import { Combobox } from '@headlessui/react'; // This was not installed! I should use my custom component instead.
+
 
 // Wait, I should stick to my custom SearchableSelect since I don't know if headlessui is installed.
 import SearchableSelect from '@/components/SearchableSelect';
