@@ -1,6 +1,7 @@
 "use client";
 
 import { signIn } from "next-auth/react";
+import Image from "next/image";
 import { Lock, Mail, KeyRound, AlertCircle } from "lucide-react";
 import { useState } from "react";
 
@@ -41,13 +42,16 @@ export default function LoginPage() {
                 <div className="bg-white rounded-[32px] shadow-2xl border border-slate-200 p-10 overflow-hidden">
                     {/* Logo */}
                     <div className="text-center mb-10">
-                        <img
-                            src="/logo.png"
-                            alt="Grupo Data Logo"
-                            className="h-24 w-auto mx-auto mb-6 object-contain hover:scale-105 transition-transform duration-500"
-                        />
+                        <div className="w-24 h-24 mx-auto mb-6 relative hover:scale-105 transition-transform duration-500">
+                            <Image
+                                src="/logo.png"
+                                alt="Grupo Data Logo"
+                                fill
+                                className="object-contain drop-shadow-sm"
+                            />
+                        </div>
                         <h1 className="text-3xl font-black text-slate-900 tracking-tight">
-                            Grupo Data <span className="text-slate-900 text-xl">Seguros</span>
+                            Grupo Data <span className="text-primary text-xl">Seguros</span>
                         </h1>
                         <p className="mt-3 text-slate-500 font-medium text-sm">
                             Acceso restringido para analistas autorizados
@@ -94,7 +98,7 @@ export default function LoginPage() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full h-14 bg-slate-900 text-white rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-slate-800 transition-all active:scale-[0.98] shadow-lg shadow-slate-900/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-full h-14 bg-primary text-white rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-primary/90 transition-all active:scale-[0.98] shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {loading ? (
                                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
