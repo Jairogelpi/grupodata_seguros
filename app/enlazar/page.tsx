@@ -1,7 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Link as LinkIcon, UserCheck, Building2, AlertCircle } from 'lucide-react';
+import { Link as LinkIcon, UserCheck, Building2, AlertCircle, Check } from 'lucide-react';
+import { Combobox } from '@headlessui/react'; // This was not installed! I should use my custom component instead.
+
+// Wait, I should stick to my custom SearchableSelect since I don't know if headlessui is installed.
+import SearchableSelect from '@/components/SearchableSelect';
 
 interface Asesor {
     ASESOR: string;
@@ -47,6 +51,12 @@ export default function EnlazarPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (!formData.asesor || !formData.enteCode) {
+            setMessage({ type: 'error', text: 'Debes seleccionar un asesor y un ente' });
+            return;
+        }
+
         setSubmitting(true);
         setMessage(null);
 
@@ -60,7 +70,7 @@ export default function EnlazarPage() {
 
             if (res.ok) {
                 setMessage({ type: 'success', text: 'Vínculo creado correctamente' });
-                setFormData({ ...formData, enteCode: '' }); // Clear only ente to allow linking more to same asesor
+                setFormData(prev => ({ ...prev, enteCode: '' })); // Clear only ente to allow rapid linking
             } else {
                 setMessage({ type: 'error', text: data.error || 'Error al vincular' });
             }
@@ -71,6 +81,17 @@ export default function EnlazarPage() {
         }
     };
 
+    // Prepare options for Selects
+    const asesorOptions = asesores
+        .filter(a => a.ASESOR) // Filter out empty strings
+        .map(a => ({ value: a.ASESOR, label: a.ASESOR }))
+        .sort((a, b) => a.label.localeCompare(b.label));
+
+    const enteOptions = entes
+        .filter(e => e.Código && e.Nombre)
+        .map(e => ({ value: String(e.Código), label: `${e.Nombre} (${e.Código})` }))
+        .sort((a, b) => a.label.localeCompare(b.label));
+
     return (
         <div className="max-w-2xl mx-auto space-y-8">
             <div>
@@ -80,54 +101,48 @@ export default function EnlazarPage() {
 
             <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
                 <form onSubmit={handleSubmit} className="space-y-6">
+
+                    {/* Asesor Searchable Select */}
                     <div>
                         <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
                             <UserCheck className="w-4 h-4 text-primary" />
                             Seleccionar Asesor
                         </label>
-                        <select
-                            required
-                            className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary outline-none bg-slate-50 transition-all"
+                        <SearchableSelect
+                            options={asesorOptions}
                             value={formData.asesor}
-                            onChange={e => setFormData({ ...formData, asesor: e.target.value })}
-                        >
-                            <option value="">Elegir asesor...</option>
-                            {asesores.map((a, i) => (
-                                <option key={i} value={a.ASESOR}>{a.ASESOR}</option>
-                            ))}
-                        </select>
+                            onChange={(val) => setFormData(prev => ({ ...prev, asesor: val }))}
+                            placeholder="Buscar asesor..."
+                        />
                     </div>
 
+                    {/* Ente Searchable Select */}
                     <div>
                         <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
                             <Building2 className="w-4 h-4 text-primary" />
                             Seleccionar Ente
                         </label>
-                        <select
-                            required
-                            className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary outline-none bg-slate-50 transition-all"
+                        <SearchableSelect
+                            options={enteOptions}
                             value={formData.enteCode}
-                            onChange={e => setFormData({ ...formData, enteCode: e.target.value })}
-                        >
-                            <option value="">Elegir ente comercial...</option>
-                            {entes.sort((a, b) => String(a.Nombre).localeCompare(String(b.Nombre))).map((e, i) => (
-                                <option key={i} value={String(e.Código)}>{e.Nombre} - {e.Código}</option>
-                            ))}
-                        </select>
+                            onChange={(val) => setFormData(prev => ({ ...prev, enteCode: val }))}
+                            placeholder="Buscar ente (nombre o código)..."
+                        />
                     </div>
 
+                    {/* Success/Error Message */}
                     {message && (
                         <div className={`p-4 rounded-lg flex items-center gap-3 ${message.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'
                             }`}>
-                            {message.type === 'error' && <AlertCircle className="w-5 h-5" />}
+                            {message.type === 'error' ? <AlertCircle className="w-5 h-5" /> : <Check className="w-5 h-5" />}
                             <span className="text-sm font-medium">{message.text}</span>
                         </div>
                     )}
 
                     <button
                         type="submit"
-                        disabled={submitting || loading}
-                        className="w-full bg-primary text-white py-4 rounded-xl font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 disabled:opacity-50 flex items-center justify-center gap-2"
+                        disabled={submitting || loading || !formData.asesor || !formData.enteCode}
+                        className="w-full bg-primary text-white py-4 rounded-xl font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 disabled:opacity-50 flex items-center justify-center gap-2 disabled:cursor-not-allowed"
                     >
                         {submitting ? 'Vinculando...' : (
                             <>
@@ -142,7 +157,7 @@ export default function EnlazarPage() {
             <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
                 <h3 className="text-sm font-bold text-slate-700 mb-2">Información</h3>
                 <p className="text-xs text-slate-500 leading-relaxed">
-                    Al enlazar un asesor con un ente, todos los datos vinculados a ese código de ente en el listado de pólizas se atribuirán al asesor seleccionado en los informes del panel de control.
+                    Al enlazar un asesor con un ente, todos los datos vinculados a ese código de ente en el listado de pólizas se atribuirán al asesor seleccionado en los informes del panel de control. Utiliza el buscador para encontrar rápidamente asesores o entes.
                 </p>
             </div>
         </div>

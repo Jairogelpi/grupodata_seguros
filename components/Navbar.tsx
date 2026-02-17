@@ -27,7 +27,7 @@ export default function Navbar() {
                 <div className="flex items-center gap-3 shrink-0">
                     <img src="/logo.png" alt="Grupo Data Logo" className="h-8 w-auto" />
                     <span className="hidden lg:block text-lg font-bold tracking-tight text-slate-900 leading-none">
-                        Grupo <span className="text-primary">Data</span>
+                        Grupo <span className="text-primary">Data Seguros</span>
                     </span>
                 </div>
 

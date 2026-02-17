@@ -1,7 +1,7 @@
 "use client";
 
 import { signIn } from "next-auth/react";
-import { ShieldCheck, Lock, Mail, KeyRound, AlertCircle } from "lucide-react";
+import { Lock, Mail, KeyRound, AlertCircle } from "lucide-react";
 import { useState } from "react";
 
 export default function LoginPage() {
@@ -41,16 +41,17 @@ export default function LoginPage() {
                 <div className="bg-white rounded-[32px] shadow-2xl border border-slate-200 p-10 overflow-hidden">
                     {/* Logo */}
                     <div className="text-center mb-10">
-                        <div className="w-20 h-20 bg-primary/10 rounded-3xl flex items-center justify-center mx-auto mb-6 rotate-3 hover:rotate-0 transition-transform duration-500">
-                            <ShieldCheck className="w-10 h-10 text-primary" />
+                        <div className="w-24 h-24 mx-auto mb-6 flex items-center justify-center hover:scale-105 transition-transform duration-500">
+                            <img src="/logo.png" alt="Grupo Data Logo" className="w-full h-full object-contain drop-shadow-sm" />
                         </div>
                         <h1 className="text-3xl font-black text-slate-900 tracking-tight">
-                            Grupo Data <span className="text-primary text-xl">System</span>
+                            Grupo Data <span className="text-primary text-xl">Seguros</span>
                         </h1>
                         <p className="mt-3 text-slate-500 font-medium text-sm">
                             Acceso restringido para analistas autorizados
                         </p>
                     </div>
+
 
                     <form onSubmit={handleSubmit} className="space-y-5">
                         {/* Email */}
