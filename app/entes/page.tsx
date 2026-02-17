@@ -155,7 +155,7 @@ export default function EntesPage() {
                     <button onClick={handleExportPDF} className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 font-medium transition-colors shadow-sm">
                         <Printer className="w-4 h-4" /> PDF
                     </button>
-                    <FileUploader target="entes" label="Importar Excel" onUploadSuccess={fetchEntes} />
+                    <FileUploader target="entes" label="Importar Excel" onUploadSuccess={() => window.location.reload()} />
                 </div>
             </div>
 

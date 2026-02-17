@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { readData } from '@/lib/storage';
 import { getLinks, getEntes } from '@/lib/registry';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
@@ -119,6 +121,7 @@ export async function GET(request: Request) {
         const asesoresStats = new Map<string, { asesor: string, numEntes: number, totalPrimas: number, numPolizos: number }>();
         const productStats = new Map<string, { producto: string, primas: number, polizas: number }>();
         const estadoStats = new Map<string, { estado: string, primas: number, polizas: number }>();
+        const companyStats = new Map<string, { company: string, primas: number, polizas: number, entes: Set<string>, asesores: Set<string> }>();
         const tenureStats = new Map<string, { label: string, primas: number, polizas: number, countEntes: Set<string> }>();
         const cancellationReasons = new Map<string, number>();
 
@@ -145,6 +148,7 @@ export async function GET(request: Request) {
             const primas = parseFloat(pStr) || 0;
             const producto = String(p['Producto'] || 'Otros');
             const estado = String(p['Estado'] || 'Otros');
+            const company = String(p['Abrev.Cia'] || 'Desconocida').trim();
             const asesor = codeToAsesorMap.get(code) || 'Sin Asesor';
             const fAnulacion = p['F.Anulación'];
             const motAnulacion = String(p['Mot.Anulación'] || '').trim();
@@ -185,9 +189,17 @@ export async function GET(request: Request) {
             const es = estadoStats.get(estado)!;
             es.primas += primas;
             es.polizas += 1;
+
+            // Companies
+            if (!companyStats.has(company)) companyStats.set(company, { company, primas: 0, polizas: 0, entes: new Set(), asesores: new Set() });
+            const cs = companyStats.get(company)!;
+            cs.primas += primas;
+            cs.polizas += 1;
+            cs.entes.add(code);
+            if (asesor !== 'Sin Asesor') cs.asesores.add(asesor);
         });
 
-        // Trend calculation (Repeat logic but only if needed)
+        // Trend calculation
         let prevPrimas = 0;
         let prevCount = 0;
         let calculateTrend = false;
@@ -217,7 +229,6 @@ export async function GET(request: Request) {
             return ((curr - prev) / prev) * 100;
         };
 
-        // Final structure
         return NextResponse.json({
             metrics: {
                 primasNP: currentPrimas,
@@ -238,6 +249,14 @@ export async function GET(request: Request) {
                 numPolizas: a.numPolizos,
                 avgPrimas: a.numEntes > 0 ? a.totalPrimas / a.numEntes : 0
             })).sort((a, b) => b.totalPrimas - a.totalPrimas),
+            companiasBreakdown: Array.from(companyStats.values()).map(c => ({
+                company: c.company,
+                primas: c.primas,
+                polizas: c.polizas,
+                numEntes: c.entes.size,
+                numAsesores: c.asesores.size,
+                ticketMedio: c.polizas > 0 ? c.primas / c.polizas : 0
+            })).sort((a, b) => b.primas - a.primas),
             productosBreakdown: Array.from(productStats.values()).sort((a, b) => b.primas - a.primas),
             estadosBreakdown: Array.from(estadoStats.values()).sort((a, b) => b.polizas - a.polizas),
             cancellationReasons: Array.from(cancellationReasons.entries()).map(([reason, count]) => ({ reason, count })).sort((a, b) => b.count - a.count)
