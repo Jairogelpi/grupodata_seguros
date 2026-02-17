@@ -53,12 +53,26 @@ export default function PrintLayout() {
                         margin-left: 0 !important;
                         margin-right: 0 !important;
                         
-                        transform: scale(0.80); /* Smaller scale to fit more columns */
-                        transform-origin: top center; /* Center it */
-                        width: 125% !important; /* 100 / 0.80 = 125% */
+                        transform: scale(0.75); /* Reduced scale to fit more content */
+                        transform-origin: top center;
+                        width: 133.3% !important; /* 100 / 0.75 = 133.3% */
                         
                         overflow: visible !important;
                         display: block !important;
+                    }
+                    
+                    /* Table Condensation for Print */
+                    .print-table-condensed {
+                        font-size: 8px !important;
+                    }
+                    .print-table-condensed th, 
+                    .print-table-condensed td {
+                        padding: 4px 6px !important;
+                        white-space: normal !important; /* Allow wrapping */
+                    }
+                    .print-wrap {
+                        white-space: normal !important;
+                        word-break: break-word !important;
                     }
                     
                     /* Cleanups */

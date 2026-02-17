@@ -200,20 +200,20 @@ function MonthlyDetailsContent() {
                 </div>
 
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left text-[11px] whitespace-nowrap">
+                    <table className="w-full text-left text-[11px] whitespace-nowrap print-table-condensed">
                         <thead>
                             <tr className="bg-slate-100 border-b border-slate-200">
                                 <th className="p-3 font-black text-slate-500 uppercase tracking-widest">Póliza</th>
                                 <th className="p-3 font-black text-slate-500 uppercase tracking-widest">Estado</th>
-                                <th className="p-3 font-black text-slate-500 uppercase tracking-widest">Tomador / NIF</th>
-                                <th className="p-3 font-black text-slate-500 uppercase tracking-widest">Producto</th>
+                                <th className="p-3 font-black text-slate-500 uppercase tracking-widest min-w-[150px] print-wrap">Tomador / NIF</th>
+                                <th className="p-3 font-black text-slate-500 uppercase tracking-widest min-w-[150px] print-wrap">Producto</th>
                                 <th className="p-3 font-black text-slate-500 uppercase tracking-widest">Compañía</th>
                                 <th className="p-3 font-black text-slate-500 uppercase tracking-widest">F. Efecto</th>
                                 <th className="p-3 font-black text-slate-500 uppercase tracking-widest">F. Anulación</th>
                                 <th className="p-3 font-black text-slate-500 uppercase tracking-widest text-center">Días Vigor</th>
                                 <th className="p-3 font-black text-slate-500 uppercase tracking-widest text-right">Primas Prod.</th>
                                 <th className="p-3 font-black text-slate-500 uppercase tracking-widest text-right">Primas Cart.</th>
-                                <th className="p-3 font-black text-slate-500 uppercase tracking-widest">Motivo Anul.</th>
+                                <th className="p-3 font-black text-slate-500 uppercase tracking-widest min-w-[120px] print-wrap">Motivo Anul.</th>
                                 <th className="p-3 font-black text-slate-500 uppercase tracking-widest text-center">Forma Pago</th>
                             </tr>
                         </thead>
@@ -236,11 +236,11 @@ function MonthlyDetailsContent() {
                                                 {p.estado}
                                             </span>
                                         </td>
-                                        <td className="p-3">
-                                            <div className="font-bold text-slate-700">{p.tomador}</div>
+                                        <td className="p-3 print-wrap">
+                                            <div className="font-bold text-slate-700 leading-tight">{p.tomador}</div>
                                             <div className="text-[9px] text-slate-400 font-mono">{p.dni}</div>
                                         </td>
-                                        <td className="p-3 font-medium text-slate-600 truncate max-w-[150px]" title={p.producto}>{p.producto}</td>
+                                        <td className="p-3 font-medium text-slate-600 truncate max-w-[150px] print:max-w-none print-wrap" title={p.producto}>{p.producto}</td>
                                         <td className="p-3 font-black text-indigo-500 text-[10px]">{p.compania}</td>
                                         <td className="p-3 text-slate-600">{p.fechaEfecto}</td>
                                         <td className="p-3 text-red-600 font-medium">{p.fechaAnulacion || '-'}</td>
@@ -251,7 +251,7 @@ function MonthlyDetailsContent() {
                                         </td>
                                         <td className="p-3 text-right font-black text-indigo-600">{currencyFormatter.format(p.primas)}</td>
                                         <td className="p-3 text-right font-bold text-slate-400">{currencyFormatter.format(p.cartera)}</td>
-                                        <td className="p-3 text-slate-500 italic text-[10px]">{p.motivoAnulacion || '-'}</td>
+                                        <td className="p-3 text-slate-500 italic text-[10px] print-wrap">{p.motivoAnulacion || '-'}</td>
                                         <td className="p-3 text-center text-slate-500">{p.formaPago}</td>
                                     </tr>
                                 ))
