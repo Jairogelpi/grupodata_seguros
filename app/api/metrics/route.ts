@@ -1,15 +1,6 @@
 import { NextResponse } from 'next/server';
-import * as XLSX from 'xlsx';
-import fs from 'fs';
-import path from 'path';
-
-
-
-import { readExcel } from '@/lib/excel';
+import { readData } from '@/lib/storage';
 import { getLinks, getEntes } from '@/lib/registry';
-
-const POLIZAS_FILE = 'listado_polizas.xlsx';
-const ASESORES_FILE = 'lista_asesores.xlsx';
 
 export async function GET(request: Request) {
     try {
@@ -27,11 +18,13 @@ export async function GET(request: Request) {
         const estados = parseParam(searchParams.get('estado'));
         const entesFilter = parseParam(searchParams.get('ente'));
 
-        // 1. Read Data (Registry from DB/File, Policies from File)
-        const polizas: any[] = readExcel(POLIZAS_FILE);
-        const links: any[] = await getLinks();
-        const asesoresList: any[] = readExcel(ASESORES_FILE);
-        const entesData: any[] = await getEntes();
+        // 1. Read Data (All sources use hybrid storage: disk in dev, Blob in prod)
+        const [polizas, links, asesoresList, entesData] = await Promise.all([
+            readData('listado_polizas.xlsx'),
+            getLinks(),
+            readData('lista_asesores.xlsx'),
+            getEntes(),
+        ]);
 
         // 2. Prepare Filter Options (Fast sets)
         const uniqueAnios = Array.from(new Set(polizas.map(p => p['AÑO_PROD']))).filter(Boolean).sort();
