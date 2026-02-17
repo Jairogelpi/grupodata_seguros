@@ -16,7 +16,7 @@ const IS_PRODUCTION = process.env.VERCEL === '1' || process.env.NODE_ENV === 'pr
 
 // In-memory cache for production reads (avoid re-downloading on every request)
 const blobCache: Record<string, { data: any[], timestamp: number }> = {};
-const CACHE_TTL_MS = 30_000; // 30 second cache in production
+const CACHE_TTL_MS = 0; // Disabled: serverless instances don't share memory, so caching causes stale data after uploads
 
 /**
  * Get the local file path for a given filename
