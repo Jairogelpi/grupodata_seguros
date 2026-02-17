@@ -343,19 +343,19 @@ function AdvisorEvolutionContent() {
                             </div>
                         </KPITooltip>
 
-                        {/* 3. RETENCIÓN DEL PERIODO (Flow) */}
-                        <KPITooltip text="Porcentaje de pólizas producidas en el periodo seleccionado que NO han sido anuladas.">
-                            <div className={`rounded-xl p-4 border h-full transition-colors cursor-help ${retentionKPIs.ratio >= 70 ? 'bg-white border-slate-200' : 'bg-red-50 border-red-100'}`}>
-                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Retención Periodo</p>
-                                <p className={`text-2xl font-extrabold mt-1 ${retentionKPIs.ratio >= 70 ? 'text-slate-700' : 'text-red-700'}`}>{retentionKPIs.ratio}%</p>
-                            </div>
-                        </KPITooltip>
-
-                        {/* 4. ANULADAS DEL PERIODO (Flow) */}
+                        {/* 3. ANULADAS DEL PERIODO (Flow) */}
                         <KPITooltip text="Pólizas producidas en el periodo seleccionado que han sido anuladas.">
                             <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 h-full transition-colors hover:border-slate-300 cursor-help">
                                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Anuladas Periodo</p>
                                 <p className="text-2xl font-extrabold text-slate-700 mt-1">{numberFormatter.format(retentionKPIs.anuladas)}</p>
+                            </div>
+                        </KPITooltip>
+
+                        {/* 4. RETENCIÓN DEL PERIODO (Flow) */}
+                        <KPITooltip text="Porcentaje de pólizas producidas en el periodo seleccionado que NO han sido anuladas.">
+                            <div className={`rounded-xl p-4 border h-full transition-colors cursor-help ${retentionKPIs.ratio >= 70 ? 'bg-white border-slate-200' : 'bg-red-50 border-red-100'}`}>
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Retención Periodo</p>
+                                <p className={`text-2xl font-extrabold mt-1 ${retentionKPIs.ratio >= 70 ? 'text-slate-700' : 'text-red-700'}`}>{retentionKPIs.ratio}%</p>
                             </div>
                         </KPITooltip>
                     </div>
