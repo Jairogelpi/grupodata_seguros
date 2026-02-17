@@ -185,23 +185,6 @@ export async function GET(request: Request) {
             const es = estadoStats.get(estado)!;
             es.primas += primas;
             es.polizas += 1;
-
-            // Tenure (Real Seniority: Year of Policy - First Year of Ente)
-            // CRITICAL: Only include 'ENTE' type codes for Lifecycle Analysis as requested
-            if (enteOnlyCodes.has(code)) {
-                const firstYear = codeToFirstYearMap.get(code);
-                const pYear = parseInt(String(p['AÑO_PROD'] || '0'));
-                const tenure = (firstYear && firstYear > 1900 && pYear >= firstYear) ? pYear - firstYear : -1;
-
-                if (tenure >= 0) {
-                    const label = getTenureLabel(tenure);
-                    if (!tenureStats.has(label)) tenureStats.set(label, { label, primas: 0, polizas: 0, countEntes: new Set() });
-                    const ts = tenureStats.get(label)!;
-                    ts.primas += primas;
-                    ts.polizas += 1;
-                    ts.countEntes.add(code);
-                }
-            }
         });
 
         // Trend calculation (Repeat logic but only if needed)
@@ -257,16 +240,6 @@ export async function GET(request: Request) {
             })).sort((a, b) => b.totalPrimas - a.totalPrimas),
             productosBreakdown: Array.from(productStats.values()).sort((a, b) => b.primas - a.primas),
             estadosBreakdown: Array.from(estadoStats.values()).sort((a, b) => b.polizas - a.polizas),
-            tenureBreakdown: Array.from(tenureStats.values()).map(s => ({
-                label: s.label,
-                primas: s.primas,
-                polizas: s.polizas,
-                numEntes: s.countEntes.size,
-                avgPrimas: s.countEntes.size > 0 ? s.primas / s.countEntes.size : 0
-            })).sort((a, b) => {
-                const order: Record<string, number> = { "Año 0 (Nuevo)": 0, "Año 1": 1, "Año 2": 2, "Año 3+ (Senior)": 3 };
-                return (order[a.label] ?? 99) - (order[b.label] ?? 99);
-            }),
             cancellationReasons: Array.from(cancellationReasons.entries()).map(([reason, count]) => ({ reason, count })).sort((a, b) => b.count - a.count)
         });
 

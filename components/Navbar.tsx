@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
-import { LayoutDashboard, Users, Link as LinkIcon, BarChart3 as BarChart2, PieChart, Activity, Hourglass, AlertTriangle, LogOut, User } from 'lucide-react';
+import { LayoutDashboard, Users, Link as LinkIcon, BarChart3 as BarChart2, PieChart, Activity, AlertTriangle, LogOut, User } from 'lucide-react';
 
 export default function Navbar() {
     const pathname = usePathname();
@@ -16,7 +16,6 @@ export default function Navbar() {
         { name: 'Prod.', href: '/productividad', icon: BarChart2 },
         { name: 'Cartera', href: '/cartera', icon: PieChart },
         { name: 'Estados', href: '/estados', icon: Activity },
-        { name: 'Ciclo', href: '/ciclo-vida', icon: Hourglass },
         { name: 'Anulaciones', href: '/anulaciones', icon: AlertTriangle },
         { name: 'Entes', href: '/entes', icon: Users },
         { name: 'Enlazar', href: '/enlazar', icon: LinkIcon },
