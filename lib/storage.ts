@@ -46,8 +46,8 @@ export async function writeData(filename: string, buffer: Buffer): Promise<void>
     if (!IS_PRODUCTION) {
         const filePath = getLocalPath(filename);
         fs.writeFileSync(filePath, buffer);
-        // Invalidate any local cache
-        if (localCache[filename]) delete localCache[filename];
+        // Invalidate ALL local cache so every file reloads fresh
+        Object.keys(localCache).forEach(key => delete localCache[key]);
         return;
     }
     await writeToBlob(filename, buffer);
@@ -150,9 +150,9 @@ async function writeToBlob(filename: string, buffer: Buffer): Promise<void> {
             allowOverwrite: true,
         });
 
-        // Invalidate cache
-        delete blobCache[filename];
-        console.log(`[Storage:Blob] Uploaded ${filename} to Blob`);
+        // Invalidate ALL cache so every file reloads fresh
+        Object.keys(blobCache).forEach(key => delete blobCache[key]);
+        console.log(`[Storage:Blob] Uploaded ${filename} to Blob — all cache cleared`);
     } catch (error) {
         console.error(`[Storage:Blob] Error writing ${filename}:`, error);
         throw error;
