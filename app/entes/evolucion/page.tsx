@@ -121,17 +121,19 @@ function EvolutionContent() {
                     label: 'Primas (€)',
                     data: filteredData.map(d => d.primas),
                     borderColor: '#4f46e5',
-                    backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                    backgroundColor: 'rgba(79, 70, 229, 0.8)',
                     fill: chartType === 'line',
-                    yAxisID: 'y'
+                    yAxisID: 'y',
+                    tension: 0.1
                 },
                 {
                     label: 'Nº Pólizas',
                     data: filteredData.map(d => d.polizas),
                     borderColor: '#10b981',
-                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    backgroundColor: 'rgba(16, 185, 129, 0.8)',
                     fill: chartType === 'line',
-                    yAxisID: 'y1'
+                    yAxisID: 'y1',
+                    tension: 0.1
                 }
             ]
         };
@@ -146,7 +148,15 @@ function EvolutionContent() {
                 mode: 'index' as const,
                 intersect: false,
             },
+            onClick: (event: any, elements: any) => {
+                if (elements.length > 0) {
+                    const index = elements[0].index;
+                    const item = filteredData[index];
+                    router.push(`/entes/evolucion/mes?ente=${encodeURIComponent(ente!)}&anio=${item.anio}&mes=${item.mes}`);
+                }
+            }
         },
+        cursor: 'pointer',
         scales: {
             y: {
                 type: 'linear' as const,
@@ -312,10 +322,17 @@ function EvolutionContent() {
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {[...filteredData].reverse().map((d, i) => (
-                                <tr key={i} className="hover:bg-slate-50 transition-colors">
-                                    <td className="p-4 font-medium text-slate-700">{MONTHS[d.mes - 1]} {d.anio}</td>
-                                    <td className="p-4 text-right font-bold text-indigo-600">{currencyFormatter.format(d.primas)}</td>
-                                    <td className="p-4 text-right font-semibold text-emerald-600">{numberFormatter.format(d.polizas)}</td>
+                                <tr key={i} className="hover:bg-slate-50 transition-colors group">
+                                    <td className="p-4 font-medium">
+                                        <button
+                                            onClick={() => router.push(`/entes/evolucion/mes?ente=${encodeURIComponent(ente!)}&anio=${d.anio}&mes=${d.mes}`)}
+                                            className="text-indigo-600 hover:text-indigo-900 hover:underline underline-offset-4 font-bold"
+                                        >
+                                            {MONTHS[d.mes - 1]} {d.anio}
+                                        </button>
+                                    </td>
+                                    <td className="p-4 text-right font-bold text-slate-700">{currencyFormatter.format(d.primas)}</td>
+                                    <td className="p-4 text-right font-semibold text-slate-700">{numberFormatter.format(d.polizas)}</td>
                                     <td className="p-4 text-right text-slate-500">{currencyFormatter.format(d.polizas > 0 ? d.primas / d.polizas : 0)}</td>
                                 </tr>
                             ))}
