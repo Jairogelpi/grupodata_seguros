@@ -13,7 +13,10 @@ import {
     Users,
     ShieldCheck,
     AlertTriangle,
-    PieChart
+    PieChart,
+    ChevronUp,
+    ChevronDown,
+    ChevronsUpDown
 } from 'lucide-react';
 import {
     Chart as ChartJS,
@@ -95,6 +98,7 @@ function AdvisorEvolutionContent() {
     const [productMix, setProductMix] = useState<ProductMixItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [chartType, setChartType] = useState<'line' | 'bar'>('bar');
+    const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
 
     const [startPeriod, setStartPeriod] = useState({ year: 0, month: 1 });
     const [endPeriod, setEndPeriod] = useState({ year: 0, month: 12 });
@@ -167,6 +171,51 @@ function AdvisorEvolutionContent() {
             return Math.round(((d.polizas - prev) / prev) * 100);
         });
     }, [filteredData]);
+
+    const sortedData = useMemo(() => {
+        if (!sortConfig) return [...filteredData].reverse();
+
+        const sorted = [...filteredData].sort((a, b) => {
+            let aVal: any = a[sortConfig.key as keyof AdvisorEvolutionData];
+            let bVal: any = b[sortConfig.key as keyof AdvisorEvolutionData];
+
+            // Handle calculated fields
+            if (sortConfig.key === 'ticketMedio') {
+                aVal = a.polizas > 0 ? a.primas / a.polizas : 0;
+                bVal = b.polizas > 0 ? b.primas / b.polizas : 0;
+            } else if (sortConfig.key === 'varPrimas') {
+                const idxA = filteredData.indexOf(a);
+                const idxB = filteredData.indexOf(b);
+                aVal = momChanges[idxA] ?? -999999;
+                bVal = momChanges[idxB] ?? -999999;
+            } else if (sortConfig.key === 'varPolizas') {
+                const idxA = filteredData.indexOf(a);
+                const idxB = filteredData.indexOf(b);
+                aVal = momChangesPolizas[idxA] ?? -999999;
+                bVal = momChangesPolizas[idxB] ?? -999999;
+            }
+
+            if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+        return sorted;
+    }, [filteredData, sortConfig, momChanges, momChangesPolizas]);
+
+    const requestSort = (key: string) => {
+        let direction: 'asc' | 'desc' = 'desc';
+        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'desc') {
+            direction = 'asc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const SortIcon = ({ column }: { column: string }) => {
+        if (sortConfig?.key !== column) return <ChevronsUpDown className="w-3 h-3 text-slate-300 ml-1 inline" />;
+        return sortConfig.direction === 'asc' ?
+            <ChevronUp className="w-3 h-3 text-indigo-500 ml-1 inline" /> :
+            <ChevronDown className="w-3 h-3 text-indigo-500 ml-1 inline" />;
+    };
 
     // === CHART DATA with Ticket Medio + YoY ===
     const chartData = useMemo(() => {
@@ -468,21 +517,21 @@ function AdvisorEvolutionContent() {
                     <table className="w-full text-left text-sm">
                         <thead>
                             <tr className="bg-slate-50 border-b border-slate-100">
-                                <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs">Periodo</th>
-                                <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right">Entes</th>
-                                <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right">Primas (€)</th>
-                                <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right">Var. Primas</th>
-                                <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right">Pólizas</th>
-                                <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right">Var. Pólizas</th>
-                                <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right">Ticket M.</th>
-                                <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right">Retención</th>
-                                <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right">Anuladas</th>
-                                <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right">Tempr.</th>
+                                <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs cursor-pointer hover:bg-slate-100" onClick={() => requestSort('anio')}>Periodo <SortIcon column="anio" /></th>
+                                <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('entes')}>Entes <SortIcon column="entes" /></th>
+                                <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('primas')}>Primas (€) <SortIcon column="primas" /></th>
+                                <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('varPrimas')}>Var. Primas <SortIcon column="varPrimas" /></th>
+                                <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('polizas')}>Pólizas <SortIcon column="polizas" /></th>
+                                <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('varPolizas')}>Var. Pólizas <SortIcon column="varPolizas" /></th>
+                                <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('ticketMedio')}>Ticket M. <SortIcon column="ticketMedio" /></th>
+                                <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('ratioRetencion')}>Retención <SortIcon column="ratioRetencion" /></th>
+                                <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('anuladas')}>Anuladas <SortIcon column="anuladas" /></th>
+                                <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('anulacionesTempranas')}>Tempr. <SortIcon column="anulacionesTempranas" /></th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {[...filteredData].reverse().map((d, i) => {
-                                const origIdx = filteredData.length - 1 - i;
+                            {sortedData.map((d, i) => {
+                                const origIdx = filteredData.findIndex(x => x.anio === d.anio && x.mes === d.mes);
                                 const pct = momChanges[origIdx];
                                 return (
                                     <tr key={i} className="hover:bg-slate-50 transition-colors group">
