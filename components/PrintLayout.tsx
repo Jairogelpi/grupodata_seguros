@@ -27,7 +27,7 @@ export default function PrintLayout() {
                     /* Fixed Corporate Header/Footer */
                     .print-header {
                         position: fixed;
-                        top: 0;
+                        top: -140px; /* Pull header up into the 150px margin */
                         left: 0;
                         right: 0;
                         height: 120px; /* Slight increase */
