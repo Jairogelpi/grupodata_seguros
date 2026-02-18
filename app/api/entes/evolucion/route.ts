@@ -9,6 +9,12 @@ export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
         const enteName = searchParams.get('ente');
+        const ramoParam = searchParams.get('ramo');
+        const anioParam = searchParams.get('anio');
+        const mesParam = searchParams.get('mes');
+        const ramoFilter = ramoParam ? ramoParam.split(',') : null;
+        const targetAnio = anioParam ? parseInt(anioParam) : null;
+        const targetMes = mesParam ? parseInt(mesParam) : null;
 
         if (!enteName) {
             return NextResponse.json({ error: 'Falta el parámetro ente' }, { status: 400 });
@@ -82,11 +88,23 @@ export async function GET(request: Request) {
             const mes = parseInt(p['MES_Prod']);
             if (isNaN(anio) || isNaN(mes)) return;
 
+            // Apply Filters (Before Aggregation)
+            const producto = String(p['Producto'] || 'Sin Producto');
+
+            // Filter by Period (if params present)
+            if (targetAnio && anio !== targetAnio) return;
+            if (targetMes && mes !== targetMes) return;
+
+            // Filter by Ramo (if param present)
+            if (ramoFilter) {
+                const r = getRamo(producto);
+                if (!ramoFilter.includes(r)) return;
+            }
+
             const key = `${anio}-${String(mes).padStart(2, '0')}`;
             const pStr = String(p['P.Produccion'] || '0').replace(',', '.');
             const primas = parseFloat(pStr) || 0;
             const estado = String(p['Estado'] || '').toUpperCase();
-            const producto = String(p['Producto'] || 'Sin Producto');
 
             // Monthly aggregation
             if (!monthlyStats.has(key)) {

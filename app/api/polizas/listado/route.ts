@@ -86,10 +86,11 @@ export async function GET(request: Request) {
                 if (currentVal < startVal || currentVal > endVal) return false;
             }
 
-            // Filter by Ramo classification
+            // Filter by Ramo classification (supports comma-separated values)
             if (ramoFilter) {
+                const ramos = ramoFilter.split(',');
                 const producto = String(p['Producto'] || '');
-                if (getRamo(producto) !== ramoFilter) return false;
+                if (!ramos.includes(getRamo(producto))) return false;
             }
 
             return true;

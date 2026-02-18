@@ -18,7 +18,8 @@ import {
     ChevronUp,
     ChevronDown,
     ChevronsUpDown,
-    Search
+    Search,
+    X
 } from 'lucide-react';
 import {
     Chart as ChartJS,
@@ -112,23 +113,29 @@ function EvolutionContent() {
     const [chartType, setChartType] = useState<'line' | 'bar'>('line');
     const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
     const [interactiveProduct, setInteractiveProduct] = useState<string | null>(null);
-    const [selectedRamo, setSelectedRamo] = useState<string | null>(null);
+    const [selectedRamos, setSelectedRamos] = useState<string[]>([]);
     const [ramoPolizas, setRamoPolizas] = useState<any[]>([]);
     const [loadingRamoDetail, setLoadingRamoDetail] = useState(false);
     const [ramoSearchTerm, setRamoSearchTerm] = useState('');
 
+    const [selectedPeriod, setSelectedPeriod] = useState<{ year: number, month: number } | null>(null);
+    const [periodMix, setPeriodMix] = useState<{ productMix: ProductMixItem[], ramosMix: RamoMixItem[] } | null>(null);
     const [startPeriod, setStartPeriod] = useState({ year: 0, month: 1 });
     const [endPeriod, setEndPeriod] = useState({ year: 0, month: 12 });
     const [availableYears, setAvailableYears] = useState<number[]>([]);
 
     useEffect(() => {
         if (ente) fetchEvolution();
-    }, [ente]);
+    }, [ente, selectedRamos]); // Re-fetch when Ramos change
 
     const fetchEvolution = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`/api/entes/evolucion?ente=${encodeURIComponent(ente!)}`);
+            const params = new URLSearchParams();
+            params.append('ente', ente!);
+            if (selectedRamos.length > 0) params.append('ramo', selectedRamos.join(','));
+
+            const res = await fetch(`/api/entes/evolucion?${params.toString()}`);
             const json = await res.json();
             if (json.evolution) {
                 setData(json.evolution);
@@ -137,7 +144,7 @@ function EvolutionContent() {
                 setRamosMix(json.ramosMix || []);
                 const years = Array.from(new Set(json.evolution.map((d: any) => d.anio))) as number[];
                 setAvailableYears(years.sort((a, b) => a - b));
-                if (years.length > 0) {
+                if (years.length > 0 && availableYears.length === 0) { // Only set default period on first load
                     setStartPeriod({ year: years[0], month: 1 });
                     setEndPeriod({ year: years[years.length - 1], month: 12 });
                 }
@@ -146,6 +153,24 @@ function EvolutionContent() {
             console.error('Error fetching evolution', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchPeriodDetails = async (year: number, month: number) => {
+        try {
+            const params = new URLSearchParams();
+            params.append('ente', ente!);
+            params.append('anio', year.toString());
+            params.append('mes', month.toString());
+            if (selectedRamos.length > 0) params.append('ramo', selectedRamos.join(','));
+
+            const res = await fetch(`/api/entes/evolucion?${params.toString()}`);
+            const json = await res.json();
+            if (json.productMix && json.ramosMix) {
+                setPeriodMix({ productMix: json.productMix, ramosMix: json.ramosMix });
+            }
+        } catch (e) {
+            console.error(e);
         }
     };
 
@@ -353,12 +378,16 @@ function EvolutionContent() {
     };
 
     // === FEATURE 3: Donut Chart ===
+    // === FEATURE 3: Donut Chart ===
     const activeMixData = useMemo(() => {
+        const sourceRamos = selectedPeriod && periodMix ? periodMix.ramosMix : ramosMix;
+        const sourceProducts = selectedPeriod && periodMix ? periodMix.productMix : productMix;
+
         if (mixDepth === 'ramo') {
-            return ramosMix.map(r => ({ name: r.ramo, primas: r.primas, polizas: r.polizas }));
+            return sourceRamos.map(r => ({ name: r.ramo, primas: r.primas, polizas: r.polizas }));
         }
-        return productMix.map(p => ({ name: p.producto, primas: p.primas, polizas: p.polizas }));
-    }, [mixDepth, ramosMix, productMix]);
+        return sourceProducts.map(p => ({ name: p.producto, primas: p.primas, polizas: p.polizas }));
+    }, [mixDepth, ramosMix, productMix, selectedPeriod, periodMix]);
 
     const donutData = useMemo(() => {
         const top = activeMixData.slice(0, 10);
@@ -454,6 +483,11 @@ function EvolutionContent() {
                     <ArrowLeft className="w-5 h-5" /> Volver
                 </button>
                 <div className="flex gap-2">
+                    {(selectedRamos.length > 0 || interactiveProduct || searchTerm || selectedPeriod) && (
+                        <button onClick={() => { setSelectedRamos([]); setRamoPolizas([]); setRamoSearchTerm(''); setInteractiveProduct(null); setSearchTerm(''); setSelectedPeriod(null); setPeriodMix(null); }} className="flex items-center gap-2 px-4 py-2 bg-red-50 border border-red-200 rounded-xl hover:bg-red-100 transition-all shadow-sm text-sm font-medium text-red-600">
+                            <X className="w-4 h-4" /> Limpiar Filtros
+                        </button>
+                    )}
                     <button onClick={handleExportExcel} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all shadow-sm text-sm font-medium">
                         <FileDown className="w-4 h-4 text-green-600" /> Excel
                     </button>
@@ -607,25 +641,30 @@ function EvolutionContent() {
                                         .slice(0, 12).map((p, i) => {
                                             const totalPrimas = activeMixData.reduce((s, x) => s + x.primas, 0);
                                             const pct = totalPrimas > 0 ? ((p.primas / totalPrimas) * 100).toFixed(1) : '0';
+                                            const isSelected = selectedRamos.includes(p.name);
                                             return (
-                                                <tr key={i} className={`hover:bg-slate-50 ${mixDepth === 'ramo' ? 'cursor-pointer' : ''} ${selectedRamo === p.name ? 'bg-purple-50 ring-1 ring-purple-200' : ''}`} onClick={() => {
+                                                <tr key={i} className={`hover:bg-slate-50 ${mixDepth === 'ramo' ? 'cursor-pointer' : ''} ${isSelected ? 'bg-purple-50 ring-1 ring-purple-200' : ''}`} onClick={() => {
                                                     if (mixDepth === 'ramo') {
-                                                        if (selectedRamo === p.name) {
-                                                            setSelectedRamo(null); setRamoPolizas([]); setRamoSearchTerm('');
-                                                        } else {
-                                                            setSelectedRamo(p.name);
-                                                            setRamoSearchTerm('');
+                                                        const newSelection = isSelected
+                                                            ? selectedRamos.filter(r => r !== p.name)
+                                                            : [...selectedRamos, p.name];
+                                                        setSelectedRamos(newSelection);
+                                                        setRamoSearchTerm('');
+                                                        if (newSelection.length > 0) {
                                                             setLoadingRamoDetail(true);
                                                             const params = new URLSearchParams();
                                                             if (ente) params.append('ente', ente);
-                                                            params.append('ramo', p.name);
+                                                            params.append('ramo', newSelection.join(','));
                                                             fetch(`/api/polizas/listado?${params.toString()}`).then(r => r.json()).then(d => { setRamoPolizas(d.polizas || []); }).catch(() => setRamoPolizas([])).finally(() => setLoadingRamoDetail(false));
+                                                        } else {
+                                                            setRamoPolizas([]);
                                                         }
                                                     }
                                                 }}>
                                                     <td className="p-3 font-medium text-slate-700 flex items-center gap-2">
                                                         <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: DONUT_COLORS[i % DONUT_COLORS.length] }} />
                                                         {p.name}
+                                                        {isSelected && <span className="ml-1 text-purple-500 text-xs">✓</span>}
                                                     </td>
                                                     <td className="p-3 text-right font-bold text-primary font-mono">{currencyFormatter.format(p.primas)}</td>
                                                     <td className="p-3 text-right font-mono text-slate-600">{numberFormatter.format(p.polizas)}</td>
@@ -641,77 +680,84 @@ function EvolutionContent() {
             )}
 
             {/* Ramo Drill-Down Detail Panel */}
-            {selectedRamo && mixDepth === 'ramo' && (
+            {selectedRamos.length > 0 && mixDepth === 'ramo' && (
                 <div className="bg-white p-8 print:p-6 rounded-2xl shadow-sm border border-purple-200 break-inside-avoid print:w-full">
                     <div className="flex items-center justify-between mb-6">
                         <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
                             <PieChart className="w-5 h-5 text-purple-500" />
-                            Detalle del Ramo: <span className="text-purple-600">{selectedRamo}</span>
+                            Detalle: <span className="text-purple-600">{selectedRamos.join(', ')}</span>
                         </h2>
-                        <button onClick={() => { setSelectedRamo(null); setRamoPolizas([]); setRamoSearchTerm(''); }} className="px-4 py-1.5 rounded-md text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all no-print">Cerrar ✕</button>
+                        <button onClick={() => { setSelectedRamos([]); setRamoPolizas([]); setRamoSearchTerm(''); }} className="px-4 py-1.5 rounded-md text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all no-print">Cerrar ✕</button>
                     </div>
 
-                    {/* Sub-donut: Products within this Ramo */}
-                    {(() => {
-                        const ramoProducts = productMix.filter(p => getRamo(p.producto) === selectedRamo);
+                    {/* Products within each selected Ramo */}
+                    {selectedRamos.map(ramo => {
+                        const ramoProducts = productMix.filter(p => getRamo(p.producto) === ramo);
                         const totalRamoPrimas = ramoProducts.reduce((s, p) => s + p.primas, 0);
                         const subDonutData = {
                             labels: ramoProducts.map(p => p.producto),
                             datasets: [{ data: ramoProducts.map(p => p.primas), backgroundColor: DONUT_COLORS.slice(0, ramoProducts.length), borderWidth: 2, borderColor: '#fff' }]
                         };
                         return (
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                                <div className="h-[280px]">
-                                    {ramoProducts.length > 0 ? (
-                                        <Doughnut data={subDonutData} options={{
-                                            responsive: true, maintainAspectRatio: false,
-                                            plugins: {
-                                                legend: { position: 'bottom' as const, labels: { boxWidth: 10, font: { size: 9 }, padding: 8 } },
-                                                datalabels: {
-                                                    formatter: (val: number, ctx: any) => { const total = ctx.dataset.data.reduce((a: number, b: number) => a + b, 0); return total > 0 ? `${((val / total) * 100).toFixed(1)}%` : '0%'; },
-                                                    color: '#fff', font: { weight: 'bold' as const, size: 10 },
-                                                    display: (ctx: any) => { const total = ctx.dataset.data.reduce((a: number, b: number) => a + b, 0); return total > 0 && (ctx.dataset.data[ctx.dataIndex] / total) > 0.04; }
+                            <div key={ramo} className="mb-8 last:mb-0">
+                                <h3 className="text-lg font-bold text-purple-700 mb-4 flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-purple-500 inline-block" />
+                                    {ramo} <span className="text-sm font-normal text-slate-500">({ramoProducts.length} productos)</span>
+                                </h3>
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                    <div className="h-[250px]">
+                                        {ramoProducts.length > 0 ? (
+                                            <Doughnut data={subDonutData} options={{
+                                                responsive: true, maintainAspectRatio: false,
+                                                plugins: {
+                                                    legend: { position: 'bottom' as const, labels: { boxWidth: 10, font: { size: 9 }, padding: 8 } },
+                                                    datalabels: {
+                                                        formatter: (val: number, ctx: any) => { const total = ctx.dataset.data.reduce((a: number, b: number) => a + b, 0); return total > 0 ? `${((val / total) * 100).toFixed(1)}%` : '0%'; },
+                                                        color: '#fff', font: { weight: 'bold' as const, size: 10 },
+                                                        display: (ctx: any) => { const total = ctx.dataset.data.reduce((a: number, b: number) => a + b, 0); return total > 0 && (ctx.dataset.data[ctx.dataIndex] / total) > 0.04; }
+                                                    }
                                                 }
-                                            }
-                                        }} />
-                                    ) : <div className="flex items-center justify-center h-full text-slate-400">Sin datos</div>}
+                                            }} />
+                                        ) : <div className="flex items-center justify-center h-full text-slate-400">Sin datos</div>}
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-sm">
+                                            <thead>
+                                                <tr className="border-b border-slate-100">
+                                                    <th className="p-3 text-left text-xs font-bold text-slate-400 uppercase">Producto</th>
+                                                    <th className="p-3 text-right text-xs font-bold text-slate-400 uppercase">Primas</th>
+                                                    <th className="p-3 text-right text-xs font-bold text-slate-400 uppercase">Pólizas</th>
+                                                    <th className="p-3 text-right text-xs font-bold text-slate-400 uppercase">Peso</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-50">
+                                                {ramoProducts.map((p, i) => {
+                                                    const pct = totalRamoPrimas > 0 ? ((p.primas / totalRamoPrimas) * 100).toFixed(1) : '0';
+                                                    return (
+                                                        <tr key={i} className="hover:bg-slate-50">
+                                                            <td className="p-3 font-medium text-slate-700 flex items-center gap-2">
+                                                                <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: DONUT_COLORS[i % DONUT_COLORS.length] }} />
+                                                                {p.producto}
+                                                            </td>
+                                                            <td className="p-3 text-right font-bold text-primary font-mono">{currencyFormatter.format(p.primas)}</td>
+                                                            <td className="p-3 text-right font-mono text-slate-600">{numberFormatter.format(p.polizas)}</td>
+                                                            <td className="p-3 text-right font-bold text-slate-500">{pct}%</td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-sm">
-                                        <thead>
-                                            <tr className="border-b border-slate-100">
-                                                <th className="p-3 text-left text-xs font-bold text-slate-400 uppercase">Producto</th>
-                                                <th className="p-3 text-right text-xs font-bold text-slate-400 uppercase">Primas</th>
-                                                <th className="p-3 text-right text-xs font-bold text-slate-400 uppercase">Pólizas</th>
-                                                <th className="p-3 text-right text-xs font-bold text-slate-400 uppercase">Peso</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-50">
-                                            {ramoProducts.map((p, i) => {
-                                                const pct = totalRamoPrimas > 0 ? ((p.primas / totalRamoPrimas) * 100).toFixed(1) : '0';
-                                                return (
-                                                    <tr key={i} className="hover:bg-slate-50">
-                                                        <td className="p-3 font-medium text-slate-700 flex items-center gap-2">
-                                                            <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: DONUT_COLORS[i % DONUT_COLORS.length] }} />
-                                                            {p.producto}
-                                                        </td>
-                                                        <td className="p-3 text-right font-bold text-primary font-mono">{currencyFormatter.format(p.primas)}</td>
-                                                        <td className="p-3 text-right font-mono text-slate-600">{numberFormatter.format(p.polizas)}</td>
-                                                        <td className="p-3 text-right font-bold text-slate-500">{pct}%</td>
-                                                    </tr>
-                                                );
-                                            })}
-                                        </tbody>
-                                    </table>
-                                </div>
+                                {selectedRamos.length > 1 && <hr className="mt-6 border-slate-100" />}
                             </div>
                         );
-                    })()}
+                    })}
 
-                    {/* Policy table within this Ramo */}
+                    {/* Policy table */}
                     <div className="border-t border-slate-200 pt-6">
                         <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-lg font-bold text-slate-700">Pólizas del Ramo</h3>
+                            <h3 className="text-lg font-bold text-slate-700">Pólizas ({ramoPolizas.length})</h3>
                             <div className="relative w-64 no-print">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                                 <input type="text" placeholder="Buscar póliza, tomador..." value={ramoSearchTerm} onChange={e => setRamoSearchTerm(e.target.value)} className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
@@ -756,7 +802,7 @@ function EvolutionContent() {
                                 {ramoPolizas.length > 200 && <p className="text-xs text-slate-400 text-center py-2">Mostrando 200 de {ramoPolizas.length} pólizas</p>}
                             </div>
                         ) : (
-                            <div className="py-8 text-center text-slate-400">No hay pólizas para este ramo</div>
+                            <div className="py-8 text-center text-slate-400">No hay pólizas para los ramos seleccionados</div>
                         )}
                     </div>
                 </div>

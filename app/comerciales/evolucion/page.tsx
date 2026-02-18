@@ -17,7 +17,8 @@ import {
     ChevronUp,
     ChevronDown,
     ChevronsUpDown,
-    Search
+    Search,
+    X
 } from 'lucide-react';
 import {
     Chart as ChartJS,
@@ -112,23 +113,29 @@ function AdvisorEvolutionContent() {
     const [chartType, setChartType] = useState<'line' | 'bar'>('bar');
     const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
     const [interactiveProduct, setInteractiveProduct] = useState<string | null>(null);
-    const [selectedRamo, setSelectedRamo] = useState<string | null>(null);
+    const [selectedRamos, setSelectedRamos] = useState<string[]>([]);
     const [ramoPolizas, setRamoPolizas] = useState<any[]>([]);
     const [loadingRamoDetail, setLoadingRamoDetail] = useState(false);
     const [ramoSearchTerm, setRamoSearchTerm] = useState('');
 
+    const [selectedPeriod, setSelectedPeriod] = useState<{ year: number, month: number } | null>(null);
+    const [periodMix, setPeriodMix] = useState<{ productMix: ProductMixItem[], ramosMix: RamoMixItem[] } | null>(null);
     const [startPeriod, setStartPeriod] = useState({ year: 0, month: 1 });
     const [endPeriod, setEndPeriod] = useState({ year: 0, month: 12 });
     const [availableYears, setAvailableYears] = useState<number[]>([]);
 
     useEffect(() => {
         if (asesor) fetchEvolution();
-    }, [asesor]);
+    }, [asesor, selectedRamos]);
 
     const fetchEvolution = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`/api/comerciales/evolucion?asesor=${encodeURIComponent(asesor!)}`);
+            const params = new URLSearchParams();
+            params.append('asesor', asesor!);
+            if (selectedRamos.length > 0) params.append('ramo', selectedRamos.join(','));
+
+            const res = await fetch(`/api/comerciales/evolucion?${params.toString()}`);
             const json = await res.json();
             if (json.evolution) {
                 setData(json.evolution);
@@ -137,7 +144,7 @@ function AdvisorEvolutionContent() {
                 setRamosMix(json.ramosMix || []);
                 const years = Array.from(new Set(json.evolution.map((d: any) => d.anio))) as number[];
                 setAvailableYears(years.sort((a, b) => a - b));
-                if (years.length > 0) {
+                if (years.length > 0 && availableYears.length === 0) {
                     setStartPeriod({ year: years[0], month: 1 });
                     setEndPeriod({ year: years[years.length - 1], month: 12 });
                 }
@@ -146,6 +153,24 @@ function AdvisorEvolutionContent() {
             console.error('Error fetching advisor evolution', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchPeriodDetails = async (year: number, month: number) => {
+        try {
+            const params = new URLSearchParams();
+            params.append('asesor', asesor!);
+            params.append('anio', year.toString());
+            params.append('mes', month.toString());
+            if (selectedRamos.length > 0) params.append('ramo', selectedRamos.join(','));
+
+            const res = await fetch(`/api/comerciales/evolucion?${params.toString()}`);
+            const json = await res.json();
+            if (json.productMix && json.ramosMix) {
+                setPeriodMix({ productMix: json.productMix, ramosMix: json.ramosMix });
+            }
+        } catch (e) {
+            console.error(e);
         }
     };
 
@@ -352,12 +377,16 @@ function AdvisorEvolutionContent() {
     };
 
     // === FEATURE 3: Donut Chart ===
+    // === FEATURE 3: Donut Chart ===
     const activeMixData = useMemo(() => {
+        const sourceRamos = selectedPeriod && periodMix ? periodMix.ramosMix : ramosMix;
+        const sourceProducts = selectedPeriod && periodMix ? periodMix.productMix : productMix;
+
         if (mixDepth === 'ramo') {
-            return ramosMix.map(r => ({ name: r.ramo, primas: r.primas, polizas: r.polizas }));
+            return sourceRamos.map(r => ({ name: r.ramo, primas: r.primas, polizas: r.polizas }));
         }
-        return productMix.map(p => ({ name: p.producto, primas: p.primas, polizas: p.polizas }));
-    }, [mixDepth, ramosMix, productMix]);
+        return sourceProducts.map(p => ({ name: p.producto, primas: p.primas, polizas: p.polizas }));
+    }, [mixDepth, ramosMix, productMix, selectedPeriod, periodMix]);
 
     const donutData = useMemo(() => {
         const top = activeMixData.slice(0, 10);
@@ -439,6 +468,11 @@ function AdvisorEvolutionContent() {
                     <ArrowLeft className="w-5 h-5" /> Volver
                 </button>
                 <div className="flex gap-2">
+                    {(selectedRamos.length > 0 || interactiveProduct || searchTerm || selectedPeriod) && (
+                        <button onClick={() => { setSelectedRamos([]); setRamoPolizas([]); setRamoSearchTerm(''); setInteractiveProduct(null); setSearchTerm(''); setSelectedPeriod(null); setPeriodMix(null); }} className="flex items-center gap-2 px-4 py-2 bg-red-50 border border-red-200 rounded-xl hover:bg-red-100 transition-all shadow-sm text-sm font-medium text-red-600">
+                            <X className="w-4 h-4" /> Limpiar Filtros
+                        </button>
+                    )}
                     <button onClick={handleExportExcel} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all shadow-sm text-sm font-medium">
                         <FileDown className="w-4 h-4 text-green-600" /> Excel
                     </button>
@@ -787,9 +821,24 @@ function AdvisorEvolutionContent() {
                             {sortedData.map((d, i) => {
                                 const origIdx = filteredData.findIndex(x => x.anio === d.anio && x.mes === d.mes);
                                 const pct = momChanges[origIdx];
+                                const isSelected = selectedPeriod?.year === d.anio && selectedPeriod?.month === d.mes;
                                 return (
-                                    <tr key={i} className="hover:bg-slate-50 transition-colors group">
-                                        <td className="p-4 font-medium text-slate-900">{MONTHS[d.mes - 1]} {d.anio}</td>
+                                    <tr key={i}
+                                        onClick={() => {
+                                            if (isSelected) {
+                                                setSelectedPeriod(null);
+                                                setPeriodMix(null);
+                                            } else {
+                                                setSelectedPeriod({ year: d.anio, month: d.mes });
+                                                fetchPeriodDetails(d.anio, d.mes);
+                                            }
+                                        }}
+                                        className={`transition-colors group cursor-pointer ${isSelected ? 'bg-indigo-50 hover:bg-indigo-100 ring-1 ring-indigo-300' : 'hover:bg-slate-50'}`}
+                                    >
+                                        <td className="p-4 font-medium text-slate-900 flex items-center gap-2">
+                                            {MONTHS[d.mes - 1]} {d.anio}
+                                            {isSelected && <span className="ml-2 px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-bold">ACTIVO</span>}
+                                        </td>
                                         <td className="p-4 text-right font-bold text-amber-600">{numberFormatter.format(d.entes)}</td>
                                         <td className="p-4 text-right font-bold text-primary">{currencyFormatter.format(d.primas)}</td>
                                         <td className={`p-4 text-right font-bold text-xs ${pct === null ? 'text-slate-300' : pct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
