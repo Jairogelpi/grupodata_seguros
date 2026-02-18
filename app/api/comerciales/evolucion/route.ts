@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { readData } from '@/lib/storage';
 import { getLinks } from '@/lib/registry';
+import { getRamo } from '@/lib/ramos';
 
 export const dynamic = 'force-dynamic';
 
@@ -79,6 +80,7 @@ export async function GET(request: Request) {
 
         const monthlyStats = new Map<string, MonthlyBucket>();
         const productMix = new Map<string, { primas: number; polizas: number }>();
+        const ramosMix = new Map<string, { primas: number; polizas: number }>();
 
         polizas.forEach(p => {
             const asesor = getPolizaAsesor(p);
@@ -123,6 +125,15 @@ export async function GET(request: Request) {
             const pm = productMix.get(ramo)!;
             pm.primas += primas;
             pm.polizas += 1;
+
+            // Ramo (depth 1) aggregation
+            const ramoName = getRamo(producto);
+            if (!ramosMix.has(ramoName)) {
+                ramosMix.set(ramoName, { primas: 0, polizas: 0 });
+            }
+            const rm = ramosMix.get(ramoName)!;
+            rm.primas += primas;
+            rm.polizas += 1;
         });
 
         // 4. Sort and return with numEntes + retention
@@ -163,11 +174,16 @@ export async function GET(request: Request) {
             .map(([producto, data]) => ({ producto, ...data }))
             .sort((a, b) => b.primas - a.primas);
 
+        const ramosMixArray = Array.from(ramosMix.entries())
+            .map(([ramo, data]) => ({ ramo, ...data }))
+            .sort((a, b) => b.primas - a.primas);
+
         return NextResponse.json({
             asesor: asesorName,
             evolution,
             globalStats,
-            productMix: productMixArray
+            productMix: productMixArray,
+            ramosMix: ramosMixArray
         });
 
     } catch (error) {

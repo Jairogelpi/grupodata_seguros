@@ -36,6 +36,7 @@ import {
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import * as XLSX from 'xlsx';
+import { getRamo } from '@/lib/ramos';
 
 ChartJS.register(
     CategoryScale, LinearScale, PointElement, LineElement,
@@ -69,6 +70,12 @@ interface ProductMixItem {
     polizas: number;
 }
 
+interface RamoMixItem {
+    ramo: string;
+    primas: number;
+    polizas: number;
+}
+
 const MONTHS = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
@@ -98,11 +105,17 @@ function EvolutionContent() {
     const [data, setData] = useState<EvolutionData[]>([]);
     const [globalStats, setGlobalStats] = useState<GlobalStats>({ active: 0, suspension: 0, totalAnuladas: 0 });
     const [productMix, setProductMix] = useState<ProductMixItem[]>([]);
+    const [ramosMix, setRamosMix] = useState<RamoMixItem[]>([]);
+    const [mixDepth, setMixDepth] = useState<'ramo' | 'producto'>('ramo');
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [chartType, setChartType] = useState<'line' | 'bar'>('line');
     const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
     const [interactiveProduct, setInteractiveProduct] = useState<string | null>(null);
+    const [selectedRamo, setSelectedRamo] = useState<string | null>(null);
+    const [ramoPolizas, setRamoPolizas] = useState<any[]>([]);
+    const [loadingRamoDetail, setLoadingRamoDetail] = useState(false);
+    const [ramoSearchTerm, setRamoSearchTerm] = useState('');
 
     const [startPeriod, setStartPeriod] = useState({ year: 0, month: 1 });
     const [endPeriod, setEndPeriod] = useState({ year: 0, month: 12 });
@@ -121,6 +134,7 @@ function EvolutionContent() {
                 setData(json.evolution);
                 setGlobalStats(json.globalStats || { active: 0, suspension: 0, totalAnuladas: 0 });
                 setProductMix(json.productMix || []);
+                setRamosMix(json.ramosMix || []);
                 const years = Array.from(new Set(json.evolution.map((d: any) => d.anio))) as number[];
                 setAvailableYears(years.sort((a, b) => a - b));
                 if (years.length > 0) {
@@ -339,11 +353,18 @@ function EvolutionContent() {
     };
 
     // === FEATURE 3: Donut Chart ===
+    const activeMixData = useMemo(() => {
+        if (mixDepth === 'ramo') {
+            return ramosMix.map(r => ({ name: r.ramo, primas: r.primas, polizas: r.polizas }));
+        }
+        return productMix.map(p => ({ name: p.producto, primas: p.primas, polizas: p.polizas }));
+    }, [mixDepth, ramosMix, productMix]);
+
     const donutData = useMemo(() => {
-        const top = productMix.slice(0, 10);
-        const rest = productMix.slice(10);
+        const top = activeMixData.slice(0, 10);
+        const rest = activeMixData.slice(10);
         const restTotal = rest.reduce((sum, r) => sum + r.primas, 0);
-        const labels = top.map(p => p.producto);
+        const labels = top.map(p => p.name);
         const values = top.map(p => p.primas);
         if (restTotal > 0) {
             labels.push('Otros');
@@ -358,7 +379,7 @@ function EvolutionContent() {
                 borderColor: '#fff'
             }]
         };
-    }, [productMix]);
+    }, [activeMixData]);
 
     const donutOptions = {
         responsive: true,
@@ -554,12 +575,18 @@ function EvolutionContent() {
             </div>
 
             {/* Feature 3: Product Mix Donut */}
-            {!loading && productMix.length > 0 && (
+            {!loading && activeMixData.length > 0 && (
                 <div className="bg-white p-8 print:p-6 rounded-2xl shadow-sm border border-slate-200 break-inside-avoid print:w-full">
-                    <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2 mb-6">
-                        <PieChart className="w-5 h-5 text-purple-500" />
-                        Mix de Productos por Ramo
-                    </h2>
+                    <div className="flex items-center justify-between mb-6">
+                        <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                            <PieChart className="w-5 h-5 text-purple-500" />
+                            Mix de Productos por Ramo
+                        </h2>
+                        <div className="flex items-center bg-slate-100 rounded-lg p-0.5 no-print">
+                            <button onClick={() => setMixDepth('ramo')} className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${mixDepth === 'ramo' ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Ramos</button>
+                            <button onClick={() => setMixDepth('producto')} className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${mixDepth === 'producto' ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Productos</button>
+                        </div>
+                    </div>
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 print:grid-cols-1">
                         <div className="h-[300px]">
                             <Doughnut data={donutData} options={donutOptions} />
@@ -568,23 +595,37 @@ function EvolutionContent() {
                             <table className="w-full text-sm">
                                 <thead>
                                     <tr className="border-b border-slate-100">
-                                        <th className="p-3 text-left text-xs font-bold text-slate-400 uppercase">Producto</th>
+                                        <th className="p-3 text-left text-xs font-bold text-slate-400 uppercase">{mixDepth === 'ramo' ? 'Ramo' : 'Producto'}</th>
                                         <th className="p-3 text-right text-xs font-bold text-slate-400 uppercase">Primas</th>
                                         <th className="p-3 text-right text-xs font-bold text-slate-400 uppercase">Pólizas</th>
                                         <th className="p-3 text-right text-xs font-bold text-slate-400 uppercase">Peso</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-50">
-                                    {productMix
-                                        .filter(p => !interactiveProduct || p.producto === interactiveProduct)
+                                    {activeMixData
+                                        .filter(p => !interactiveProduct || p.name === interactiveProduct)
                                         .slice(0, 12).map((p, i) => {
-                                            const totalPrimas = productMix.reduce((s, x) => s + x.primas, 0);
+                                            const totalPrimas = activeMixData.reduce((s, x) => s + x.primas, 0);
                                             const pct = totalPrimas > 0 ? ((p.primas / totalPrimas) * 100).toFixed(1) : '0';
                                             return (
-                                                <tr key={i} className="hover:bg-slate-50">
+                                                <tr key={i} className={`hover:bg-slate-50 ${mixDepth === 'ramo' ? 'cursor-pointer' : ''} ${selectedRamo === p.name ? 'bg-purple-50 ring-1 ring-purple-200' : ''}`} onClick={() => {
+                                                    if (mixDepth === 'ramo') {
+                                                        if (selectedRamo === p.name) {
+                                                            setSelectedRamo(null); setRamoPolizas([]); setRamoSearchTerm('');
+                                                        } else {
+                                                            setSelectedRamo(p.name);
+                                                            setRamoSearchTerm('');
+                                                            setLoadingRamoDetail(true);
+                                                            const params = new URLSearchParams();
+                                                            if (ente) params.append('ente', ente);
+                                                            params.append('ramo', p.name);
+                                                            fetch(`/api/polizas/listado?${params.toString()}`).then(r => r.json()).then(d => { setRamoPolizas(d.polizas || []); }).catch(() => setRamoPolizas([])).finally(() => setLoadingRamoDetail(false));
+                                                        }
+                                                    }
+                                                }}>
                                                     <td className="p-3 font-medium text-slate-700 flex items-center gap-2">
                                                         <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: DONUT_COLORS[i % DONUT_COLORS.length] }} />
-                                                        {p.producto}
+                                                        {p.name}
                                                     </td>
                                                     <td className="p-3 text-right font-bold text-primary font-mono">{currencyFormatter.format(p.primas)}</td>
                                                     <td className="p-3 text-right font-mono text-slate-600">{numberFormatter.format(p.polizas)}</td>
@@ -595,6 +636,128 @@ function EvolutionContent() {
                                 </tbody>
                             </table>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Ramo Drill-Down Detail Panel */}
+            {selectedRamo && mixDepth === 'ramo' && (
+                <div className="bg-white p-8 print:p-6 rounded-2xl shadow-sm border border-purple-200 break-inside-avoid print:w-full">
+                    <div className="flex items-center justify-between mb-6">
+                        <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                            <PieChart className="w-5 h-5 text-purple-500" />
+                            Detalle del Ramo: <span className="text-purple-600">{selectedRamo}</span>
+                        </h2>
+                        <button onClick={() => { setSelectedRamo(null); setRamoPolizas([]); setRamoSearchTerm(''); }} className="px-4 py-1.5 rounded-md text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all no-print">Cerrar ✕</button>
+                    </div>
+
+                    {/* Sub-donut: Products within this Ramo */}
+                    {(() => {
+                        const ramoProducts = productMix.filter(p => getRamo(p.producto) === selectedRamo);
+                        const totalRamoPrimas = ramoProducts.reduce((s, p) => s + p.primas, 0);
+                        const subDonutData = {
+                            labels: ramoProducts.map(p => p.producto),
+                            datasets: [{ data: ramoProducts.map(p => p.primas), backgroundColor: DONUT_COLORS.slice(0, ramoProducts.length), borderWidth: 2, borderColor: '#fff' }]
+                        };
+                        return (
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                                <div className="h-[280px]">
+                                    {ramoProducts.length > 0 ? (
+                                        <Doughnut data={subDonutData} options={{
+                                            responsive: true, maintainAspectRatio: false,
+                                            plugins: {
+                                                legend: { position: 'bottom' as const, labels: { boxWidth: 10, font: { size: 9 }, padding: 8 } },
+                                                datalabels: {
+                                                    formatter: (val: number, ctx: any) => { const total = ctx.dataset.data.reduce((a: number, b: number) => a + b, 0); return total > 0 ? `${((val / total) * 100).toFixed(1)}%` : '0%'; },
+                                                    color: '#fff', font: { weight: 'bold' as const, size: 10 },
+                                                    display: (ctx: any) => { const total = ctx.dataset.data.reduce((a: number, b: number) => a + b, 0); return total > 0 && (ctx.dataset.data[ctx.dataIndex] / total) > 0.04; }
+                                                }
+                                            }
+                                        }} />
+                                    ) : <div className="flex items-center justify-center h-full text-slate-400">Sin datos</div>}
+                                </div>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm">
+                                        <thead>
+                                            <tr className="border-b border-slate-100">
+                                                <th className="p-3 text-left text-xs font-bold text-slate-400 uppercase">Producto</th>
+                                                <th className="p-3 text-right text-xs font-bold text-slate-400 uppercase">Primas</th>
+                                                <th className="p-3 text-right text-xs font-bold text-slate-400 uppercase">Pólizas</th>
+                                                <th className="p-3 text-right text-xs font-bold text-slate-400 uppercase">Peso</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-50">
+                                            {ramoProducts.map((p, i) => {
+                                                const pct = totalRamoPrimas > 0 ? ((p.primas / totalRamoPrimas) * 100).toFixed(1) : '0';
+                                                return (
+                                                    <tr key={i} className="hover:bg-slate-50">
+                                                        <td className="p-3 font-medium text-slate-700 flex items-center gap-2">
+                                                            <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: DONUT_COLORS[i % DONUT_COLORS.length] }} />
+                                                            {p.producto}
+                                                        </td>
+                                                        <td className="p-3 text-right font-bold text-primary font-mono">{currencyFormatter.format(p.primas)}</td>
+                                                        <td className="p-3 text-right font-mono text-slate-600">{numberFormatter.format(p.polizas)}</td>
+                                                        <td className="p-3 text-right font-bold text-slate-500">{pct}%</td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        );
+                    })()}
+
+                    {/* Policy table within this Ramo */}
+                    <div className="border-t border-slate-200 pt-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-bold text-slate-700">Pólizas del Ramo</h3>
+                            <div className="relative w-64 no-print">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                <input type="text" placeholder="Buscar póliza, tomador..." value={ramoSearchTerm} onChange={e => setRamoSearchTerm(e.target.value)} className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+                            </div>
+                        </div>
+                        {loadingRamoDetail ? (
+                            <div className="py-12 text-center text-slate-400 animate-pulse">Cargando pólizas...</div>
+                        ) : ramoPolizas.length > 0 ? (
+                            <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
+                                <table className="w-full text-xs">
+                                    <thead className="sticky top-0 bg-white z-10">
+                                        <tr className="border-b border-slate-200">
+                                            <th className="p-2 text-left font-bold text-slate-400 uppercase">Póliza</th>
+                                            <th className="p-2 text-left font-bold text-slate-400 uppercase">Estado</th>
+                                            <th className="p-2 text-left font-bold text-slate-400 uppercase">Tomador</th>
+                                            <th className="p-2 text-left font-bold text-slate-400 uppercase">Producto</th>
+                                            <th className="p-2 text-left font-bold text-slate-400 uppercase">Compañía</th>
+                                            <th className="p-2 text-right font-bold text-slate-400 uppercase">Primas</th>
+                                            <th className="p-2 text-right font-bold text-slate-400 uppercase">Días</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-50">
+                                        {ramoPolizas
+                                            .filter(p => {
+                                                if (!ramoSearchTerm) return true;
+                                                const term = ramoSearchTerm.toLowerCase();
+                                                return (p.poliza || '').toLowerCase().includes(term) || (p.tomador || '').toLowerCase().includes(term) || (p.producto || '').toLowerCase().includes(term);
+                                            })
+                                            .slice(0, 200).map((p: any, i: number) => (
+                                                <tr key={i} className="hover:bg-slate-50">
+                                                    <td className="p-2 font-mono text-slate-700">{p.poliza}</td>
+                                                    <td className="p-2"><span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${(p.estado || '').toUpperCase().includes('VIGOR') ? 'bg-emerald-50 text-emerald-700' : (p.estado || '').toUpperCase().includes('ANULADA') ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>{p.estado}</span></td>
+                                                    <td className="p-2 text-slate-600 max-w-[200px] truncate">{p.tomador}</td>
+                                                    <td className="p-2 text-slate-600 max-w-[180px] truncate">{p.producto}</td>
+                                                    <td className="p-2 text-slate-600">{p.compania}</td>
+                                                    <td className="p-2 text-right font-bold text-primary font-mono">{currencyFormatter.format(p.primas)}</td>
+                                                    <td className="p-2 text-right font-mono text-slate-500">{p.diasVida}</td>
+                                                </tr>
+                                            ))}
+                                    </tbody>
+                                </table>
+                                {ramoPolizas.length > 200 && <p className="text-xs text-slate-400 text-center py-2">Mostrando 200 de {ramoPolizas.length} pólizas</p>}
+                            </div>
+                        ) : (
+                            <div className="py-8 text-center text-slate-400">No hay pólizas para este ramo</div>
+                        )}
                     </div>
                 </div>
             )}

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { readData } from '@/lib/storage';
 import { getLinks } from '@/lib/registry';
+import { getRamo } from '@/lib/ramos';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,6 +15,7 @@ export async function GET(request: Request) {
         const startMonth = searchParams.get('startMonth');
         const endYear = searchParams.get('endYear');
         const endMonth = searchParams.get('endMonth');
+        const ramoFilter = searchParams.get('ramo'); // Ramo classification filter
 
         // 1. Read Data
         const [polizas, links] = await Promise.all([
@@ -82,6 +84,12 @@ export async function GET(request: Request) {
                 const currentVal = pAnio * 100 + pMes;
 
                 if (currentVal < startVal || currentVal > endVal) return false;
+            }
+
+            // Filter by Ramo classification
+            if (ramoFilter) {
+                const producto = String(p['Producto'] || '');
+                if (getRamo(producto) !== ramoFilter) return false;
             }
 
             return true;

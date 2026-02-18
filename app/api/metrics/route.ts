@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { readData } from '@/lib/storage';
 import { getLinks, getEntes } from '@/lib/registry';
+import { getRamo } from '@/lib/ramos';
 
 export const dynamic = 'force-dynamic';
 
@@ -69,6 +70,7 @@ export async function GET(request: Request) {
         const productStats = new Map<string, { producto: string, primas: number, polizas: number }>();
         const estadoStats = new Map<string, { estado: string, primas: number, polizas: number }>();
         const companyStats = new Map<string, { company: string, primas: number, polizas: number, entes: Set<string>, asesores: Set<string> }>();
+        const ramoStats = new Map<string, { ramo: string, primas: number, polizas: number }>();
         const cancellationReasons = new Map<string, number>();
 
         // Pre-fill asesores from the registry to ensure they all appear in base lists if needed
@@ -169,6 +171,13 @@ export async function GET(request: Request) {
             ps.primas += primas;
             ps.polizas += 1;
 
+            // Ramo (depth 1) aggregation
+            const ramoName = getRamo(producto);
+            if (!ramoStats.has(ramoName)) ramoStats.set(ramoName, { ramo: ramoName, primas: 0, polizas: 0 });
+            const rs = ramoStats.get(ramoName)!;
+            rs.primas += primas;
+            rs.polizas += 1;
+
             if (!estadoStats.has(pEstado)) estadoStats.set(pEstado, { estado: pEstado, primas: 0, polizas: 0 });
             const es = estadoStats.get(pEstado)!;
             es.primas += primas;
@@ -253,6 +262,7 @@ export async function GET(request: Request) {
                 ticketMedio: c.polizas > 0 ? c.primas / c.polizas : 0
             })).sort((a, b) => b.primas - a.primas),
             productosBreakdown: Array.from(productStats.values()).sort((a, b) => b.primas - a.primas),
+            ramosBreakdown: Array.from(ramoStats.values()).sort((a, b) => b.primas - a.primas),
             estadosBreakdown: Array.from(estadoStats.values()).sort((a, b) => b.polizas - a.polizas),
             cancellationReasons: Array.from(cancellationReasons.entries()).map(([reason, count]) => ({ reason, count })).sort((a, b) => b.count - a.count)
         });
