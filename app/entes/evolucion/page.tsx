@@ -663,6 +663,7 @@ function EvolutionContent() {
                                         <th className="p-3 text-right text-xs font-bold text-slate-400 uppercase">Primas</th>
                                         <th className="p-3 text-right text-xs font-bold text-slate-400 uppercase">Pólizas</th>
                                         <th className="p-3 text-right text-xs font-bold text-slate-400 uppercase">Peso</th>
+                                        <th className="p-3 text-right text-xs font-bold text-slate-400 uppercase no-print">Acción</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-50">
@@ -699,6 +700,20 @@ function EvolutionContent() {
                                                     <td className="p-3 text-right font-bold text-primary font-mono">{currencyFormatter.format(p.primas)}</td>
                                                     <td className="p-3 text-right font-mono text-slate-600">{numberFormatter.format(p.polizas)}</td>
                                                     <td className="p-3 text-right font-bold text-slate-500">{pct}%</td>
+                                                    <td className="p-3 text-right no-print">
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                const base = `/polizas/listado?ente=${encodeURIComponent(ente!)}`;
+                                                                const filter = mixDepth === 'ramo' ? `&ramo=${encodeURIComponent(p.name)}` : `&producto=${encodeURIComponent(p.name)}`;
+                                                                router.push(`${base}${filter}`);
+                                                            }}
+                                                            className="p-1.5 text-slate-400 hover:text-primary transition-colors hover:bg-slate-100 rounded-lg"
+                                                            title="Ver listado de pólizas"
+                                                        >
+                                                            <LayoutList className="w-4 h-4" />
+                                                        </button>
+                                                    </td>
                                                 </tr>
                                             );
                                         })}
@@ -758,6 +773,7 @@ function EvolutionContent() {
                                                     <th className="p-3 text-right text-xs font-bold text-slate-400 uppercase">Primas</th>
                                                     <th className="p-3 text-right text-xs font-bold text-slate-400 uppercase">Pólizas</th>
                                                     <th className="p-3 text-right text-xs font-bold text-slate-400 uppercase">Peso</th>
+                                                    <th className="p-3 text-right text-xs font-bold text-slate-400 uppercase no-print">Acción</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-50">
@@ -772,6 +788,18 @@ function EvolutionContent() {
                                                             <td className="p-3 text-right font-bold text-primary font-mono">{currencyFormatter.format(p.primas)}</td>
                                                             <td className="p-3 text-right font-mono text-slate-600">{numberFormatter.format(p.polizas)}</td>
                                                             <td className="p-3 text-right font-bold text-slate-500">{pct}%</td>
+                                                            <td className="p-3 text-right no-print">
+                                                                <button
+                                                                    onClick={() => {
+                                                                        const base = `/polizas/listado?ente=${encodeURIComponent(ente!)}`;
+                                                                        router.push(`${base}&producto=${encodeURIComponent(p.producto)}`);
+                                                                    }}
+                                                                    className="p-1.5 text-slate-400 hover:text-primary transition-colors hover:bg-slate-100 rounded-lg"
+                                                                    title="Ver listado de pólizas"
+                                                                >
+                                                                    <LayoutList className="w-4 h-4" />
+                                                                </button>
+                                                            </td>
                                                         </tr>
                                                     );
                                                 })}
@@ -871,21 +899,33 @@ function EvolutionContent() {
                                 <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('ratioRetencion')}>Retención <SortIcon column="ratioRetencion" /></th>
                                 <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('anuladas')}>Anuladas <SortIcon column="anuladas" /></th>
                                 <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('anulacionesTempranas')}>Tempranas <SortIcon column="anulacionesTempranas" /></th>
+                                <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right no-print">Acción</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {sortedData.map((d, i) => {
                                 const origIdx = filteredData.findIndex(x => x.anio === d.anio && x.mes === d.mes);
                                 const pct = momChanges[origIdx];
+                                const isPeriodSelected = selectedPeriod?.year === d.anio && selectedPeriod?.month === d.mes;
                                 return (
-                                    <tr key={i} className="hover:bg-slate-50 transition-colors group">
+                                    <tr
+                                        key={i}
+                                        className={`hover:bg-slate-50 transition-colors group cursor-pointer ${isPeriodSelected ? 'bg-indigo-50 ring-1 ring-indigo-200' : ''}`}
+                                        onClick={() => {
+                                            if (isPeriodSelected) {
+                                                setSelectedPeriod(null);
+                                                setPeriodMix(null);
+                                            } else {
+                                                setSelectedPeriod({ year: d.anio, month: d.mes });
+                                                fetchPeriodDetails(d.anio, d.mes);
+                                            }
+                                        }}
+                                    >
                                         <td className="p-4 font-medium">
-                                            <button
-                                                onClick={() => router.push(`/entes/evolucion/mes?ente=${encodeURIComponent(ente!)}&anio=${d.anio}&mes=${d.mes}`)}
-                                                className="text-indigo-600 hover:text-indigo-900 hover:underline underline-offset-4 font-bold"
-                                            >
+                                            <span className="text-slate-700 font-bold group-hover:text-primary transition-colors">
                                                 {MONTHS[d.mes - 1]} {d.anio}
-                                            </button>
+                                            </span>
+                                            {isPeriodSelected && <span className="ml-2 text-indigo-500 text-xs font-bold">✓</span>}
                                         </td>
                                         <td className="p-4 text-right font-bold text-slate-700">{currencyFormatter.format(d.primas)}</td>
                                         <td className={`p-4 text-right font-bold text-xs ${pct === null ? 'text-slate-300' : pct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
