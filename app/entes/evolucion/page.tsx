@@ -58,6 +58,7 @@ interface EvolutionData {
     suspension: number;
     anulacionesTempranas: number;
     ratioRetencion: number;
+    mediaDuracion: number;
 }
 
 interface GlobalStats {
@@ -94,7 +95,7 @@ const KPITooltip = ({ children, text }: { children: React.ReactNode, text: strin
         {children}
         <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block w-56 p-3 bg-slate-800 text-white text-[11px] leading-tight rounded-lg shadow-xl z-50 text-center pointer-events-none">
             {text}
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-800"></div>
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-800" />
         </div>
     </div>
 );
@@ -192,7 +193,7 @@ function EvolutionContent() {
     };
 
     const filteredData = useMemo(() => {
-        return data.filter(d => {
+        return data.filter((d: EvolutionData) => {
             const startVal = startPeriod.year * 100 + startPeriod.month;
             const endVal = endPeriod.year * 100 + endPeriod.month;
             const currentVal = d.anio * 100 + d.mes;
@@ -202,7 +203,7 @@ function EvolutionContent() {
 
     // MOM Changes for full history
     const momChanges = useMemo(() => {
-        return data.map((d, i) => {
+        return data.map((d: EvolutionData, i: number) => {
             if (i === 0) return null;
             const prev = data[i - 1];
             if (prev.primas === 0) return null;
@@ -211,7 +212,7 @@ function EvolutionContent() {
     }, [data]);
 
     const momChangesPolizas = useMemo(() => {
-        return data.map((d, i) => {
+        return data.map((d: EvolutionData, i: number) => {
             if (i === 0) return null;
             const prev = data[i - 1];
             if (prev.polizas === 0) return null;
@@ -222,7 +223,7 @@ function EvolutionContent() {
     const sortedData = useMemo(() => {
         if (!sortConfig) return [...filteredData].reverse();
 
-        const searched = [...filteredData].filter(d => {
+        const searched = [...filteredData].filter((d: EvolutionData) => {
             const periodStr = `${MONTHS[d.mes - 1]} ${d.anio}`.toLowerCase();
             return periodStr.includes(searchTerm.toLowerCase());
         });
@@ -235,6 +236,9 @@ function EvolutionContent() {
             if (sortConfig.key === 'ticketMedio') {
                 aVal = a.polizas > 0 ? a.primas / a.polizas : 0;
                 bVal = b.polizas > 0 ? b.primas / b.polizas : 0;
+            } else if (sortConfig.key === 'mediaDuracion') {
+                aVal = a.mediaDuracion;
+                bVal = b.mediaDuracion;
             } else if (sortConfig.key === 'varPrimas') {
                 const idxA = filteredData.indexOf(a);
                 const idxB = filteredData.indexOf(b);
@@ -252,7 +256,7 @@ function EvolutionContent() {
             return 0;
         });
         return sorted;
-    }, [evolution, sortConfig, momChanges, momChangesPolizas]); // Use evolution (full history) for the table
+    }, [data, sortConfig, momChanges, momChangesPolizas, selectedPeriods]); // Use data (full history) for the table
 
     const requestSort = (key: string) => {
         let direction: 'asc' | 'desc' = 'desc';
@@ -273,7 +277,7 @@ function EvolutionContent() {
         // We always show the full range in the chart for context
         const displayData = filteredData;
 
-        const labels = displayData.map(d => `${MONTHS[d.mes - 1]} ${d.anio}`);
+        const labels = displayData.map((d: EvolutionData) => `${MONTHS[d.mes - 1]} ${d.anio}`);
 
         const isSel = (d: EvolutionData) => {
             if (selectedPeriods.length === 0) return true;
@@ -341,7 +345,7 @@ function EvolutionContent() {
         return { labels, datasets };
     }, [filteredData, selectedPeriods]);
 
-    const chartOptions = {
+    const chartOptions = useMemo(() => ({
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
@@ -360,14 +364,12 @@ function EvolutionContent() {
         onClick: (_event: any, elements: any) => {
             if (elements.length > 0) {
                 const index = elements[0].index;
-                // Now displayData is always filteredData for the chart
                 const item = filteredData[index];
                 const val = item.anio * 100 + item.mes;
 
-                const newSelection = selectedPeriods.includes(val)
-                    ? selectedPeriods.filter((v: number) => v !== val)
-                    : [...selectedPeriods, val];
-                setSelectedPeriods(newSelection);
+                setSelectedPeriods((prev: number[]) =>
+                    prev.includes(val) ? prev.filter((v: number) => v !== val) : [...prev, val]
+                );
             }
         },
         scales: {
@@ -381,7 +383,7 @@ function EvolutionContent() {
                     padding: { bottom: 10 }
                 },
                 ticks: {
-                    font: { size: 11, weight: 'normal' as const },
+                    font: { size: typeof window !== 'undefined' && window.innerWidth < 768 ? 9 : 11, weight: 'normal' as const },
                     color: '#64748b'
                 }
             },
@@ -396,39 +398,108 @@ function EvolutionContent() {
                     padding: { bottom: 10 }
                 },
                 ticks: {
-                    font: { size: 11, weight: 'normal' as const },
+                    font: { size: typeof window !== 'undefined' && window.innerWidth < 768 ? 9 : 11, weight: 'normal' as const },
                     color: '#64748b'
                 }
             },
             x: {
                 ticks: {
-                    font: { size: 11, weight: 'normal' as const },
+                    font: { size: typeof window !== 'undefined' && window.innerWidth < 768 ? 8 : 11, weight: 'normal' as const },
                     color: '#64748b',
                     maxRotation: 45,
                     minRotation: 45
                 }
             }
         }
-    };
+    }), [filteredData]);
 
-    // === FEATURE 3: Donut Chart ===
+    const durationChartData = useMemo(() => {
+        const displayData = filteredData;
+        const labels = displayData.map((d: EvolutionData) => `${MONTHS[d.mes - 1]} ${d.anio}`);
+
+        const isSel = (d: EvolutionData) => {
+            if (selectedPeriods.length === 0) return true;
+            return selectedPeriods.includes(d.anio * 100 + d.mes);
+        };
+
+        return {
+            labels,
+            datasets: [{
+                label: 'Media Duración (Días)',
+                data: displayData.map((d: EvolutionData) => d.mediaDuracion),
+                borderColor: displayData.map((d: EvolutionData) => isSel(d) ? '#f59e0b' : '#f59e0b40'),
+                backgroundColor: displayData.map((d: EvolutionData) => isSel(d) ? 'rgba(245, 158, 11, 0.1)' : 'rgba(245, 158, 11, 0.05)'),
+                fill: true,
+                tension: 0.4,
+                pointRadius: displayData.map((d: EvolutionData) => isSel(d) ? 4 : 2),
+                pointHoverRadius: 6,
+            }]
+        };
+    }, [filteredData, selectedPeriods]);
+
+    const durationChartOptions = useMemo(() => ({
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: { mode: 'index' as const, intersect: false },
+            datalabels: {
+                display: (context: any) => {
+                    const dataIndex = context.dataIndex;
+                    const item = filteredData[dataIndex];
+                    if (selectedPeriods.length === 0) return false;
+                    return selectedPeriods.includes(item.anio * 100 + item.mes);
+                },
+                align: 'top' as const,
+                formatter: (val: number) => `${val} días`,
+                font: { size: 10, weight: 'bold' as const }
+            }
+        },
+        onClick: (_event: any, elements: any) => {
+            if (elements.length > 0) {
+                const index = elements[0].index;
+                const item = filteredData[index];
+                const val = item.anio * 100 + item.mes;
+                setSelectedPeriods((prev: number[]) =>
+                    prev.includes(val) ? prev.filter((v: number) => v !== val) : [...prev, val]
+                );
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                title: { display: true, text: 'Días promedio', font: { size: typeof window !== 'undefined' && window.innerWidth < 768 ? 9 : 11, weight: 'bold' as const } },
+                ticks: { font: { size: typeof window !== 'undefined' && window.innerWidth < 768 ? 8 : 10 } }
+            },
+            x: {
+                ticks: { font: { size: typeof window !== 'undefined' && window.innerWidth < 768 ? 8 : 10 }, maxRotation: 45, minRotation: 45 }
+            }
+        }
+    }), [filteredData, selectedPeriods]);
+
     // === FEATURE 3: Donut Chart ===
     const activeMixData = useMemo(() => {
         const sourceRamos = selectedPeriod && periodMix ? periodMix.ramosMix : ramosMix;
         const sourceProducts = selectedPeriod && periodMix ? periodMix.productMix : productMix;
 
+        // If selection is active, use the data from the selection
+        // Actually, the API already returns selected mix when selectedPeriods is sent.
+        // But if we are in front-end filtering mode (which we are not mostly), we'd process it here.
+        // For now, the existing logic is mostly fine because it uses sourceRamos/sourceProducts 
+        // which come from fetchEvolution which handles the 'periods' param.
+
         if (mixDepth === 'ramo') {
-            return sourceRamos.map(r => ({ name: r.ramo, primas: r.primas, polizas: r.polizas }));
+            return sourceRamos.map((r: any) => ({ name: r.ramo, primas: r.primas, polizas: r.polizas }));
         }
-        return sourceProducts.map(p => ({ name: p.producto, primas: p.primas, polizas: p.polizas }));
-    }, [mixDepth, ramosMix, productMix, selectedPeriod, periodMix]);
+        return sourceProducts.map((p: any) => ({ name: p.producto, primas: p.primas, polizas: p.polizas }));
+    }, [mixDepth, ramosMix, productMix, selectedPeriod, periodMix, selectedPeriods]);
 
     const donutData = useMemo(() => {
         const top = activeMixData.slice(0, 10);
         const rest = activeMixData.slice(10);
-        const restTotal = rest.reduce((sum, r) => sum + r.primas, 0);
-        const labels = top.map(p => p.name);
-        const values = top.map(p => p.primas);
+        const restTotal = rest.reduce((sum: number, r: any) => sum + r.primas, 0);
+        const labels = top.map((p: any) => p.name);
+        const values = top.map((p: any) => p.primas);
         if (restTotal > 0) {
             labels.push('Otros');
             values.push(restTotal);
@@ -488,23 +559,28 @@ function EvolutionContent() {
 
     // === FEATURE 1: Retention KPIs ===
     const retentionKPIs = useMemo(() => {
-        const total = filteredData.reduce((s, d) => s + d.polizas, 0);
-        const anuladas = filteredData.reduce((s, d) => s + d.anuladas, 0);
-        const tempranas = filteredData.reduce((s, d) => s + d.anulacionesTempranas, 0);
+        const sourceData = selectedPeriods.length > 0
+            ? data.filter((d: EvolutionData) => selectedPeriods.includes(d.anio * 100 + d.mes))
+            : filteredData;
+
+        const total = sourceData.reduce((s, d) => s + d.polizas, 0);
+        const anuladas = sourceData.reduce((s, d) => s + d.anuladas, 0);
+        const tempranas = sourceData.reduce((s, d) => s + d.anulacionesTempranas, 0);
         const ratio = total > 0 ? Math.round((total - anuladas) / total * 100) : 100;
         return { total, anuladas, tempranas, ratio };
-    }, [filteredData]);
+    }, [filteredData, selectedPeriods, data]);
 
     const handleExportExcel = () => {
         const title = [['EVOLUCIÓN MENSUAL'], [`Ente: ${ente}`], [`Periodo: ${MONTHS[startPeriod.month - 1]} ${startPeriod.year} a ${MONTHS[endPeriod.month - 1]} ${endPeriod.year}`], []];
-        const rows = filteredData.map((d, i) => ({
+        const rows = filteredData.map((d: EvolutionData, i: number) => ({
             'Año': d.anio, 'Mes': MONTHS[d.mes - 1],
             'Primas (€)': d.primas, 'Var. MoM (%)': momChanges[i] !== null ? momChanges[i] : '',
             'Nº Pólizas': d.polizas,
             'Ticket Medio (€)': d.polizas > 0 ? Math.round(d.primas / d.polizas * 100) / 100 : 0,
             'Anuladas': d.anuladas, 'En Vigor': d.enVigor,
             'Anulaciones Tempranas (<180d)': d.anulacionesTempranas,
-            'Retención (%)': d.ratioRetencion
+            'Retención (%)': d.ratioRetencion,
+            'Media Duración (Días)': d.mediaDuracion
         }));
         const wb = XLSX.utils.book_new();
         const ws = XLSX.utils.aoa_to_sheet(title);
@@ -536,12 +612,12 @@ function EvolutionContent() {
     if (!ente) return <div className="p-8 text-center">No se ha seleccionado ningún ente</div>;
 
     return (
-        <div className="space-y-6">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 no-print">
-                <button onClick={() => router.back()} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors">
+        <div className="space-y-4 md:space-y-6 max-w-full overflow-hidden">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 no-print px-4 md:px-0">
+                <button onClick={() => router.back()} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors text-sm md:text-base">
                     <ArrowLeft className="w-5 h-5" /> Volver
                 </button>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2 w-full md:w-auto">
                     {(selectedRamos.length > 0 || selectedProducts.length > 0 || interactiveProduct || searchTerm || selectedPeriod || selectedPeriods.length > 0) && (
                         <button onClick={() => {
                             setSelectedRamos([]);
@@ -553,27 +629,27 @@ function EvolutionContent() {
                             setSelectedPeriod(null);
                             setSelectedPeriods([]);
                             setPeriodMix(null);
-                        }} className="flex items-center gap-2 px-4 py-2 bg-red-50 border border-red-200 rounded-xl hover:bg-red-100 transition-all shadow-sm text-sm font-medium text-red-600">
-                            <X className="w-4 h-4" /> Limpiar Filtros
+                        }} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 md:px-4 py-2 bg-red-50 border border-red-200 rounded-xl hover:bg-red-100 transition-all shadow-sm text-xs md:text-sm font-medium text-red-600">
+                            <X className="w-4 h-4" /> Limpiar
                         </button>
                     )}
-                    <button onClick={handleExportExcel} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all shadow-sm text-sm font-medium">
+                    <button onClick={handleExportExcel} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 md:px-4 py-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all shadow-sm text-xs md:text-sm font-medium">
                         <FileDown className="w-4 h-4 text-green-600" /> Excel
                     </button>
-                    <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl hover:bg-primary/90 transition-all shadow-sm text-sm font-medium">
+                    <button onClick={() => window.print()} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 md:px-4 py-2 bg-primary text-white rounded-xl hover:bg-primary/90 transition-all shadow-sm text-xs md:text-sm font-medium">
                         <Printer className="w-4 h-4" /> PDF
                     </button>
                 </div>
             </div>
 
-            <div className="bg-white p-8 print:p-4 rounded-2xl shadow-sm border border-slate-200 break-inside-avoid">
-                <div className="flex items-center gap-4 mb-6">
-                    <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
-                        <TrendingUp className="w-6 h-6" />
+            <div className="bg-white p-4 md:p-8 print:p-4 rounded-2xl shadow-sm border border-slate-200 break-inside-avoid">
+                <div className="flex items-center gap-3 md:gap-4 mb-6">
+                    <div className="w-10 h-10 md:w-12 md:h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
+                        <TrendingUp className="w-5 h-5 md:w-6 md:h-6" />
                     </div>
                     <div>
-                        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">{ente}</h1>
-                        <p className="text-slate-500 font-medium">Análisis de evolución histórica mensual</p>
+                        <h1 className="text-xl md:text-3xl font-extrabold text-slate-900 tracking-tight">{ente}</h1>
+                        <p className="text-[11px] md:text-sm text-slate-500 font-medium">Análisis de evolución histórica mensual</p>
                     </div>
                 </div>
 
@@ -651,26 +727,48 @@ function EvolutionContent() {
                     </div>
                 </div>
 
-                {/* Main Chart */}
-                <div className="bg-white p-8 print:p-6 rounded-2xl shadow-sm border border-slate-200 mt-8 break-inside-avoid">
-                    <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                            <BarChart3 className="w-5 h-5 text-indigo-500" />
-                            Producción, Pólizas y Ticket Medio
-                        </h2>
-                        <div className="flex bg-slate-100 p-1 rounded-lg no-print">
-                            <button onClick={() => setChartType('line')} className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${chartType === 'line' ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Línea</button>
-                            <button onClick={() => setChartType('bar')} className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${chartType === 'bar' ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Barras</button>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8 no-print">
+                    {/* Main Chart (2/3) */}
+                    <div className="lg:col-span-2 bg-white p-8 print:p-6 rounded-2xl shadow-sm border border-slate-200 break-inside-avoid h-full">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                                <BarChart3 className="w-5 h-5 text-indigo-500" />
+                                Producción, Pólizas y Ticket Medio
+                            </h2>
+                            <div className="flex bg-slate-100 p-1 rounded-lg no-print">
+                                <button onClick={() => setChartType('line')} className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${chartType === 'line' ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Línea</button>
+                                <button onClick={() => setChartType('bar')} className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${chartType === 'bar' ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Barras</button>
+                            </div>
+                        </div>
+                        <div className="h-[400px] w-full print:h-[500px] print:w-full">
+                            {loading ? (
+                                <div className="h-full w-full bg-slate-50 animate-pulse rounded-2xl flex items-center justify-center text-slate-400 font-medium">Cargando histórico...</div>
+                            ) : filteredData.length > 0 ? (
+                                chartType === 'line' ? <Line data={chartData} options={chartOptions} /> : <Bar data={chartData} options={chartOptions} />
+                            ) : (
+                                <div className="h-full w-full bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400">No hay datos para el periodo seleccionado</div>
+                            )}
                         </div>
                     </div>
-                    <div className="h-[400px] w-full print:h-[500px] print:w-full">
-                        {loading ? (
-                            <div className="h-full w-full bg-slate-50 animate-pulse rounded-2xl flex items-center justify-center text-slate-400 font-medium">Cargando histórico...</div>
-                        ) : filteredData.length > 0 ? (
-                            chartType === 'line' ? <Line data={chartData} options={chartOptions} /> : <Bar data={chartData} options={chartOptions} />
-                        ) : (
-                            <div className="h-full w-full bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400">No hay datos para el periodo seleccionado</div>
-                        )}
+
+                    {/* Duration Chart (1/3) */}
+                    <div className="bg-white p-8 print:p-6 rounded-2xl shadow-sm border border-slate-200 break-inside-avoid h-full">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                                <TrendingUp className="w-5 h-5 text-amber-500" />
+                                Media de Duración
+                            </h2>
+                        </div>
+                        <div className="h-[400px] w-full">
+                            {loading ? (
+                                <div className="h-full w-full bg-slate-50 animate-pulse rounded-2xl flex items-center justify-center text-slate-400 font-medium">Calculando...</div>
+                            ) : filteredData.length > 0 ? (
+                                <Line data={durationChartData} options={durationChartOptions} />
+                            ) : (
+                                <div className="h-full w-full bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 text-center px-4">Seleccione un periodo</div>
+                            )}
+                        </div>
+                        <p className="mt-4 text-[10px] text-slate-400 italic">Días promedio de vida de las pólizas anuladas en cada periodo.</p>
                     </div>
                 </div>
             </div>
@@ -696,18 +794,18 @@ function EvolutionContent() {
                             <table className="w-full text-sm">
                                 <thead>
                                     <tr className="border-b border-slate-100">
-                                        <th className="p-3 text-left text-xs font-bold text-slate-400 uppercase">{mixDepth === 'ramo' ? 'Ramo' : 'Producto'}</th>
-                                        <th className="p-3 text-right text-xs font-bold text-slate-400 uppercase">Primas</th>
-                                        <th className="p-3 text-right text-xs font-bold text-slate-400 uppercase">Pólizas</th>
-                                        <th className="p-3 text-right text-xs font-bold text-slate-400 uppercase">Peso</th>
-                                        <th className="p-3 text-right text-xs font-bold text-slate-400 uppercase no-print">Acción</th>
+                                        <th className="p-2 md:p-3 text-left text-[10px] md:text-xs font-bold text-slate-400 uppercase">{mixDepth === 'ramo' ? 'Ramo' : 'Producto'}</th>
+                                        <th className="p-2 md:p-3 text-right text-[10px] md:text-xs font-bold text-slate-400 uppercase">Primas</th>
+                                        <th className="p-2 md:p-3 text-right text-[10px] md:text-xs font-bold text-slate-400 uppercase">Pólizas</th>
+                                        <th className="p-2 md:p-3 text-right text-[10px] md:text-xs font-bold text-slate-400 uppercase">Peso</th>
+                                        <th className="p-2 md:p-3 text-right text-[10px] md:text-xs font-bold text-slate-400 uppercase no-print">Acción</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-50">
                                     {activeMixData
-                                        .filter(p => !interactiveProduct || p.name === interactiveProduct)
-                                        .slice(0, 12).map((p, i) => {
-                                            const totalPrimas = activeMixData.reduce((s, x) => s + x.primas, 0);
+                                        .filter((p: any) => !interactiveProduct || p.name === interactiveProduct)
+                                        .slice(0, 12).map((p: any, i: number) => {
+                                            const totalPrimas = activeMixData.reduce((s: number, x: any) => s + x.primas, 0);
                                             const pct = totalPrimas > 0 ? ((p.primas / totalPrimas) * 100).toFixed(1) : '0';
                                             const isSelected = selectedRamos.includes(p.name);
                                             return (
@@ -729,14 +827,14 @@ function EvolutionContent() {
                                                         }
                                                     }
                                                 }}>
-                                                    <td className="p-3 font-medium text-slate-700 flex items-center gap-2">
-                                                        <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: DONUT_COLORS[i % DONUT_COLORS.length] }} />
-                                                        {p.name}
-                                                        {isSelected && <span className="ml-1 text-purple-500 text-xs">✓</span>}
+                                                    <td className="p-2 md:p-3 font-medium text-slate-700 flex items-center gap-2 text-[10px] md:text-sm">
+                                                        <span className="w-2 md:w-3 h-2 md:h-3 rounded-full inline-block" style={{ backgroundColor: DONUT_COLORS[i % DONUT_COLORS.length] }} />
+                                                        <span className="truncate max-w-[80px] md:max-w-none">{p.name}</span>
+                                                        {isSelected && <span className="ml-1 text-purple-500 text-[10px]">✓</span>}
                                                     </td>
-                                                    <td className="p-3 text-right font-bold text-primary font-mono">{currencyFormatter.format(p.primas)}</td>
-                                                    <td className="p-3 text-right font-mono text-slate-600">{numberFormatter.format(p.polizas)}</td>
-                                                    <td className="p-3 text-right font-bold text-slate-500">{pct}%</td>
+                                                    <td className="p-2 md:p-3 text-right font-bold text-primary font-mono text-[10px] md:text-xs">{currencyFormatter.format(p.primas)}</td>
+                                                    <td className="p-2 md:p-3 text-right font-mono text-slate-600 text-[10px] md:text-xs">{numberFormatter.format(p.polizas)}</td>
+                                                    <td className="p-2 md:p-3 text-right font-bold text-slate-500 text-[10px] md:text-xs">{pct}%</td>
                                                     <td className="p-3 text-right no-print">
                                                         <button
                                                             onClick={(e) => {
@@ -935,12 +1033,13 @@ function EvolutionContent() {
                                 <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('varPolizas')}>Var. Pólizas <SortIcon column="varPolizas" /></th>
                                 <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('ticketMedio')}>Ticket Medio <SortIcon column="ticketMedio" /></th>
                                 <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('ratioRetencion')}>Retención <SortIcon column="ratioRetencion" /></th>
+                                <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('mediaDuracion')}>Media Dura. <SortIcon column="mediaDuracion" /></th>
                                 <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('anuladas')}>Anuladas <SortIcon column="anuladas" /></th>
                                 <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('anulacionesTempranas')}>Tempranas <SortIcon column="anulacionesTempranas" /></th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {sortedData.map((d, i) => {
+                            {sortedData.map((d: EvolutionData, i: number) => {
                                 // Important: We calculate highlighting based on selectedPeriods or range
                                 const currentVal = d.anio * 100 + d.mes;
                                 const isSelected = selectedPeriods.includes(currentVal);
@@ -962,14 +1061,13 @@ function EvolutionContent() {
 
                                 return (
                                     <tr
-                                        key={i}
+                                        key={`${d.anio}-${d.mes}`}
                                         className={`hover:bg-slate-50 transition-colors group cursor-pointer ${isHighlighted ? 'bg-indigo-50' : ''} ${isBoundary ? 'ring-1 ring-indigo-300 z-10' : ''}`}
                                         onClick={() => {
                                             const clickedVal = d.anio * 100 + d.mes;
-                                            const newSelection = selectedPeriods.includes(clickedVal)
-                                                ? selectedPeriods.filter((v: number) => v !== clickedVal)
-                                                : [...selectedPeriods, clickedVal];
-                                            setSelectedPeriods(newSelection);
+                                            setSelectedPeriods((prev: number[]) =>
+                                                prev.includes(clickedVal) ? prev.filter((pv: number) => pv !== clickedVal) : [...prev, clickedVal]
+                                            );
                                         }}
                                     >
                                         <td className="p-4 font-medium">
@@ -1005,6 +1103,7 @@ function EvolutionContent() {
                                         })()}
                                         <td className="p-4 text-right text-amber-600 font-bold">{currencyFormatter.format(d.polizas > 0 ? d.primas / d.polizas : 0)}</td>
                                         <td className={`p-4 text-right font-bold ${d.ratioRetencion >= 70 ? 'text-green-600' : 'text-red-600'}`}>{d.ratioRetencion}%</td>
+                                        <td className="p-4 text-right font-mono font-bold text-amber-600">{d.mediaDuracion}d</td>
                                         <td className="p-4 text-right text-orange-600 font-mono">{d.anuladas}</td>
                                         <td className={`p-4 text-right font-mono ${d.anulacionesTempranas > 0 ? 'text-red-600 font-bold' : 'text-slate-300'}`}>{d.anulacionesTempranas}</td>
                                     </tr>);

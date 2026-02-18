@@ -87,6 +87,8 @@ export async function GET(request: Request) {
             enVigor: number;
             suspension: number;
             anulacionesTempranas: number; // < 180 days
+            totalDiasDuracion: number;
+            polizasConFechaDuracion: number;
         }
 
         const monthlyStats = new Map<string, MonthlyBucket>();
@@ -108,7 +110,11 @@ export async function GET(request: Request) {
             // 3.1. ALWAYS Initialize bucket (regardless of filters)
             const key = `${anio}-${String(mes).padStart(2, '0')}`;
             if (!monthlyStats.has(key)) {
-                monthlyStats.set(key, { anio, mes, primas: 0, polizas: 0, anuladas: 0, enVigor: 0, suspension: 0, anulacionesTempranas: 0 });
+                monthlyStats.set(key, {
+                    anio, mes, primas: 0, polizas: 0, anuladas: 0, enVigor: 0,
+                    suspension: 0, anulacionesTempranas: 0,
+                    totalDiasDuracion: 0, polizasConFechaDuracion: 0
+                });
             }
 
             // 3.2. Apply Ramo/Product Filters EARLY (for aggregation)
@@ -132,8 +138,12 @@ export async function GET(request: Request) {
             if (estado.includes('ANULADA')) {
                 stats.anuladas += 1;
                 const dias = calcDiasVigor(String(p['F.Efecto'] || ''), String(p['F.Anulación'] || ''));
-                if (dias !== null && dias < 180) {
-                    stats.anulacionesTempranas += 1;
+                if (dias !== null) {
+                    stats.totalDiasDuracion += dias;
+                    stats.polizasConFechaDuracion += 1;
+                    if (dias < 180) {
+                        stats.anulacionesTempranas += 1;
+                    }
                 }
             } else if (estado.includes('VIGOR')) {
                 stats.enVigor += 1;
@@ -183,7 +193,8 @@ export async function GET(request: Request) {
         const evolution = Array.from(monthlyStats.values())
             .map(s => ({
                 ...s,
-                ratioRetencion: s.polizas > 0 ? Math.round((s.polizas - s.anuladas) / s.polizas * 100) : 100
+                ratioRetencion: s.polizas > 0 ? Math.round((s.polizas - s.anuladas) / s.polizas * 100) : 100,
+                mediaDuracion: s.polizasConFechaDuracion > 0 ? Math.round(s.totalDiasDuracion / s.polizasConFechaDuracion) : 0
             }))
             .sort((a, b) => {
                 if (a.anio !== b.anio) return a.anio - b.anio;
