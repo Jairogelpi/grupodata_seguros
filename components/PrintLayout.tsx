@@ -9,10 +9,8 @@ export default function PrintLayout() {
             <style jsx global>{`
                 @media print {
                     @page {
-                        margin-left: 0;
-                        margin-right: 0;
-                        margin-top: 150px; /* Space for the 120px header */
-                        margin-bottom: 60px; /* Space for footer */
+                        margin: 0;
+                       /* Hide browser default header/footer */
                     }
                     body {
                         -webkit-print-color-adjust: exact !important;
@@ -27,7 +25,7 @@ export default function PrintLayout() {
                     /* Fixed Corporate Header/Footer */
                     .print-header {
                         position: fixed;
-                        top: -140px; /* Pull header up into the 150px margin */
+                        top: 0;
                         left: 0;
                         right: 0;
                         height: 120px; /* Slight increase */
@@ -50,8 +48,8 @@ export default function PrintLayout() {
                     
                     /* Main Content Scaling */
                     main {
-                        margin-top: 0px !important;
-                        margin-bottom: 0px !important;
+                        margin-top: 20px !important;
+                        margin-bottom: 80px !important;
                         
                         transform: scale(0.75);
                         transform-origin: top center;
