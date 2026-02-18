@@ -18,6 +18,7 @@ interface Poliza {
     producto: string;
     fechaEfecto: string;
     fechaAnulacion: string;
+    diasVida: number;
     dni: string;
     primas: number;
     cartera: number;
@@ -115,42 +116,60 @@ function PolizasContent() {
 
     const handleExportExcel = () => {
         const filterStr = [];
-        if (ente) filterStr.push(`Ente: ${ente}`);
-        if (asesor) filterStr.push(`Asesor: ${asesor}`);
-        if (estado) filterStr.push(`Estado: ${estado}`);
-        if (startYear && startMonth) filterStr.push(`Desde: ${MONTHS[parseInt(startMonth) - 1]} ${startYear}`);
-        if (endYear && endMonth) filterStr.push(`Hasta: ${MONTHS[parseInt(endMonth) - 1]} ${endYear}`);
+        if (ente) filterStr.push(`ENTE: ${ente.toUpperCase()}`);
+        if (asesor) filterStr.push(`ASESOR: ${asesor.toUpperCase()}`);
+        if (estado) filterStr.push(`ESTADO: ${estado}`);
+        if (startYear && startMonth) filterStr.push(`DESDE: ${MONTHS[parseInt(startMonth) - 1].toUpperCase()} ${startYear}`);
+        if (endYear && endMonth) filterStr.push(`HASTA: ${MONTHS[parseInt(endMonth) - 1].toUpperCase()} ${endYear}`);
+
+        const filterSummary = filterStr.join(' | ');
 
         const titleRows = [
             ['GRUPO DATA SYSTEM'],
-            ['LISTADO DE PÓLIZAS DETALLADO'],
-            [filterStr.join(' | ')],
-            ['Fecha de generación:', new Date().toLocaleString()],
+            ['LISTADO DETALLADO DE PÓLIZAS'],
+            [filterSummary],
+            ['FECHA RECURSO:', new Date().toLocaleString()],
             []
         ];
 
         const dataRows = sortedData.map(p => ({
-            'Póliza': p.poliza,
-            'Estado': p.estado,
-            'Tomador': p.tomador,
+            'PÓLIZA': p.poliza,
+            'ESTADO': p.estado,
+            'TOMADOR': p.tomador,
             'DNI/CIF': p.dni,
-            'Compañía': p.compania,
-            'Producto': p.producto,
-            'F. Efecto': p.fechaEfecto,
-            'F. Anulación': p.fechaAnulacion,
-            'Primas Producción': p.primas,
-            'Cartera': p.cartera,
-            'Ente Comercial': p.ente
+            'COMPAÑÍA': p.compania,
+            'PRODUCTO': p.producto,
+            'F. EFECTO': p.fechaEfecto,
+            'F. ANULACIÓN': p.fechaAnulacion,
+            'DÍAS VIDA': p.diasVida,
+            'PRIMAS (€)': p.primas,
+            'CARTERA (€)': p.cartera,
+            'ENTE COMERCIAL': p.ente
         }));
 
         const wb = XLSX.utils.book_new();
         const ws = XLSX.utils.aoa_to_sheet(titleRows);
         XLSX.utils.sheet_add_json(ws, dataRows, { origin: titleRows.length });
 
+        // --- STYLING & STRUCTURE ---
+
+        // Merges for titles
+        ws['!merges'] = [
+            { s: { r: 0, c: 0 }, e: { r: 0, c: 11 } }, // GRUPO DATA SYSTEM
+            { s: { r: 1, c: 0 }, e: { r: 1, c: 11 } }, // LISTADO DETALLADO DE PÓLIZAS
+            { s: { r: 2, c: 0 }, e: { r: 2, c: 11 } }, // FILTERS
+        ];
+
+        // Auto-filter for the data table
+        const headerRowIndex = titleRows.length; // Headers are on this row
+        const lastColChar = 'L'; // 12 columns (A-L)
+        const lastRowIndex = titleRows.length + dataRows.length;
+        ws['!autofilter'] = { ref: `A${headerRowIndex + 1}:${lastColChar}${lastRowIndex + 1}` };
+
         // Auto-width
         ws['!cols'] = [
             { wch: 20 }, { wch: 15 }, { wch: 35 }, { wch: 15 }, { wch: 15 },
-            { wch: 30 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 30 }
+            { wch: 30 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 35 }
         ];
 
         XLSX.utils.book_append_sheet(wb, ws, "Pólizas");
@@ -234,6 +253,9 @@ function PolizasContent() {
                                 <th onClick={() => handleSort('fechaEfecto')} className="p-4 font-bold text-slate-500 uppercase tracking-widest text-[10px] cursor-pointer hover:bg-slate-100">
                                     F. Efecto <SortIcon col="fechaEfecto" />
                                 </th>
+                                <th onClick={() => handleSort('diasVida')} className="p-4 font-bold text-slate-500 uppercase tracking-widest text-[10px] cursor-pointer hover:bg-slate-100">
+                                    Vida (Días) <SortIcon col="diasVida" />
+                                </th>
                                 <th onClick={() => handleSort('primas')} className="p-4 font-bold text-slate-500 uppercase tracking-widest text-[10px] text-right cursor-pointer hover:bg-slate-100">
                                     Primas <SortIcon col="primas" />
                                 </th>
@@ -246,7 +268,7 @@ function PolizasContent() {
                             {loading ? (
                                 Array.from({ length: 5 }).map((_, i) => (
                                     <tr key={i} className="animate-pulse">
-                                        <td colSpan={6} className="p-4"><div className="h-4 bg-slate-100 rounded"></div></td>
+                                        <td colSpan={7} className="p-4"><div className="h-4 bg-slate-100 rounded"></div></td>
                                     </tr>
                                 ))
                             ) : sortedData.length > 0 ? (
@@ -262,6 +284,9 @@ function PolizasContent() {
                                             <div className="text-[10px] text-indigo-600 font-bold mt-0.5">{p.compania}</div>
                                         </td>
                                         <td className="p-4 text-xs text-slate-500 font-mono">{p.fechaEfecto}</td>
+                                        <td className="p-4">
+                                            <div className="font-bold text-slate-700 text-xs">{p.diasVida} días</div>
+                                        </td>
                                         <td className="p-4 text-right">
                                             <div className="font-bold text-primary">{currencyFormatter.format(p.primas)}</div>
                                             <div className="text-[10px] text-slate-400 mt-0.5">Prod.</div>
@@ -279,7 +304,7 @@ function PolizasContent() {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan={6} className="p-8 text-center text-slate-400 italic">
+                                    <td colSpan={7} className="p-8 text-center text-slate-400 italic">
                                         No se han encontrado pólizas que coincidan con el criterio.
                                     </td>
                                 </tr>

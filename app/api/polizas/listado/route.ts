@@ -85,19 +85,50 @@ export async function GET(request: Request) {
             }
 
             return true;
-        }).map(p => ({
-            poliza: p['NºPóliza'] || p['Poliza'] || 'N/A',
-            estado: p['Estado'] || 'N/A',
-            tomador: p['Tomador'] || 'N/A',
-            producto: p['Producto'] || 'N/A',
-            fechaEfecto: p['F.Efecto'] || '',
-            fechaAnulacion: p['F.Anulación'] || '',
-            dni: p['NIF/CIF Tomador'] || 'N/A',
-            primas: parseFloat(String(p['P.Produccion'] || '0').replace(',', '.')) || 0,
-            cartera: parseFloat(String(p['P.Cartera'] || '0').replace(',', '.')) || 0,
-            compania: p['Abrev.Cía'] || 'N/A',
-            ente: getPolizaEnteName(p) || 'Desconocido'
-        }));
+        }).map(p => {
+            const fAltaStr = p['F. Alta'] || p['F.Efecto'] || '';
+            const fAnulaStr = p['F.Anulación'] || '';
+            const estado = p['Estado'] || '';
+            let diasVida = 0;
+
+            if (fAltaStr) {
+                try {
+                    const [dE, mE, yE] = fAltaStr.split('/').map(Number);
+                    const dateStart = new Date(yE, mE - 1, dE);
+
+                    if (!isNaN(dateStart.getTime())) {
+                        let dateEnd = new Date(); // Default for active
+
+                        if (fAnulaStr) {
+                            const [dA, mA, yA] = fAnulaStr.split('/').map(Number);
+                            dateEnd = new Date(yA, mA - 1, dA);
+                        }
+
+                        if (!isNaN(dateEnd.getTime())) {
+                            const diffTime = dateEnd.getTime() - dateStart.getTime();
+                            diasVida = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
+                        }
+                    }
+                } catch (e) {
+                    console.error("Error calculating life days", e);
+                }
+            }
+
+            return {
+                poliza: p['NºPóliza'] || p['Poliza'] || 'N/A',
+                estado: p['Estado'] || 'N/A',
+                tomador: p['Tomador'] || 'N/A',
+                producto: p['Producto'] || 'N/A',
+                fechaEfecto: p['F.Efecto'] || '',
+                fechaAnulacion: fAnulaStr,
+                diasVida,
+                dni: p['NIF/CIF Tomador'] || 'N/A',
+                primas: parseFloat(String(p['P.Produccion'] || '0').replace(',', '.')) || 0,
+                cartera: parseFloat(String(p['P.Cartera'] || '0').replace(',', '.')) || 0,
+                compania: p['Abrev.Cía'] || 'N/A',
+                ente: getPolizaEnteName(p) || 'Desconocido'
+            };
+        });
 
         return NextResponse.json({
             count: filteredPolizas.length,

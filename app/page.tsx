@@ -129,20 +129,20 @@ export default function Dashboard() {
             ['GRUPO DATA SYSTEM - DASHBOARD'],
             ['DESGLOSE POR ENTE COMERCIAL'],
             [],
-            ['Filtros Aplicados:', new Date().toLocaleString()],
-            ['Asesor:', filters.comercial.length > 0 ? filters.comercial.join(', ') : 'Todos'],
-            ['Ente:', filters.ente.length > 0 ? filters.ente.join(', ') : 'Todos'],
-            ['Año:', filters.anio.length > 0 ? filters.anio.join(', ') : 'Todos'],
-            ['Mes:', filters.mes.length > 0 ? filters.mes.join(', ') : 'Todos'],
-            ['Estado:', filters.estado.length > 0 ? filters.estado.join(', ') : 'Todos'],
+            ['FECHA REPORTE:', new Date().toLocaleString()],
+            ['ASESOR:', filters.comercial.length > 0 ? filters.comercial.join(', ') : 'TODOS'],
+            ['ENTE:', filters.ente.length > 0 ? filters.ente.join(', ') : 'TODOS'],
+            ['AÑO:', filters.anio.length > 0 ? filters.anio.join(', ') : 'TODOS'],
+            ['MES:', filters.mes.length > 0 ? filters.mes.join(', ') : 'TODOS'],
+            ['ESTADO:', filters.estado.length > 0 ? filters.estado.join(', ') : 'TODOS'],
             [], // Empty row
         ];
 
         // 2. Prepare Data (Removed Trends)
         const headers = [
-            'Ente Comercial',
-            'Primas NP (€)',
-            'Nº Pólizas'
+            'ENTE COMERCIAL',
+            'PRIMAS NP (€)',
+            'Nº PÓLIZAS'
         ];
 
         const dataRows = sortedData.map(item => [
@@ -158,10 +158,23 @@ export default function Dashboard() {
         const wb = XLSX.utils.book_new();
         const ws = XLSX.utils.aoa_to_sheet(allRows);
 
-        // Widths
+        // --- STYLING & STRUCTURE ---
+
+        // Merges for headers (center titles)
+        ws['!merges'] = [
+            { s: { r: 0, c: 0 }, e: { r: 0, c: 2 } }, // GRUPO DATA SYSTEM - DASHBOARD
+            { s: { r: 1, c: 0 }, e: { r: 1, c: 2 } }, // DESGLOSE POR ENTE COMERCIAL
+        ];
+
+        // Auto-filter for the data table
+        const headerRowIndex = filterRows.length; // 0-indexed row for headers
+        const lastRowIndex = allRows.length - 1;
+        ws['!autofilter'] = { ref: `A${headerRowIndex + 1}:C${lastRowIndex + 1}` };
+
+        // Column Widths
         ws['!cols'] = [
-            { wch: 45 }, // Ente
-            { wch: 18 }, // Primas
+            { wch: 50 }, // Ente
+            { wch: 20 }, // Primas
             { wch: 15 }  // Polizas
         ];
 
