@@ -627,18 +627,28 @@ function AdvisorEvolutionContent() {
                                             const totalPrimas = activeMixData.reduce((s, x) => s + x.primas, 0);
                                             const pct = totalPrimas > 0 ? ((p.primas / totalPrimas) * 100).toFixed(1) : '0';
                                             return (
-                                                <tr key={i} className={`hover:bg-slate-50 ${mixDepth === 'ramo' ? 'cursor-pointer' : ''} ${selectedRamo === p.name ? 'bg-purple-50 ring-1 ring-purple-200' : ''}`} onClick={() => {
+                                                <tr key={i} className={`hover:bg-slate-50 ${mixDepth === 'ramo' ? 'cursor-pointer' : ''} ${selectedRamos.includes(p.name) ? 'bg-purple-50 ring-1 ring-purple-200' : ''}`} onClick={() => {
                                                     if (mixDepth === 'ramo') {
-                                                        if (selectedRamo === p.name) {
-                                                            setSelectedRamo(null); setRamoPolizas([]); setRamoSearchTerm('');
-                                                        } else {
-                                                            setSelectedRamo(p.name);
-                                                            setRamoSearchTerm('');
+                                                        const isSelected = selectedRamos.includes(p.name);
+                                                        const newSelection = isSelected
+                                                            ? selectedRamos.filter(r => r !== p.name)
+                                                            : [...selectedRamos, p.name];
+                                                        setSelectedRamos(newSelection);
+
+                                                        // Update policy list based on new selection
+                                                        if (newSelection.length > 0) {
                                                             setLoadingRamoDetail(true);
                                                             const params = new URLSearchParams();
                                                             if (asesor) params.append('asesor', asesor);
-                                                            params.append('ramo', p.name);
-                                                            fetch(`/api/polizas/listado?${params.toString()}`).then(r => r.json()).then(d => { setRamoPolizas(d.polizas || []); }).catch(() => setRamoPolizas([])).finally(() => setLoadingRamoDetail(false));
+                                                            params.append('ramo', newSelection.join(','));
+                                                            fetch(`/api/polizas/listado?${params.toString()}`)
+                                                                .then(r => r.json())
+                                                                .then(d => { setRamoPolizas(d.polizas || []); })
+                                                                .catch(() => setRamoPolizas([]))
+                                                                .finally(() => setLoadingRamoDetail(false));
+                                                        } else {
+                                                            setRamoPolizas([]);
+                                                            setRamoSearchTerm('');
                                                         }
                                                     }
                                                 }}>
