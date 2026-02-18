@@ -122,6 +122,7 @@ function PolizasContent() {
         if (endYear && endMonth) filterStr.push(`Hasta: ${MONTHS[parseInt(endMonth) - 1]} ${endYear}`);
 
         const titleRows = [
+            ['GRUPO DATA SYSTEM'],
             ['LISTADO DE PÓLIZAS DETALLADO'],
             [filterStr.join(' | ')],
             ['Fecha de generación:', new Date().toLocaleString()],
@@ -267,8 +268,8 @@ function PolizasContent() {
                                         </td>
                                         <td className="p-4 text-center">
                                             <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${p.estado.toUpperCase().includes('VIGOR') ? 'bg-emerald-100 text-emerald-700' :
-                                                    p.estado.toUpperCase().includes('SUSPENSI') ? 'bg-amber-100 text-amber-700' :
-                                                        'bg-red-100 text-red-700'
+                                                p.estado.toUpperCase().includes('SUSPENSI') ? 'bg-amber-100 text-amber-700' :
+                                                    'bg-red-100 text-red-700'
                                                 }`}>
                                                 {p.estado}
                                             </span>

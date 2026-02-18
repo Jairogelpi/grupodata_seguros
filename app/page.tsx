@@ -124,9 +124,11 @@ export default function Dashboard() {
     };
 
     const handleExportExcel = () => {
-        // 1. Prepare Filter Summary rows
+        // 1. Prepare Filter Summary rows (Corporate Style)
         const filterRows = [
-            ['DASHBOARD - DESGLOSE POR ENTE'],
+            ['GRUPO DATA SYSTEM - DASHBOARD'],
+            ['DESGLOSE POR ENTE COMERCIAL'],
+            [],
             ['Filtros Aplicados:', new Date().toLocaleString()],
             ['Asesor:', filters.comercial.length > 0 ? filters.comercial.join(', ') : 'Todos'],
             ['Ente:', filters.ente.length > 0 ? filters.ente.join(', ') : 'Todos'],
@@ -136,21 +138,17 @@ export default function Dashboard() {
             [], // Empty row
         ];
 
-        // 2. Prepare Data
+        // 2. Prepare Data (Removed Trends)
         const headers = [
             'Ente Comercial',
             'Primas NP (€)',
-            'Tendencia Primas (%)',
-            'Nº Pólizas',
-            'Tendencia Pólizas (%)'
+            'Nº Pólizas'
         ];
 
         const dataRows = sortedData.map(item => [
             item.ente,
             item.primas,
-            parseFloat((item.trendPrimas ?? 0).toFixed(2)),
-            item.polizas,
-            parseFloat((item.trendPolizas ?? 0).toFixed(2))
+            item.polizas
         ]);
 
         // 3. Combine everything
@@ -161,7 +159,11 @@ export default function Dashboard() {
         const ws = XLSX.utils.aoa_to_sheet(allRows);
 
         // Widths
-        ws['!cols'] = [{ wch: 40 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 20 }];
+        ws['!cols'] = [
+            { wch: 45 }, // Ente
+            { wch: 18 }, // Primas
+            { wch: 15 }  // Polizas
+        ];
 
         XLSX.utils.book_append_sheet(wb, ws, "Desglose");
         XLSX.writeFile(wb, `Dashboard_GrupoData_${new Date().toISOString().split('T')[0]}.xlsx`);
