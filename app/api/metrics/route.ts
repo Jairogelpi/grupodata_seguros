@@ -75,7 +75,20 @@ export async function GET(request: Request) {
         asesoresOptions.forEach(a => asesoresStats.set(a, { asesor: a, numEntes: 0, totalPrimas: 0, numPolizos: 0 }));
         links.forEach(l => {
             const asesor = String(l['ASESOR']);
+            const pEnteName = String(l['ENTE']);
+            const pEnteParts = pEnteName.split(' - ');
+            const code = pEnteParts.length > 1 ? pEnteParts[pEnteParts.length - 1].trim() : pEnteName.trim();
+
             if (asesoresStats.has(asesor)) asesoresStats.get(asesor)!.numEntes += 1;
+
+            // Pre-fill breakdownMap with all linked entes that match filters
+            const matchAsesor = comerciales.length === 0 || comerciales.includes(asesor);
+            const matchEnte = entesFilter.length === 0 || entesFilter.includes(pEnteName);
+            if (matchAsesor && matchEnte) {
+                if (!breakdownMap.has(code)) {
+                    breakdownMap.set(code, { ente: pEnteName, primas: 0, polizas: 0, asesor: asesor, anulaciones: 0 });
+                }
+            }
         });
 
         // Sets for Dynamic Filter Options (Cross-Filtering)
