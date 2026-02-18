@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Search, FileDown, Printer, FileText, LayoutList, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { ArrowLeft, Search, FileDown, Printer, FileText, LayoutList, ArrowUpDown, ArrowUp, ArrowDown, X } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 // Formatter for currency
@@ -42,6 +42,10 @@ function PolizasContent() {
     const startMonth = searchParams.get('startMonth');
     const endYear = searchParams.get('endYear');
     const endMonth = searchParams.get('endMonth');
+    const ramo = searchParams.get('ramo');
+    const producto = searchParams.get('producto');
+    const anio = searchParams.get('anio');
+    const mes = searchParams.get('mes');
 
     const [polizas, setPolizas] = useState<Poliza[]>([]);
     const [loading, setLoading] = useState(true);
@@ -53,7 +57,7 @@ function PolizasContent() {
 
     useEffect(() => {
         fetchPolizas();
-    }, [ente, asesor, estado, startYear, startMonth, endYear, endMonth]);
+    }, [ente, asesor, estado, startYear, startMonth, endYear, endMonth, ramo, producto, anio, mes]);
 
     const fetchPolizas = async () => {
         setLoading(true);
@@ -66,6 +70,10 @@ function PolizasContent() {
             if (startMonth) params.append('startMonth', startMonth);
             if (endYear) params.append('endYear', endYear);
             if (endMonth) params.append('endMonth', endMonth);
+            if (ramo) params.append('ramo', ramo);
+            if (producto) params.append('producto', producto);
+            if (anio) params.append('anio', anio);
+            if (mes) params.append('mes', mes);
 
             const res = await fetch(`/api/polizas/listado?${params.toString()}`);
             if (!res.ok) throw new Error('Failed to fetch polizas');
@@ -196,11 +204,25 @@ function PolizasContent() {
                         <h1 className="text-2xl font-bold text-slate-900">{getTitle()}</h1>
                         <p className="text-slate-500 text-sm font-medium">
                             {ente || asesor}
-                            {startYear && ` • ${MONTHS[parseInt(startMonth!) - 1]} ${startYear} a ${MONTHS[parseInt(endMonth!) - 1]} ${endYear}`}
+                            {ramo && ` • Ramo: ${ramo}`}
+                            {producto && ` • Producto: ${producto}`}
+                            {anio && mes && ` • Periodo: ${MONTHS[parseInt(mes) - 1]} ${anio}`}
+                            {startYear && startMonth && !anio && ` • ${MONTHS[parseInt(startMonth) - 1]} ${startYear} a ${MONTHS[parseInt(endMonth!) - 1]} ${endYear}`}
                         </p>
                     </div>
                 </div>
                 <div className="flex gap-2 w-full md:w-auto">
+                    {(ente || asesor || estado || startYear || ramo || producto || anio) && (
+                        <button
+                            onClick={() => {
+                                setSearchTerm('');
+                                router.push(`/polizas/listado`);
+                            }}
+                            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-red-50 border border-red-200 rounded-xl hover:bg-red-100 transition-all shadow-sm text-sm font-medium text-red-600"
+                        >
+                            <X className="w-4 h-4" /> Limpiar Filtros
+                        </button>
+                    )}
                     <button
                         onClick={handleExportExcel}
                         className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all shadow-sm text-sm font-medium"
