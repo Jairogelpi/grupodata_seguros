@@ -128,7 +128,7 @@ export async function GET(request: Request) {
 
             // Product mix aggregation
             // Extract ramo prefix like "<A> AUTOS" -> just take the whole product name
-            const ramo = producto.replace(/^<[A-Z]>\s*/, '').split('(')[0].trim() || producto;
+            const ramo = producto; // Use full name to preserve tags like <A> for frontend classification
             if (!productMix.has(ramo)) {
                 productMix.set(ramo, { primas: 0, polizas: 0 });
             }
