@@ -670,210 +670,221 @@ function AdvisorEvolutionContent() {
             )}
 
             {/* Ramo Drill-Down Detail Panel */}
-            {selectedRamo && mixDepth === 'ramo' && (
-                <div className="bg-white p-8 print:p-6 rounded-2xl shadow-sm border border-purple-200 break-inside-avoid print:w-full">
-                    <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                            <PieChart className="w-5 h-5 text-purple-500" />
-                            Detalle del Ramo: <span className="text-purple-600">{selectedRamo}</span>
-                        </h2>
-                        <button onClick={() => { setSelectedRamo(null); setRamoPolizas([]); setRamoSearchTerm(''); }} className="px-4 py-1.5 rounded-md text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all no-print">Cerrar ✕</button>
-                    </div>
-
-                    {/* Sub-donut: Products within this Ramo */}
-                    {(() => {
-                        const ramoProducts = productMix.filter(p => getRamo(p.producto) === selectedRamo);
+            {/* Ramo Drill-Down Detail Panel */}
+            {selectedRamos.length > 0 && mixDepth === 'ramo' && (
+                <div className="space-y-6 break-inside-avoid print:w-full">
+                    {selectedRamos.map(ramo => {
+                        const ramoProducts = productMix.filter(p => getRamo(p.producto) === ramo);
                         const totalRamoPrimas = ramoProducts.reduce((s, p) => s + p.primas, 0);
                         const subDonutData = {
                             labels: ramoProducts.map(p => p.producto),
                             datasets: [{ data: ramoProducts.map(p => p.primas), backgroundColor: DONUT_COLORS.slice(0, ramoProducts.length), borderWidth: 2, borderColor: '#fff' }]
                         };
+
                         return (
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                                <div className="h-[280px]">
-                                    {ramoProducts.length > 0 ? (
-                                        <Doughnut data={subDonutData} options={{
-                                            responsive: true, maintainAspectRatio: false,
-                                            plugins: {
-                                                legend: { position: 'bottom' as const, labels: { boxWidth: 10, font: { size: 9 }, padding: 8 } },
-                                                datalabels: {
-                                                    formatter: (val: number, ctx: any) => { const total = ctx.dataset.data.reduce((a: number, b: number) => a + b, 0); return total > 0 ? `${((val / total) * 100).toFixed(1)}%` : '0%'; },
-                                                    color: '#fff', font: { weight: 'bold' as const, size: 10 },
-                                                    display: (ctx: any) => { const total = ctx.dataset.data.reduce((a: number, b: number) => a + b, 0); return total > 0 && (ctx.dataset.data[ctx.dataIndex] / total) > 0.04; }
-                                                }
-                                            }
-                                        }} />
-                                    ) : <div className="flex items-center justify-center h-full text-slate-400">Sin datos</div>}
+                            <div key={ramo} className="bg-white p-8 print:p-6 rounded-2xl shadow-sm border border-purple-200">
+                                <div className="flex items-center justify-between mb-6">
+                                    <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                                        <PieChart className="w-5 h-5 text-purple-500" />
+                                        Detalle del Ramo: <span className="text-purple-600">{ramo}</span>
+                                    </h2>
+                                    <button onClick={() => {
+                                        const newSelection = selectedRamos.filter(r => r !== ramo);
+                                        setSelectedRamos(newSelection);
+                                        if (newSelection.length === 0) {
+                                            setRamoPolizas([]);
+                                            setRamoSearchTerm('');
+                                        }
+                                    }} className="px-4 py-1.5 rounded-md text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all no-print">Cerrar ✕</button>
                                 </div>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-sm">
-                                        <thead>
-                                            <tr className="border-b border-slate-100">
-                                                <th className="p-3 text-left text-xs font-bold text-slate-400 uppercase">Producto</th>
-                                                <th className="p-3 text-right text-xs font-bold text-slate-400 uppercase">Primas</th>
-                                                <th className="p-3 text-right text-xs font-bold text-slate-400 uppercase">Pólizas</th>
-                                                <th className="p-3 text-right text-xs font-bold text-slate-400 uppercase">Peso</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-50">
-                                            {ramoProducts.map((p, i) => {
-                                                const pct = totalRamoPrimas > 0 ? ((p.primas / totalRamoPrimas) * 100).toFixed(1) : '0';
-                                                return (
-                                                    <tr key={i} className="hover:bg-slate-50">
-                                                        <td className="p-3 font-medium text-slate-700 flex items-center gap-2">
-                                                            <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: DONUT_COLORS[i % DONUT_COLORS.length] }} />
-                                                            {p.producto}
-                                                        </td>
-                                                        <td className="p-3 text-right font-bold text-primary font-mono">{currencyFormatter.format(p.primas)}</td>
-                                                        <td className="p-3 text-right font-mono text-slate-600">{numberFormatter.format(p.polizas)}</td>
-                                                        <td className="p-3 text-right font-bold text-slate-500">{pct}%</td>
-                                                    </tr>
-                                                );
-                                            })}
-                                        </tbody>
-                                    </table>
+
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                                    <div className="h-[280px]">
+                                        {ramoProducts.length > 0 ? (
+                                            <Doughnut data={subDonutData} options={{
+                                                responsive: true, maintainAspectRatio: false,
+                                                plugins: {
+                                                    legend: { position: 'bottom' as const, labels: { boxWidth: 10, font: { size: 9 }, padding: 8 } },
+                                                    datalabels: {
+                                                        formatter: (val: number, ctx: any) => { const total = ctx.dataset.data.reduce((a: number, b: number) => a + b, 0); return total > 0 ? `${((val / total) * 100).toFixed(1)}%` : '0%'; },
+                                                        color: '#fff', font: { weight: 'bold' as const, size: 10 },
+                                                        display: (ctx: any) => { const total = ctx.dataset.data.reduce((a: number, b: number) => a + b, 0); return total > 0 && (ctx.dataset.data[ctx.dataIndex] / total) > 0.04; }
+                                                    }
+                                                }
+                                            }} />
+                                        ) : <div className="flex items-center justify-center h-full text-slate-400">Sin datos</div>}
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-sm">
+                                            <thead>
+                                                <tr className="border-b border-slate-100">
+                                                    <th className="p-3 text-left text-xs font-bold text-slate-400 uppercase">Producto</th>
+                                                    <th className="p-3 text-right text-xs font-bold text-slate-400 uppercase">Primas</th>
+                                                    <th className="p-3 text-right text-xs font-bold text-slate-400 uppercase">Pólizas</th>
+                                                    <th className="p-3 text-right text-xs font-bold text-slate-400 uppercase">Peso</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-50">
+                                                {ramoProducts.map((p, i) => {
+                                                    const pct = totalRamoPrimas > 0 ? ((p.primas / totalRamoPrimas) * 100).toFixed(1) : '0';
+                                                    return (
+                                                        <tr key={i} className="hover:bg-slate-50">
+                                                            <td className="p-3 font-medium text-slate-700 flex items-center gap-2">
+                                                                <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: DONUT_COLORS[i % DONUT_COLORS.length] }} />
+                                                                {p.producto}
+                                                            </td>
+                                                            <td className="p-3 text-right font-bold text-primary font-mono">{currencyFormatter.format(p.primas)}</td>
+                                                            <td className="p-3 text-right font-mono text-slate-600">{numberFormatter.format(p.polizas)}</td>
+                                                            <td className="p-3 text-right font-bold text-slate-500">{pct}%</td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
                         );
-                    })()}
-
-                    {/* Policy table within this Ramo */}
-                    <div className="border-t border-slate-200 pt-6">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-lg font-bold text-slate-700">Pólizas del Ramo</h3>
-                            <div className="relative w-64 no-print">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                                <input type="text" placeholder="Buscar póliza, tomador..." value={ramoSearchTerm} onChange={e => setRamoSearchTerm(e.target.value)} className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
-                            </div>
-                        </div>
-                        {loadingRamoDetail ? (
-                            <div className="py-12 text-center text-slate-400 animate-pulse">Cargando pólizas...</div>
-                        ) : ramoPolizas.length > 0 ? (
-                            <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
-                                <table className="w-full text-xs">
-                                    <thead className="sticky top-0 bg-white z-10">
-                                        <tr className="border-b border-slate-200">
-                                            <th className="p-2 text-left font-bold text-slate-400 uppercase">Póliza</th>
-                                            <th className="p-2 text-left font-bold text-slate-400 uppercase">Estado</th>
-                                            <th className="p-2 text-left font-bold text-slate-400 uppercase">Tomador</th>
-                                            <th className="p-2 text-left font-bold text-slate-400 uppercase">Producto</th>
-                                            <th className="p-2 text-left font-bold text-slate-400 uppercase">Compañía</th>
-                                            <th className="p-2 text-right font-bold text-slate-400 uppercase">Primas</th>
-                                            <th className="p-2 text-right font-bold text-slate-400 uppercase">Días</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-50">
-                                        {ramoPolizas
-                                            .filter(p => {
-                                                if (!ramoSearchTerm) return true;
-                                                const term = ramoSearchTerm.toLowerCase();
-                                                return (p.poliza || '').toLowerCase().includes(term) || (p.tomador || '').toLowerCase().includes(term) || (p.producto || '').toLowerCase().includes(term);
-                                            })
-                                            .slice(0, 200).map((p: any, i: number) => (
-                                                <tr key={i} className="hover:bg-slate-50">
-                                                    <td className="p-2 font-mono text-slate-700">{p.poliza}</td>
-                                                    <td className="p-2"><span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${(p.estado || '').toUpperCase().includes('VIGOR') ? 'bg-emerald-50 text-emerald-700' : (p.estado || '').toUpperCase().includes('ANULADA') ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>{p.estado}</span></td>
-                                                    <td className="p-2 text-slate-600 max-w-[200px] truncate">{p.tomador}</td>
-                                                    <td className="p-2 text-slate-600 max-w-[180px] truncate">{p.producto}</td>
-                                                    <td className="p-2 text-slate-600">{p.compania}</td>
-                                                    <td className="p-2 text-right font-bold text-primary font-mono">{currencyFormatter.format(p.primas)}</td>
-                                                    <td className="p-2 text-right font-mono text-slate-500">{p.diasVida}</td>
-                                                </tr>
-                                            ))}
-                                    </tbody>
-                                </table>
-                                {ramoPolizas.length > 200 && <p className="text-xs text-slate-400 text-center py-2">Mostrando 200 de {ramoPolizas.length} pólizas</p>}
-                            </div>
-                        ) : (
-                            <div className="py-8 text-center text-slate-400">No hay pólizas para este ramo</div>
-                        )}
-                    </div>
+                    })}
                 </div>
             )}
-
-            {/* Monthly Breakdown Table */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden break-inside-avoid">
-                <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
-                    <LayoutList className="w-5 h-5 text-slate-400" />
-                    <h3 className="text-lg font-bold text-slate-800">Cómputo Mensual</h3>
-                </div>
-
-                <div className="p-4 border-b border-slate-100 bg-slate-50/30">
-                    <div className="relative w-full md:w-96">
+            <div className="border-t border-slate-200 pt-6">
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-bold text-slate-700">Pólizas del Ramo</h3>
+                    <div className="relative w-64 no-print">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input
-                            type="text"
-                            placeholder="Buscar periodo (ej: Enero 2024)..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all text-sm font-medium"
-                        />
+                        <input type="text" placeholder="Buscar póliza, tomador..." value={ramoSearchTerm} onChange={e => setRamoSearchTerm(e.target.value)} className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
                     </div>
                 </div>
-
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                        <thead>
-                            <tr className="bg-slate-50 border-b border-slate-100">
-                                <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs cursor-pointer hover:bg-slate-100" onClick={() => requestSort('anio')}>Periodo <SortIcon column="anio" /></th>
-                                <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('entes')}>Entes <SortIcon column="entes" /></th>
-                                <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('primas')}>Primas (€) <SortIcon column="primas" /></th>
-                                <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('varPrimas')}>Var. Primas <SortIcon column="varPrimas" /></th>
-                                <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('polizas')}>Pólizas <SortIcon column="polizas" /></th>
-                                <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('varPolizas')}>Var. Pólizas <SortIcon column="varPolizas" /></th>
-                                <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('ticketMedio')}>Ticket M. <SortIcon column="ticketMedio" /></th>
-                                <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('ratioRetencion')}>Retención <SortIcon column="ratioRetencion" /></th>
-                                <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('anuladas')}>Anuladas <SortIcon column="anuladas" /></th>
-                                <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('anulacionesTempranas')}>Tempr. <SortIcon column="anulacionesTempranas" /></th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {sortedData.map((d, i) => {
-                                const origIdx = filteredData.findIndex(x => x.anio === d.anio && x.mes === d.mes);
-                                const pct = momChanges[origIdx];
-                                const isSelected = selectedPeriod?.year === d.anio && selectedPeriod?.month === d.mes;
-                                return (
-                                    <tr key={i}
-                                        onClick={() => {
-                                            if (isSelected) {
-                                                setSelectedPeriod(null);
-                                                setPeriodMix(null);
-                                            } else {
-                                                setSelectedPeriod({ year: d.anio, month: d.mes });
-                                                fetchPeriodDetails(d.anio, d.mes);
-                                            }
-                                        }}
-                                        className={`transition-colors group cursor-pointer ${isSelected ? 'bg-indigo-50 hover:bg-indigo-100 ring-1 ring-indigo-300' : 'hover:bg-slate-50'}`}
-                                    >
-                                        <td className="p-4 font-medium text-slate-900 flex items-center gap-2">
-                                            {MONTHS[d.mes - 1]} {d.anio}
-                                            {isSelected && <span className="ml-2 px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-bold">ACTIVO</span>}
-                                        </td>
-                                        <td className="p-4 text-right font-bold text-amber-600">{numberFormatter.format(d.entes)}</td>
-                                        <td className="p-4 text-right font-bold text-primary">{currencyFormatter.format(d.primas)}</td>
-                                        <td className={`p-4 text-right font-bold text-xs ${pct === null ? 'text-slate-300' : pct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                            {pct !== null ? `${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct)}%` : '—'}
-                                        </td>
-                                        <td className="p-4 text-right font-semibold text-slate-700">{numberFormatter.format(d.polizas)}</td>
-                                        {(() => {
-                                            const pctPol = momChangesPolizas[origIdx];
-                                            return (
-                                                <td className={`p-4 text-right font-bold text-xs ${pctPol === null ? 'text-slate-300' : pctPol >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                                    {pctPol !== null ? `${pctPol >= 0 ? '▲' : '▼'} ${Math.abs(pctPol)}%` : '—'}
-                                                </td>
-                                            );
-                                        })()}
-                                        <td className="p-4 text-right text-pink-600 font-bold">{currencyFormatter.format(d.polizas > 0 ? d.primas / d.polizas : 0)}</td>
-                                        <td className={`p-4 text-right font-bold ${d.ratioRetencion >= 70 ? 'text-green-600' : 'text-red-600'}`}>{d.ratioRetencion}%</td>
-                                        <td className="p-4 text-right text-orange-600 font-mono">{d.anuladas}</td>
-                                        <td className={`p-4 text-right font-mono ${d.anulacionesTempranas > 0 ? 'text-red-600 font-bold' : 'text-slate-300'}`}>{d.anulacionesTempranas}</td>
-                                    </tr>);
-                            })}
-                        </tbody>
-                    </table>
-                </div>
+                {loadingRamoDetail ? (
+                    <div className="py-12 text-center text-slate-400 animate-pulse">Cargando pólizas...</div>
+                ) : ramoPolizas.length > 0 ? (
+                    <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
+                        <table className="w-full text-xs">
+                            <thead className="sticky top-0 bg-white z-10">
+                                <tr className="border-b border-slate-200">
+                                    <th className="p-2 text-left font-bold text-slate-400 uppercase">Póliza</th>
+                                    <th className="p-2 text-left font-bold text-slate-400 uppercase">Estado</th>
+                                    <th className="p-2 text-left font-bold text-slate-400 uppercase">Tomador</th>
+                                    <th className="p-2 text-left font-bold text-slate-400 uppercase">Producto</th>
+                                    <th className="p-2 text-left font-bold text-slate-400 uppercase">Compañía</th>
+                                    <th className="p-2 text-right font-bold text-slate-400 uppercase">Primas</th>
+                                    <th className="p-2 text-right font-bold text-slate-400 uppercase">Días</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-50">
+                                {ramoPolizas
+                                    .filter(p => {
+                                        if (!ramoSearchTerm) return true;
+                                        const term = ramoSearchTerm.toLowerCase();
+                                        return (p.poliza || '').toLowerCase().includes(term) || (p.tomador || '').toLowerCase().includes(term) || (p.producto || '').toLowerCase().includes(term);
+                                    })
+                                    .slice(0, 200).map((p: any, i: number) => (
+                                        <tr key={i} className="hover:bg-slate-50">
+                                            <td className="p-2 font-mono text-slate-700">{p.poliza}</td>
+                                            <td className="p-2"><span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${(p.estado || '').toUpperCase().includes('VIGOR') ? 'bg-emerald-50 text-emerald-700' : (p.estado || '').toUpperCase().includes('ANULADA') ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>{p.estado}</span></td>
+                                            <td className="p-2 text-slate-600 max-w-[200px] truncate">{p.tomador}</td>
+                                            <td className="p-2 text-slate-600 max-w-[180px] truncate">{p.producto}</td>
+                                            <td className="p-2 text-slate-600">{p.compania}</td>
+                                            <td className="p-2 text-right font-bold text-primary font-mono">{currencyFormatter.format(p.primas)}</td>
+                                            <td className="p-2 text-right font-mono text-slate-500">{p.diasVida}</td>
+                                        </tr>
+                                    ))}
+                            </tbody>
+                        </table>
+                        {ramoPolizas.length > 200 && <p className="text-xs text-slate-400 text-center py-2">Mostrando 200 de {ramoPolizas.length} pólizas</p>}
+                    </div>
+                ) : (
+                    <div className="py-8 text-center text-slate-400">No hay pólizas para este ramo</div>
+                )}
             </div>
         </div>
+    )
+}
+
+{/* Monthly Breakdown Table */ }
+<div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden break-inside-avoid">
+    <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
+        <LayoutList className="w-5 h-5 text-slate-400" />
+        <h3 className="text-lg font-bold text-slate-800">Cómputo Mensual</h3>
+    </div>
+
+    <div className="p-4 border-b border-slate-100 bg-slate-50/30">
+        <div className="relative w-full md:w-96">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+                type="text"
+                placeholder="Buscar periodo (ej: Enero 2024)..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all text-sm font-medium"
+            />
+        </div>
+    </div>
+
+    <div className="overflow-x-auto">
+        <table className="w-full text-left text-sm">
+            <thead>
+                <tr className="bg-slate-50 border-b border-slate-100">
+                    <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs cursor-pointer hover:bg-slate-100" onClick={() => requestSort('anio')}>Periodo <SortIcon column="anio" /></th>
+                    <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('entes')}>Entes <SortIcon column="entes" /></th>
+                    <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('primas')}>Primas (€) <SortIcon column="primas" /></th>
+                    <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('varPrimas')}>Var. Primas <SortIcon column="varPrimas" /></th>
+                    <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('polizas')}>Pólizas <SortIcon column="polizas" /></th>
+                    <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('varPolizas')}>Var. Pólizas <SortIcon column="varPolizas" /></th>
+                    <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('ticketMedio')}>Ticket M. <SortIcon column="ticketMedio" /></th>
+                    <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('ratioRetencion')}>Retención <SortIcon column="ratioRetencion" /></th>
+                    <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('anuladas')}>Anuladas <SortIcon column="anuladas" /></th>
+                    <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('anulacionesTempranas')}>Tempr. <SortIcon column="anulacionesTempranas" /></th>
+                </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+                {sortedData.map((d, i) => {
+                    const origIdx = filteredData.findIndex(x => x.anio === d.anio && x.mes === d.mes);
+                    const pct = momChanges[origIdx];
+                    const isSelected = selectedPeriod?.year === d.anio && selectedPeriod?.month === d.mes;
+                    return (
+                        <tr key={i}
+                            onClick={() => {
+                                if (isSelected) {
+                                    setSelectedPeriod(null);
+                                    setPeriodMix(null);
+                                } else {
+                                    setSelectedPeriod({ year: d.anio, month: d.mes });
+                                    fetchPeriodDetails(d.anio, d.mes);
+                                }
+                            }}
+                            className={`transition-colors group cursor-pointer ${isSelected ? 'bg-indigo-50 hover:bg-indigo-100 ring-1 ring-indigo-300' : 'hover:bg-slate-50'}`}
+                        >
+                            <td className="p-4 font-medium text-slate-900 flex items-center gap-2">
+                                {MONTHS[d.mes - 1]} {d.anio}
+                                {isSelected && <span className="ml-2 px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-bold">ACTIVO</span>}
+                            </td>
+                            <td className="p-4 text-right font-bold text-amber-600">{numberFormatter.format(d.entes)}</td>
+                            <td className="p-4 text-right font-bold text-primary">{currencyFormatter.format(d.primas)}</td>
+                            <td className={`p-4 text-right font-bold text-xs ${pct === null ? 'text-slate-300' : pct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {pct !== null ? `${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct)}%` : '—'}
+                            </td>
+                            <td className="p-4 text-right font-semibold text-slate-700">{numberFormatter.format(d.polizas)}</td>
+                            {(() => {
+                                const pctPol = momChangesPolizas[origIdx];
+                                return (
+                                    <td className={`p-4 text-right font-bold text-xs ${pctPol === null ? 'text-slate-300' : pctPol >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                        {pctPol !== null ? `${pctPol >= 0 ? '▲' : '▼'} ${Math.abs(pctPol)}%` : '—'}
+                                    </td>
+                                );
+                            })()}
+                            <td className="p-4 text-right text-pink-600 font-bold">{currencyFormatter.format(d.polizas > 0 ? d.primas / d.polizas : 0)}</td>
+                            <td className={`p-4 text-right font-bold ${d.ratioRetencion >= 70 ? 'text-green-600' : 'text-red-600'}`}>{d.ratioRetencion}%</td>
+                            <td className="p-4 text-right text-orange-600 font-mono">{d.anuladas}</td>
+                            <td className={`p-4 text-right font-mono ${d.anulacionesTempranas > 0 ? 'text-red-600 font-bold' : 'text-slate-300'}`}>{d.anulacionesTempranas}</td>
+                        </tr>);
+                })}
+            </tbody>
+        </table>
+    </div>
+</div>
+        </div >
     );
 }
 
