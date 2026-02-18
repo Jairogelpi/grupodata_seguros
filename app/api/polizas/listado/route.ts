@@ -15,7 +15,10 @@ export async function GET(request: Request) {
         const startMonth = searchParams.get('startMonth');
         const endYear = searchParams.get('endYear');
         const endMonth = searchParams.get('endMonth');
+        const targetAnio = searchParams.get('anio');
+        const targetMes = searchParams.get('mes');
         const ramoFilter = searchParams.get('ramo'); // Ramo classification filter
+        const productoFilter = searchParams.get('producto');
 
         // 1. Read Data
         const [polizas, links] = await Promise.all([
@@ -91,6 +94,20 @@ export async function GET(request: Request) {
                 const ramos = ramoFilter.split(',');
                 const producto = String(p['Producto'] || '');
                 if (!ramos.includes(getRamo(producto))) return false;
+            }
+
+            // Filter by Producto
+            if (productoFilter) {
+                const productos = productoFilter.split(',');
+                const producto = String(p['Producto'] || '');
+                if (!productos.includes(producto)) return false;
+            }
+
+            // Filter by Exact Month
+            if (targetAnio && targetMes) {
+                const pAnio = parseInt(p['AÑO_PROD']);
+                const pMes = parseInt(p['MES_Prod']);
+                if (pAnio !== parseInt(targetAnio) || pMes !== parseInt(targetMes)) return false;
             }
 
             return true;

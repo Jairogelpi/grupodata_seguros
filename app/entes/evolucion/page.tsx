@@ -19,7 +19,8 @@ import {
     ChevronDown,
     ChevronsUpDown,
     Search,
-    X
+    X,
+    ArrowUpRight
 } from 'lucide-react';
 import {
     Chart as ChartJS,
@@ -136,6 +137,10 @@ function EvolutionContent() {
             params.append('ente', ente!);
             if (selectedRamos.length > 0) params.append('ramo', selectedRamos.join(','));
             if (selectedProducts.length > 0) params.append('producto', selectedProducts.join(','));
+            if (selectedPeriod) {
+                params.append('anio', selectedPeriod.year.toString());
+                params.append('mes', selectedPeriod.month.toString());
+            }
 
             const res = await fetch(`/api/entes/evolucion?${params.toString()}`);
             const json = await res.json();
@@ -491,6 +496,10 @@ function EvolutionContent() {
         const params = new URLSearchParams();
         if (selectedRamos.length > 0) params.append('ramo', selectedRamos.join(','));
         if (selectedProducts.length > 0) params.append('producto', selectedProducts.join(','));
+        if (selectedPeriod) {
+            params.append('anio', selectedPeriod.year.toString());
+            params.append('mes', selectedPeriod.month.toString());
+        }
         const str = params.toString();
         return str ? `&${str}` : '';
     };
@@ -544,7 +553,7 @@ function EvolutionContent() {
                         {/* 1. CARTERA ACTIVA (Global Stock) */}
                         <KPITooltip text="Ver listado de pólizas actualmente EN VIGOR.">
                             <div
-                                onClick={() => router.push(`/polizas/listado?ente=${encodeURIComponent(ente!)}&estado=VIGOR`)}
+                                onClick={() => router.push(`/polizas/listado?ente=${encodeURIComponent(ente!)}&estado=VIGOR${getFilterParams()}`)}
                                 className="bg-emerald-50 rounded-xl p-4 border border-emerald-100 h-full transition-all hover:border-emerald-400 hover:shadow-md cursor-pointer group/card"
                             >
                                 <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-1">
@@ -557,7 +566,7 @@ function EvolutionContent() {
                         {/* 2. EN SUSPENSIÓN (Global Stock) */}
                         <KPITooltip text="Ver listado de pólizas actualmente en estado de SUSPENSIÓN.">
                             <div
-                                onClick={() => router.push(`/polizas/listado?ente=${encodeURIComponent(ente!)}&estado=SUSPENSION`)}
+                                onClick={() => router.push(`/polizas/listado?ente=${encodeURIComponent(ente!)}&estado=SUSPENSION${getFilterParams()}`)}
                                 className="bg-amber-50 rounded-xl p-4 border border-amber-100 h-full transition-all hover:border-amber-400 hover:shadow-md cursor-pointer group/card"
                             >
                                 <p className="text-xs font-bold text-amber-600 uppercase tracking-wider flex items-center gap-1">
@@ -570,7 +579,7 @@ function EvolutionContent() {
                         {/* 3. ANULADAS DEL PERIODO (Flow) */}
                         <KPITooltip text="Ver listado de pólizas producidas en este periodo que han sido anuladas.">
                             <div
-                                onClick={() => router.push(`/polizas/listado?ente=${encodeURIComponent(ente!)}&estado=ANULADA&startYear=${startPeriod.year}&startMonth=${startPeriod.month}&endYear=${endPeriod.year}&endMonth=${endPeriod.month}`)}
+                                onClick={() => router.push(`/polizas/listado?ente=${encodeURIComponent(ente!)}&estado=ANULADA&startYear=${startPeriod.year}&startMonth=${startPeriod.month}&endYear=${endPeriod.year}&endMonth=${endPeriod.month}${getFilterParams()}`)}
                                 className="bg-slate-50 rounded-xl p-4 border border-slate-100 h-full transition-all hover:border-slate-400 hover:shadow-md cursor-pointer group/card"
                             >
                                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Anuladas Periodo</p>
@@ -706,12 +715,12 @@ function EvolutionContent() {
                                                                 e.stopPropagation();
                                                                 const base = `/polizas/listado?ente=${encodeURIComponent(ente!)}`;
                                                                 const filter = mixDepth === 'ramo' ? `&ramo=${encodeURIComponent(p.name)}` : `&producto=${encodeURIComponent(p.name)}`;
-                                                                router.push(`${base}${filter}`);
+                                                                router.push(`${base}${filter}${getFilterParams()}`);
                                                             }}
-                                                            className="p-1.5 text-slate-400 hover:text-primary transition-colors hover:bg-slate-100 rounded-lg"
+                                                            className="p-2 text-slate-400 hover:text-primary transition-colors hover:bg-slate-100 rounded-xl"
                                                             title="Ver listado de pólizas"
                                                         >
-                                                            <LayoutList className="w-4 h-4" />
+                                                            <ArrowUpRight className="w-5 h-5" />
                                                         </button>
                                                     </td>
                                                 </tr>
@@ -773,7 +782,7 @@ function EvolutionContent() {
                                                     <th className="p-3 text-right text-xs font-bold text-slate-400 uppercase">Primas</th>
                                                     <th className="p-3 text-right text-xs font-bold text-slate-400 uppercase">Pólizas</th>
                                                     <th className="p-3 text-right text-xs font-bold text-slate-400 uppercase">Peso</th>
-                                                    <th className="p-3 text-right text-xs font-bold text-slate-400 uppercase no-print">Acción</th>
+                                                    <th className="p-3 text-right text-xs font-bold text-slate-400 uppercase no-print">Link</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-50">
@@ -792,12 +801,12 @@ function EvolutionContent() {
                                                                 <button
                                                                     onClick={() => {
                                                                         const base = `/polizas/listado?ente=${encodeURIComponent(ente!)}`;
-                                                                        router.push(`${base}&producto=${encodeURIComponent(p.producto)}`);
+                                                                        router.push(`${base}&producto=${encodeURIComponent(p.producto)}${getFilterParams()}`);
                                                                     }}
                                                                     className="p-1.5 text-slate-400 hover:text-primary transition-colors hover:bg-slate-100 rounded-lg"
                                                                     title="Ver listado de pólizas"
                                                                 >
-                                                                    <LayoutList className="w-4 h-4" />
+                                                                    <ArrowUpRight className="w-4 h-4" />
                                                                 </button>
                                                             </td>
                                                         </tr>
@@ -899,7 +908,7 @@ function EvolutionContent() {
                                 <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('ratioRetencion')}>Retención <SortIcon column="ratioRetencion" /></th>
                                 <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('anuladas')}>Anuladas <SortIcon column="anuladas" /></th>
                                 <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('anulacionesTempranas')}>Tempranas <SortIcon column="anulacionesTempranas" /></th>
-                                <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right no-print">Acción</th>
+                                <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right no-print">Link</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
