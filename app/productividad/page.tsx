@@ -434,6 +434,7 @@ export default function ProductividadPage() {
                                     <th className="px-4 py-2 text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider">Ente</th>
                                     <th className="px-4 py-2 text-right text-[10px] font-bold text-primary uppercase tracking-wider">Ticket M.</th>
                                     <th className="px-4 py-2 text-right text-[10px] font-bold text-slate-500 uppercase tracking-wider">Primas</th>
+                                    <th className="px-2 py-2 text-center text-[10px] font-bold text-slate-400 uppercase tracking-wider no-print"></th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-slate-200">
@@ -455,6 +456,18 @@ export default function ProductividadPage() {
                                         </td>
                                         <td className="px-4 py-3 text-[9px] text-slate-400 text-right font-mono">
                                             {currencyFormatter.format(item.primas).replace(",00", "")}
+                                        </td>
+                                        <td className="px-2 py-3 text-center no-print">
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    router.push(`/entes/evolucion?ente=${encodeURIComponent(item.ente)}`);
+                                                }}
+                                                className="p-1 hover:bg-white rounded text-primary transition-all transition-colors"
+                                                title="Ver Evolución Ente"
+                                            >
+                                                <TrendingUp className="w-4 h-4" />
+                                            </button>
                                         </td>
                                     </tr>
                                 ))}
