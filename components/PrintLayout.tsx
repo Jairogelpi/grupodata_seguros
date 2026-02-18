@@ -9,8 +9,10 @@ export default function PrintLayout() {
             <style jsx global>{`
                 @media print {
                     @page {
-                        margin: 0;
-                       /* Hide browser default header/footer */
+                        margin-left: 0;
+                        margin-right: 0;
+                        margin-top: 150px; /* Space for the 120px header */
+                        margin-bottom: 60px; /* Space for footer */
                     }
                     body {
                         -webkit-print-color-adjust: exact !important;
@@ -48,8 +50,8 @@ export default function PrintLayout() {
                     
                     /* Main Content Scaling */
                     main {
-                        margin-top: 20px !important;
-                        margin-bottom: 80px !important;
+                        margin-top: 0px !important;
+                        margin-bottom: 0px !important;
                         
                         transform: scale(0.75);
                         transform-origin: top center;
