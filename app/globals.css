@@ -100,9 +100,10 @@ h6 {
         }
 
         main {
-            padding: 0 !important;
-            margin: 0 !important;
+            padding: 0 1cm !important;
+            margin: 0 auto !important;
             max-width: 100% !important;
+            width: 100% !important;
         }
 
         h1 {

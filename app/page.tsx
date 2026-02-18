@@ -29,8 +29,8 @@ interface BreakdownItem {
     ente: string;
     primas: number;
     polizas: number;
-    trendPrimas: number;
-    trendPolizas: number;
+    trendPrimas?: number;
+    trendPolizas?: number;
 }
 
 interface FilterOptions {
@@ -113,7 +113,9 @@ export default function Dashboard() {
         if (key === 'ente') {
             return direction === 'asc' ? a.ente.localeCompare(b.ente) : b.ente.localeCompare(a.ente);
         }
-        return direction === 'asc' ? a[key] - b[key] : b[key] - a[key];
+        const valA = (a[key] as number) ?? 0;
+        const valB = (b[key] as number) ?? 0;
+        return direction === 'asc' ? valA - valB : valB - valA;
     });
 
     const SortIcon = ({ col }: { col: SortKey }) => {
@@ -138,9 +140,9 @@ export default function Dashboard() {
         const dataToExport = sortedData.map(item => ({
             'Ente Comercial': item.ente,
             'Primas NP (€)': item.primas,
-            'Tendencia Primas (%)': item.trendPrimas.toFixed(2),
+            'Tendencia Primas (%)': (item.trendPrimas ?? 0).toFixed(2),
             'Nº Pólizas': item.polizas,
-            'Tendencia Pólizas (%)': item.trendPolizas.toFixed(2)
+            'Tendencia Pólizas (%)': (item.trendPolizas ?? 0).toFixed(2)
         }));
 
         // 3. Create Workbook
@@ -159,7 +161,7 @@ export default function Dashboard() {
         window.print();
     };
 
-    const TrendBadge = ({ value }: { value: number }) => {
+    const TrendBadge = ({ value }: { value?: number }) => {
         if (!value && value !== 0) return null;
         const isPositive = value > 0;
         const isZero = value === 0;
