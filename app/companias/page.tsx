@@ -9,17 +9,19 @@ import {
     LayoutList,
     FileDown,
     Printer,
-    Info,
     PieChart,
-    TrendingUp
+    TrendingUp,
+    XCircle,
+    MousePointer2
 } from 'lucide-react';
 import { Doughnut } from 'react-chartjs-2';
-import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, ChartEvent, ActiveElement } from 'chart.js';
+import ChartDataLabels from 'chartjs-plugin-datalabels';
 import MultiSelect from '@/components/MultiSelect';
 import * as XLSX from 'xlsx';
 
-// Register ChartJS
-ChartJS.register(ArcElement, Tooltip, Legend);
+// Register ChartJS with DataLabels
+ChartJS.register(ArcElement, Tooltip, Legend, ChartDataLabels);
 
 // Formatter for currency
 const currencyFormatter = new Intl.NumberFormat('es-ES', {
@@ -59,7 +61,8 @@ export default function CompaniasPage() {
         anio: [] as string[],
         mes: [] as string[],
         estado: [] as string[],
-        ente: [] as string[]
+        ente: [] as string[],
+        compania: [] as string[] // Filtro interactivo BI
     });
     const [options, setOptions] = useState<FilterOptions>({
         anios: [],
@@ -81,7 +84,7 @@ export default function CompaniasPage() {
 
     useEffect(() => {
         fetchMetrics();
-    }, [filters]);
+    }, [filters.comercial, filters.anio, filters.mes, filters.estado, filters.ente]);
 
     const fetchMetrics = async () => {
         setLoading(true);
@@ -110,6 +113,22 @@ export default function CompaniasPage() {
         setFilters(prev => ({ ...prev, [key]: selected }));
     };
 
+    const toggleInteractiveSelection = (val: string) => {
+        if (val === 'Otras') return;
+        setFilters(prev => {
+            const current = prev.compania;
+            const isSelected = current.includes(val);
+            return {
+                ...prev,
+                compania: isSelected ? current.filter(item => item !== val) : [...current, val]
+            };
+        });
+    };
+
+    const clearInteractiveSelection = () => {
+        setFilters(prev => ({ ...prev, compania: [] }));
+    };
+
     const handleSort = (key: SortKey) => {
         setSortConfig(current => ({
             key,
@@ -117,15 +136,22 @@ export default function CompaniasPage() {
         }));
     };
 
+    // --- LÓGICA BI CLIENT-SIDE ---
+
+    const finalTableData = useMemo(() => {
+        if (filters.compania.length === 0) return data;
+        return data.filter(d => filters.compania.includes(d.company));
+    }, [data, filters.compania]);
+
     const sortedData = useMemo(() => {
-        const sorted = [...data];
+        const sorted = [...finalTableData];
         sorted.sort((a, b) => {
             if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1;
             if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'asc' ? 1 : -1;
             return 0;
         });
         return sorted;
-    }, [data, sortConfig]);
+    }, [finalTableData, sortConfig]);
 
     const SortIcon = ({ col }: { col: SortKey }) => {
         return (
@@ -140,9 +166,9 @@ export default function CompaniasPage() {
     };
 
     const chartDataPrimas = useMemo(() => {
-        // Top 5 + Others
-        const top5 = [...data].sort((a, b) => b.primas - a.primas).slice(0, 5);
-        const others = [...data].sort((a, b) => b.primas - a.primas).slice(5);
+        const sorted = [...data].sort((a, b) => b.primas - a.primas);
+        const top5 = sorted.slice(0, 5);
+        const others = sorted.slice(5);
         const otherPrimas = others.reduce((sum, d) => sum + d.primas, 0);
 
         const labels = top5.map(d => d.company || 'Sin Nombre');
@@ -158,15 +184,16 @@ export default function CompaniasPage() {
                 backgroundColor: [
                     '#4f46e5', '#06b6d4', '#8b5cf6', '#ec4899', '#f59e0b', '#cbd5e1'
                 ],
-                borderWidth: 0
+                borderWidth: 0,
+                hoverOffset: 12
             }]
         };
     }, [data]);
 
     const chartDataPolizas = useMemo(() => {
-        // Top 5 + Others
-        const top5 = [...data].sort((a, b) => b.polizas - a.polizas).slice(0, 5);
-        const others = [...data].sort((a, b) => b.polizas - a.polizas).slice(5);
+        const sorted = [...data].sort((a, b) => b.polizas - a.polizas);
+        const top5 = sorted.slice(0, 5);
+        const others = sorted.slice(5);
         const otherPolizas = others.reduce((sum, d) => sum + d.polizas, 0);
 
         const labels = top5.map(d => d.company || 'Sin Nombre');
@@ -182,27 +209,61 @@ export default function CompaniasPage() {
                 backgroundColor: [
                     '#10b981', '#3b82f6', '#f43f5e', '#a855f7', '#fbbf24', '#cbd5e1'
                 ],
-                borderWidth: 0
+                borderWidth: 0,
+                hoverOffset: 12
             }]
         };
     }, [data]);
 
-    const chartOptions = {
+    const getChartOptions = (dataKey: 'primas' | 'polizas') => ({
         responsive: true,
         maintainAspectRatio: false,
+        onClick: (event: ChartEvent, elements: ActiveElement[], chart: any) => {
+            if (elements.length > 0) {
+                const index = elements[0].index;
+                const label = chart.data.labels[index];
+                toggleInteractiveSelection(label);
+            }
+        },
         plugins: {
             legend: {
                 position: 'right' as const,
                 labels: {
                     usePointStyle: true,
-                    font: { size: 11 }
+                    font: { size: 11, weight: 'bold' as any },
+                    padding: 15,
+                    color: '#64748b'
                 }
+            },
+            tooltip: {
+                callbacks: {
+                    label: (context: any) => {
+                        const val = context.raw;
+                        const sum = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
+                        const perc = ((val * 100) / sum).toFixed(1) + '%';
+                        if (dataKey === 'primas') {
+                            return `${context.label}: ${currencyFormatter.format(val)} (${perc})`;
+                        }
+                        return `${context.label}: ${numberFormatter.format(val)} pólizas (${perc})`;
+                    }
+                }
+            },
+            datalabels: {
+                color: '#fff',
+                font: { weight: 'bold' as any, size: 11 },
+                formatter: (value: number, ctx: any) => {
+                    const sum = ctx.dataset.data.reduce((a: number, b: number) => a + b, 0);
+                    const perc = (value * 100 / sum);
+                    return perc > 4 ? perc.toFixed(1) + '%' : '';
+                },
+                textShadowColor: 'rgba(0,0,0,0.5)',
+                textShadowBlur: 4
             }
         }
-    };
+    });
 
     const handleExportExcel = () => {
-        const ws = XLSX.utils.json_to_sheet(data.map(d => ({
+        const ws = XLSX.utils.json_to_sheet(sortedData.map(d => ({
             'Compañía': d.company,
             'Primas Totales': d.primas,
             'Nº Pólizas': d.polizas,
@@ -217,138 +278,116 @@ export default function CompaniasPage() {
 
     return (
         <div className="space-y-6">
-            {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
                         <Building2 className="w-8 h-8 text-primary" />
                         Métricas por Compañía
                     </h1>
-                    <p className="text-slate-500 mt-1">Análisis detallado por aseguradora y su rendimiento</p>
+                    <p className="text-slate-500 mt-1">Análisis detallado de rendimiento con filtros interactivos BI</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 no-print">
+                    {filters.compania.length > 0 && (
+                        <button
+                            onClick={clearInteractiveSelection}
+                            className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-700 border border-red-100 rounded-xl hover:bg-red-100 transition-colors font-bold shadow-sm text-sm"
+                        >
+                            <XCircle className="w-4 h-4" /> Limpiar Selección
+                        </button>
+                    )}
                     <button onClick={handleExportExcel} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 text-slate-700 font-medium transition-colors shadow-sm">
                         <FileDown className="w-4 h-4" /> Exportar
                     </button>
-                    <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 text-slate-700 font-medium transition-colors shadow-sm">
+                    <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors font-medium shadow-sm">
                         <Printer className="w-4 h-4" /> Imprimir
                     </button>
                 </div>
             </div>
 
-            {/* Filters */}
-            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                <MultiSelect
-                    label="Comercial"
-                    options={options.asesores}
-                    selected={filters.comercial}
-                    onChange={(val) => handleFilterChange('comercial', val)}
-                />
-                <MultiSelect
-                    label="Ente"
-                    options={options.entes}
-                    selected={filters.ente}
-                    onChange={(val) => handleFilterChange('ente', val)}
-                />
-                <MultiSelect
-                    label="Año"
-                    options={options.anios}
-                    selected={filters.anio}
-                    onChange={(val) => handleFilterChange('anio', val)}
-                />
-                <MultiSelect
-                    label="Mes"
-                    options={options.meses}
-                    selected={filters.mes}
-                    onChange={(val) => handleFilterChange('mes', val)}
-                />
-                <MultiSelect
-                    label="Estado"
-                    options={options.estados}
-                    selected={filters.estado}
-                    onChange={(val) => handleFilterChange('estado', val)}
-                />
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 no-print">
+                <MultiSelect label="Comercial" options={options.asesores} selected={filters.comercial} onChange={(val) => handleFilterChange('comercial', val)} />
+                <MultiSelect label="Ente" options={options.entes} selected={filters.ente} onChange={(val) => handleFilterChange('ente', val)} />
+                <MultiSelect label="Año" options={options.anios} selected={filters.anio} onChange={(val) => handleFilterChange('anio', val)} />
+                <MultiSelect label="Mes" options={options.meses} selected={filters.mes} onChange={(val) => handleFilterChange('mes', val)} />
+                <MultiSelect label="Estado" options={options.estados} selected={filters.estado} onChange={(val) => handleFilterChange('estado', val)} />
             </div>
 
-            {/* KPIs */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Total Companies */}
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group hover:shadow-md transition-all">
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group">
                     <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
                         <Building2 className="w-24 h-24 text-slate-900" />
                     </div>
-                    <div className="relative">
-                        <div className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-1">Compañías Activas</div>
-                        <div className="text-3xl font-black text-slate-900">{data.length}</div>
-                        <div className="mt-2 text-xs text-slate-400 font-medium">En selección actual</div>
-                    </div>
+                    <div className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-1">Compañías Activas</div>
+                    <div className="text-3xl font-black text-slate-900">{finalTableData.length}</div>
+                    <div className="mt-2 text-xs text-slate-400 font-medium">En selección actual</div>
                 </div>
 
-                {/* Total Primas */}
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group hover:shadow-md transition-all">
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group">
                     <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
                         <TrendingUp className="w-24 h-24 text-indigo-600" />
                     </div>
-                    <div className="relative">
-                        <div className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-1">Primas Totales</div>
-                        <div className="text-3xl font-black text-indigo-600">{currencyFormatter.format(metrics.primasNP)}</div>
-                        <div className="mt-2 text-xs text-slate-400 font-medium">Volumen de negocio</div>
+                    <div className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-1">Primas Totales</div>
+                    <div className="text-3xl font-black text-indigo-600">
+                        {currencyFormatter.format(finalTableData.reduce((sum, d) => sum + d.primas, 0))}
                     </div>
+                    <div className="mt-2 text-xs text-slate-400 font-medium">Volumen de negocio</div>
                 </div>
 
-                {/* Total Polizas */}
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group hover:shadow-md transition-all">
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group">
                     <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
                         <FileText className="w-24 h-24 text-emerald-600" />
                     </div>
-                    <div className="relative">
-                        <div className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-1">Pólizas Totales</div>
-                        <div className="text-3xl font-black text-emerald-600">{numberFormatter.format(metrics.numPolizas)}</div>
-                        <div className="mt-2 text-xs text-slate-400 font-medium">Contratos activos</div>
+                    <div className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-1">Número de Pólizas</div>
+                    <div className="text-3xl font-black text-emerald-600">
+                        {numberFormatter.format(finalTableData.reduce((sum, d) => sum + d.polizas, 0))}
                     </div>
+                    <div className="mt-2 text-xs text-slate-400 font-medium underline decoration-emerald-200 underline-offset-4 decoration-2">Número de Pólizas</div>
                 </div>
             </div>
 
-            {/* Charts Section */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative">
                     <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-                        <PieChart className="w-5 h-5 text-indigo-500" />
-                        Distribución por Primas
+                        <PieChart className="w-5 h-5 text-indigo-500" /> Distribución por Primas (%)
                     </h3>
-                    <div className="h-[300px] flex items-center justify-center">
+                    <div className="h-[300px] flex items-center justify-center cursor-pointer">
                         {data.length > 0 ? (
-                            <Doughnut data={chartDataPrimas} options={chartOptions} />
+                            <Doughnut data={chartDataPrimas} options={getChartOptions('primas')} />
                         ) : (
                             <div className="text-slate-400 text-sm">Sin datos para mostrar</div>
                         )}
                     </div>
+                    <div className="mt-4 text-[10px] text-slate-400 font-bold flex items-center gap-1 no-print uppercase tracking-widest">
+                        <MousePointer2 className="w-3 h-3" /> Haz click en un sector para filtrar
+                    </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative">
                     <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-                        <PieChart className="w-5 h-5 text-emerald-500" />
-                        Distribución por Pólizas
+                        <PieChart className="w-5 h-5 text-emerald-500" /> Distribución por Pólizas (%)
                     </h3>
-                    <div className="h-[300px] flex items-center justify-center">
+                    <div className="h-[300px] flex items-center justify-center cursor-pointer">
                         {data.length > 0 ? (
-                            <Doughnut data={chartDataPolizas} options={chartOptions} />
+                            <Doughnut data={chartDataPolizas} options={getChartOptions('polizas')} />
                         ) : (
                             <div className="text-slate-400 text-sm">Sin datos para mostrar</div>
                         )}
+                    </div>
+                    <div className="mt-4 text-[10px] text-slate-400 font-bold flex items-center gap-1 no-print uppercase tracking-widest">
+                        <MousePointer2 className="w-3 h-3" /> Haz click en un sector para filtrar
                     </div>
                 </div>
             </div>
 
-            {/* Main Table */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden break-inside-avoid">
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                     <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
                         <LayoutList className="w-5 h-5 text-primary" />
                         Detalle por Compañía
+                        {filters.compania.length > 0 && <span className="ml-2 text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-black uppercase tracking-widest">Filtrado BI</span>}
                     </h3>
                     <span className="text-sm text-slate-500 font-medium bg-white px-3 py-1 rounded-full border border-slate-200 shadow-sm">
-                        {data.length} registros
+                        {sortedData.length} registros
                     </span>
                 </div>
 
@@ -378,72 +417,36 @@ export default function CompaniasPage() {
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {sortedData.length === 0 ? (
-                                <tr>
-                                    <td colSpan={6} className="p-8 text-center text-slate-400">
-                                        No se encontraron datos con los filtros actuales
-                                    </td>
-                                </tr>
+                                <tr><td colSpan={6} className="p-8 text-center text-slate-400">No se encontraron datos</td></tr>
                             ) : (
                                 sortedData.map((d, i) => {
                                     const totalPrimas = metrics.primasNP || 1;
                                     const totalPolizas = metrics.numPolizas || 1;
-                                    const percentPrimas = (d.primas / totalPrimas) * 100;
-                                    const percentPolizas = (d.polizas / totalPolizas) * 100;
-
+                                    const isSelected = filters.compania.includes(d.company);
                                     return (
-                                        <tr key={i} className="hover:bg-slate-50/80 transition-colors group">
+                                        <tr key={i} className={`hover:bg-slate-50/80 transition-colors group cursor-pointer ${isSelected ? 'bg-primary/5 font-bold' : ''}`} onClick={() => toggleInteractiveSelection(d.company)}>
                                             <td className="p-4 font-medium text-slate-900">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold text-xs">
+                                                    <div className={`w-8 h-8 rounded-lg ${isSelected ? 'bg-primary text-white' : 'bg-indigo-50 text-indigo-600'} flex items-center justify-center font-bold text-xs`}>
                                                         {d.company.substring(0, 2).toUpperCase()}
                                                     </div>
                                                     {d.company}
                                                 </div>
                                             </td>
                                             <td className="p-4 text-right">
-                                                <div className="font-bold text-indigo-600">
-                                                    {currencyFormatter.format(d.primas)}
-                                                </div>
-                                                <div className="flex items-center justify-end gap-2 mt-1">
-                                                    <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                                        <div
-                                                            className="h-full bg-indigo-500 rounded-full"
-                                                            style={{ width: `${Math.min(percentPrimas, 100)}%` }}
-                                                        />
-                                                    </div>
-                                                    <span className="text-xs text-slate-500 font-medium w-8 text-right">
-                                                        {percentPrimas.toFixed(1)}%
-                                                    </span>
-                                                </div>
+                                                <div className="font-bold text-indigo-600">{currencyFormatter.format(d.primas)}</div>
+                                                <div className="text-[10px] text-slate-400">{(d.primas * 100 / totalPrimas).toFixed(1)}% del total</div>
                                             </td>
                                             <td className="p-4 text-right">
-                                                <div className="font-semibold text-slate-700">
-                                                    {numberFormatter.format(d.polizas)}
-                                                </div>
-                                                <div className="flex items-center justify-end gap-2 mt-1">
-                                                    <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                                        <div
-                                                            className="h-full bg-emerald-500 rounded-full"
-                                                            style={{ width: `${Math.min(percentPolizas, 100)}%` }}
-                                                        />
-                                                    </div>
-                                                    <span className="text-xs text-slate-500 font-medium w-8 text-right">
-                                                        {percentPolizas.toFixed(1)}%
-                                                    </span>
-                                                </div>
+                                                <div className="font-semibold text-slate-700">{numberFormatter.format(d.polizas)}</div>
+                                                <div className="text-[10px] text-slate-400">{(d.polizas * 100 / totalPolizas).toFixed(1)}% del total</div>
                                             </td>
-                                            <td className="p-4 text-right text-slate-600">
-                                                {currencyFormatter.format(d.ticketMedio)}
+                                            <td className="p-4 text-right text-slate-600">{currencyFormatter.format(d.ticketMedio)}</td>
+                                            <td className="p-4 text-center">
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">{d.numAsesores}</span>
                                             </td>
                                             <td className="p-4 text-center">
-                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                                    {d.numAsesores}
-                                                </span>
-                                            </td>
-                                            <td className="p-4 text-center">
-                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
-                                                    {d.numEntes}
-                                                </span>
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">{d.numEntes}</span>
                                             </td>
                                         </tr>
                                     );

@@ -282,7 +282,7 @@ export default function Dashboard() {
                         <FileText className="w-24 h-24 text-slate-600" />
                     </div>
                     <div className="flex justify-between items-start">
-                        <h3 className="text-sm font-medium text-slate-500 uppercase tracking-wider">Nº Pólizas</h3>
+                        <h3 className="text-sm font-medium text-slate-500 uppercase tracking-wider">Número de Pólizas</h3>
                         {!loading && metrics && (filters.anio.length === 1 && filters.mes.length === 1) && (
                             <TrendBadge value={metrics.polizasTrend} />
                         )}

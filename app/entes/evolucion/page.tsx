@@ -102,6 +102,7 @@ function EvolutionContent() {
     const [searchTerm, setSearchTerm] = useState('');
     const [chartType, setChartType] = useState<'line' | 'bar'>('line');
     const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
+    const [interactiveProduct, setInteractiveProduct] = useState<string | null>(null);
 
     const [startPeriod, setStartPeriod] = useState({ year: 0, month: 1 });
     const [endPeriod, setEndPeriod] = useState({ year: 0, month: 12 });
@@ -227,7 +228,7 @@ function EvolutionContent() {
                 tension: 0.1,
             },
             {
-                label: 'Nº Pólizas',
+                label: 'Número de Pólizas',
                 data: filteredData.map(d => d.polizas),
                 borderColor: '#10b981',
                 backgroundColor: 'rgba(16, 185, 129, 0.8)',
@@ -300,7 +301,7 @@ function EvolutionContent() {
             y1: {
                 type: 'linear' as const, display: true, position: 'right' as const,
                 grid: { drawOnChartArea: false },
-                title: { display: true, text: 'Nº Pólizas', font: { size: 9 } },
+                title: { display: true, text: 'Número de Pólizas', font: { size: 9 } },
                 ticks: { font: { size: 8 } }
             },
             x: {
@@ -342,15 +343,22 @@ function EvolutionContent() {
             datalabels: {
                 formatter: (val: number, ctx: any) => {
                     const total = ctx.dataset.data.reduce((a: number, b: number) => a + b, 0);
-                    const pct = total > 0 ? ((val / total) * 100).toFixed(0) : '0';
+                    const pct = total > 0 ? ((val / total) * 100).toFixed(1) : '0';
                     return `${pct}%`;
                 },
                 color: '#fff',
                 font: { weight: 'bold' as const, size: 10 },
                 display: (ctx: any) => {
                     const total = ctx.dataset.data.reduce((a: number, b: number) => a + b, 0);
-                    return total > 0 && (ctx.dataset.data[ctx.dataIndex] / total) > 0.04;
+                    return total > 0 && (ctx.dataset.data[ctx.dataIndex] / total) > 0.05;
                 }
+            }
+        },
+        onClick: (event: any, elements: any, chart: any) => {
+            if (elements.length > 0) {
+                const index = elements[0].index;
+                const label = chart.data.labels[index];
+                setInteractiveProduct(prev => prev === label ? null : label);
             }
         }
     };
@@ -530,21 +538,23 @@ function EvolutionContent() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-50">
-                                    {productMix.slice(0, 12).map((p, i) => {
-                                        const totalPrimas = productMix.reduce((s, x) => s + x.primas, 0);
-                                        const pct = totalPrimas > 0 ? ((p.primas / totalPrimas) * 100).toFixed(1) : '0';
-                                        return (
-                                            <tr key={i} className="hover:bg-slate-50">
-                                                <td className="p-3 font-medium text-slate-700 flex items-center gap-2">
-                                                    <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: DONUT_COLORS[i % DONUT_COLORS.length] }} />
-                                                    {p.producto}
-                                                </td>
-                                                <td className="p-3 text-right font-bold text-primary font-mono">{currencyFormatter.format(p.primas)}</td>
-                                                <td className="p-3 text-right font-mono text-slate-600">{numberFormatter.format(p.polizas)}</td>
-                                                <td className="p-3 text-right font-bold text-slate-500">{pct}%</td>
-                                            </tr>
-                                        );
-                                    })}
+                                    {productMix
+                                        .filter(p => !interactiveProduct || p.producto === interactiveProduct)
+                                        .slice(0, 12).map((p, i) => {
+                                            const totalPrimas = productMix.reduce((s, x) => s + x.primas, 0);
+                                            const pct = totalPrimas > 0 ? ((p.primas / totalPrimas) * 100).toFixed(1) : '0';
+                                            return (
+                                                <tr key={i} className="hover:bg-slate-50">
+                                                    <td className="p-3 font-medium text-slate-700 flex items-center gap-2">
+                                                        <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: DONUT_COLORS[i % DONUT_COLORS.length] }} />
+                                                        {p.producto}
+                                                    </td>
+                                                    <td className="p-3 text-right font-bold text-primary font-mono">{currencyFormatter.format(p.primas)}</td>
+                                                    <td className="p-3 text-right font-mono text-slate-600">{numberFormatter.format(p.polizas)}</td>
+                                                    <td className="p-3 text-right font-bold text-slate-500">{pct}%</td>
+                                                </tr>
+                                            );
+                                        })}
                                 </tbody>
                             </table>
                         </div>
