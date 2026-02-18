@@ -29,6 +29,7 @@ interface EnteBreakdownItem {
     primas: number;
     polizas: number;
     asesor: string;
+    ticketMedio?: number;
 }
 
 interface FilterOptions {
@@ -62,10 +63,6 @@ export default function ProductividadPage() {
         estado: [] as string[]
     });
 
-    // Interactive selections (Power BI style)
-    const [interactiveAsesor, setInteractiveAsesor] = useState<string | null>(null);
-    const [interactiveEnte, setInteractiveEnte] = useState<string | null>(null);
-
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' }>({
         key: 'totalPrimas',
         direction: 'desc'
@@ -75,8 +72,7 @@ export default function ProductividadPage() {
         setLoading(true);
         try {
             const params = new URLSearchParams();
-            if (filters.comercial.length > 0) params.append('comercial', filters.comercial.join(','));
-            if (filters.ente.length > 0) params.append('ente', filters.ente.join(','));
+            // Solo filtramos por periodo y estado para tener todo el contexto en el cliente para el resaltado BI
             if (filters.anio.length > 0) params.append('anio', filters.anio.join(','));
             if (filters.mes.length > 0) params.append('mes', filters.mes.join(','));
             if (filters.estado.length > 0) params.append('estado', filters.estado.join(','));
@@ -97,47 +93,59 @@ export default function ProductividadPage() {
 
     useEffect(() => {
         fetchMetrics();
-    }, [filters]);
+    }, [filters.anio, filters.mes, filters.estado]);
 
-    const handleFilterChange = (key: keyof typeof filters, selected: string[]) => {
-        setFilters(prev => ({ ...prev, [key]: selected }));
-        // Clear interactive filters if manual filter changes significantly? 
-        // Actually Power BI keeps them if possible, but let's clear sub-selections for clarity
-        if (key === 'comercial') setInteractiveAsesor(null);
-        if (key === 'ente') setInteractiveEnte(null);
+    // --- LÓGICA BI: LA ÚNICA FUENTE DE VERDAD SON 'filters' ---
+
+    // 1. Datos para gráficos (mantienen contexto para resaltado)
+    const filteredAsesoresForChart = useMemo(() => asesorBreakdown, [asesorBreakdown]);
+
+    const filteredEntesForChart = useMemo(() => {
+        if (filters.comercial.length === 0) return enteBreakdown;
+        return enteBreakdown.filter(e => filters.comercial.includes(e.asesor));
+    }, [enteBreakdown, filters.comercial]);
+
+    // 2. Datos para tablas (filtros estrictos)
+    const finalAsesoresTableData = useMemo(() => {
+        let data = [...asesorBreakdown];
+        if (filters.comercial.length > 0) {
+            data = data.filter(a => filters.comercial.includes(a.asesor));
+        }
+        if (filters.ente.length > 0) {
+            const allowedAsesores = enteBreakdown
+                .filter(e => filters.ente.includes(e.ente))
+                .map(e => e.asesor);
+            data = data.filter(a => allowedAsesores.includes(a.asesor));
+        }
+        return data;
+    }, [asesorBreakdown, filters.comercial, filters.ente, enteBreakdown]);
+
+    const finalEntesTableData = useMemo(() => {
+        let data = [...enteBreakdown];
+        if (filters.comercial.length > 0) {
+            data = data.filter(e => filters.comercial.includes(e.asesor));
+        }
+        if (filters.ente.length > 0) {
+            data = data.filter(e => filters.ente.includes(e.ente));
+        }
+        return data;
+    }, [enteBreakdown, filters.comercial, filters.ente]);
+
+    // Gestión de selección interactiva (toggle)
+    const toggleInteractiveSelection = (key: 'comercial' | 'ente', val: string) => {
+        setFilters(prev => {
+            const current = prev[key];
+            const isSelected = current.includes(val);
+            return {
+                ...prev,
+                [key]: isSelected ? current.filter(item => item !== val) : [...current, val]
+            };
+        });
     };
 
-    // Data for charts (filtered by CROSS selection, but NOT by its own selection)
-    const filteredEnteChartData = useMemo(() => {
-        let data = [...enteBreakdown];
-        if (interactiveAsesor) {
-            data = data.filter(item => item.asesor === interactiveAsesor);
-        }
-        return data;
-    }, [enteBreakdown, interactiveAsesor]);
-
-    // Data for tables (fully filtered by both interactive selections)
-    const filteredEnteTableData = useMemo(() => {
-        let data = [...filteredEnteChartData];
-        if (interactiveEnte) {
-            data = data.filter(item => item.ente === interactiveEnte);
-        }
-        return data;
-    }, [filteredEnteChartData, interactiveEnte]);
-
-    const filteredAsesorTableData = useMemo(() => {
-        let data = [...asesorBreakdown];
-        if (interactiveAsesor) {
-            data = data.filter(item => item.asesor === interactiveAsesor);
-        }
-        if (interactiveEnte) {
-            const associatedAsesor = enteBreakdown.find(e => e.ente === interactiveEnte)?.asesor;
-            if (associatedAsesor) {
-                data = data.filter(item => item.asesor === associatedAsesor);
-            }
-        }
-        return data;
-    }, [asesorBreakdown, interactiveAsesor, interactiveEnte, enteBreakdown]);
+    const clearInteractiveSelection = (key: 'comercial' | 'ente') => {
+        setFilters(prev => ({ ...prev, [key]: [] }));
+    };
 
     const handleSort = (key: SortKey) => {
         let direction: 'asc' | 'desc' = 'asc';
@@ -147,25 +155,29 @@ export default function ProductividadPage() {
         setSortConfig({ key, direction });
     };
 
-    const sortedAsesorData = [...filteredAsesorTableData].sort((a, b) => {
-        const { key, direction } = sortConfig;
-        if (key === 'asesor') {
-            return direction === 'asc' ? a.asesor.localeCompare(b.asesor) : b.asesor.localeCompare(a.asesor);
-        }
-        // @ts-ignore
-        return direction === 'asc' ? a[key] - b[key] : b[key] - a[key];
-    });
-
-    const sortedEnteData = [...filteredEnteTableData].sort((a, b) => {
-        const { key, direction } = sortConfig;
-        if (key === 'ente') {
-            return direction === 'asc' ? a.ente.localeCompare(b.ente) : b.ente.localeCompare(a.ente);
-        }
-        if (key === 'primas' || key === 'polizas') {
+    const sortedAsesorData = useMemo(() => {
+        return [...finalAsesoresTableData].sort((a, b) => {
+            const { key, direction } = sortConfig;
+            if (key === 'asesor') {
+                return direction === 'asc' ? a.asesor.localeCompare(b.asesor) : b.asesor.localeCompare(a.asesor);
+            }
+            // @ts-ignore
             return direction === 'asc' ? a[key] - b[key] : b[key] - a[key];
-        }
-        return 0;
-    });
+        });
+    }, [finalAsesoresTableData, sortConfig]);
+
+    const sortedEnteData = useMemo(() => {
+        return [...finalEntesTableData].sort((a, b) => {
+            const { key, direction } = sortConfig;
+            if (key === 'ente') {
+                return direction === 'asc' ? a.ente.localeCompare(b.ente) : b.ente.localeCompare(a.ente);
+            }
+            if (key === 'primas' || key === 'polizas') {
+                return direction === 'asc' ? a[key] - b[key] : b[key] - a[key];
+            }
+            return 0;
+        });
+    }, [finalEntesTableData, sortConfig]);
 
     const SortIcon = ({ col }: { col: SortKey }) => {
         if (sortConfig.key !== col) return <ArrowUpDown className="w-4 h-4 ml-1 opacity-30" />;
@@ -173,7 +185,6 @@ export default function ProductividadPage() {
     };
 
     const handleExportExcel = () => {
-        // 1. Prepare Filter Summary rows
         const filterRows = [
             ['REPORTE DE PRODUCTIVIDAD'],
             ['Filtros Aplicados:', new Date().toLocaleString()],
@@ -182,10 +193,8 @@ export default function ProductividadPage() {
             ['Año:', filters.anio.length > 0 ? filters.anio.join(', ') : 'Todos'],
             ['Mes:', filters.mes.length > 0 ? filters.mes.join(', ') : 'Todos'],
             ['Estado:', filters.estado.length > 0 ? filters.estado.join(', ') : 'Todos'],
-            [], // Empty row for spacing
+            [],
         ];
-
-        // 2. Prepare Data Table
         const dataToExport = sortedAsesorData.map(item => ({
             'Asesor': item.asesor,
             'Número de Entes': item.numEntes,
@@ -193,24 +202,10 @@ export default function ProductividadPage() {
             'Producción Total (€)': item.totalPrimas,
             'Media por Ente (€)': item.avgPrimas
         }));
-
-        // 3. Create Workbook and Worksheet
         const wb = XLSX.utils.book_new();
-        // Create worksheet from filter rows first
         const ws = XLSX.utils.aoa_to_sheet(filterRows);
-
-        // Add the JSON data starting after the filter rows
         XLSX.utils.sheet_add_json(ws, dataToExport, { origin: filterRows.length });
-
-        // 4. Style (Optional: just column widths for better view)
-        ws['!cols'] = [
-            { wch: 30 }, // Asesor
-            { wch: 15 }, // Nº Entes
-            { wch: 15 }, // Nº Pólizas
-            { wch: 20 }, // Total
-            { wch: 20 }  // Media
-        ];
-
+        ws['!cols'] = [{ wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }];
         XLSX.utils.book_append_sheet(wb, ws, "Productividad");
         XLSX.writeFile(wb, `Productividad_Interactiva_${new Date().toISOString().split('T')[0]}.xlsx`);
     };
@@ -219,12 +214,6 @@ export default function ProductividadPage() {
         window.print();
     };
 
-    const clearInteractive = () => {
-        setInteractiveAsesor(null);
-        setInteractiveEnte(null);
-    };
-
-    // Simple Interactive Bar Chart Component
     const BarChart = ({
         data,
         dataKey,
@@ -232,17 +221,20 @@ export default function ProductividadPage() {
         color = "bg-primary",
         nameKey,
         selection,
-        onSelect
+        onSelect,
+        onClear
     }: {
         data: any[],
-        dataKey: string,
+        dataKey: 'totalPrimas' | 'primas' | 'avgPrimas' | 'polizas' | 'numPolizas',
         label: string,
         color?: string,
         nameKey: string,
-        selection: string | null,
-        onSelect: (val: string | null) => void
+        selection: string[],
+        onSelect: (val: string) => void,
+        onClear: () => void
     }) => {
         const maxVal = Math.max(...data.map(d => d[dataKey]), 1);
+        const hasSelection = selection.length > 0;
 
         return (
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-full flex flex-col break-inside-avoid">
@@ -251,23 +243,21 @@ export default function ProductividadPage() {
                         <BarChart2 className="w-4 h-4 text-primary" />
                         {label}
                     </h4>
-                    {selection && (
-                        <button onClick={() => onSelect(null)} className="text-[10px] text-primary hover:underline flex items-center gap-1 font-bold no-print">
+                    {hasSelection && (
+                        <button onClick={onClear} className="text-[10px] text-primary hover:underline flex items-center gap-1 font-bold no-print">
                             <XCircle className="w-3 h-3" /> BORRAR SELECCIÓN
                         </button>
                     )}
                 </div>
                 <div className="space-y-3 flex-1 overflow-y-auto max-h-[400px] pr-2 custom-scrollbar">
                     {data.slice(0, 15).map((item, idx) => {
-                        const isSelected = selection === item[nameKey];
-                        const isAnySelected = selection !== null;
-
+                        const isSelected = selection.includes(item[nameKey]);
                         return (
                             <div
                                 key={idx}
-                                className={`space-y-1 cursor-pointer group transition-all p-1 rounded-md ${isSelected ? 'bg-primary/5 ring-1 ring-primary/20 scale-[1.02]' : isAnySelected ? 'opacity-40 grayscale-[0.5]' : 'hover:bg-slate-50'
+                                className={`space-y-1 cursor-pointer group transition-all p-1 rounded-md ${isSelected ? 'bg-primary/5 ring-1 ring-primary/20 scale-[1.02]' : hasSelection ? 'opacity-40 grayscale-[0.5]' : 'hover:bg-slate-50'
                                     }`}
-                                onClick={() => onSelect(isSelected ? null : item[nameKey])}
+                                onClick={() => onSelect(item[nameKey])}
                             >
                                 <div className="flex justify-between text-[11px] font-medium">
                                     <span className={`truncate max-w-[180px] ${isSelected ? 'text-primary font-bold' : 'text-slate-700'}`}>
@@ -300,114 +290,77 @@ export default function ProductividadPage() {
 
     return (
         <div className="space-y-8">
-            {/* Printable Logo (hidden on screen) */}
-
-
-            {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-slate-900">Análisis Interactivo de Productividad</h1>
                     <p className="mt-2 text-slate-600">Interactúa con los gráficos para profundizar en el rendimiento de Asesores y Entes</p>
                 </div>
                 <div className="flex flex-wrap gap-2 no-print">
-                    {(interactiveAsesor || interactiveEnte) && (
+                    {(filters.comercial.length > 0 || filters.ente.length > 0) && (
                         <button
-                            onClick={clearInteractive}
+                            onClick={() => {
+                                clearInteractiveSelection('comercial');
+                                clearInteractiveSelection('ente');
+                            }}
                             className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-700 border border-red-100 rounded-lg hover:bg-red-100 transition-colors font-bold shadow-sm text-sm"
                         >
                             <XCircle className="w-4 h-4" />
-                            Limpiar Selección
+                            Limpiar Selección Interactiva
                         </button>
                     )}
-                    <button
-                        onClick={handleExportExcel}
-                        className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors font-medium shadow-sm"
-                    >
+                    <button onClick={handleExportExcel} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors font-medium shadow-sm">
                         <FileDown className="w-4 h-4 text-green-600" />
                         Excel
                     </button>
-                    <button
-                        onClick={handleExportPDF}
-                        className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-medium shadow-sm"
-                    >
+                    <button onClick={handleExportPDF} className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-medium shadow-sm">
                         <Printer className="w-4 h-4" />
                         PDF
                     </button>
                 </div>
             </div>
 
-            {/* Print Only: Filter Summary */}
             <PrintFilterSummary filters={filters} />
 
-            {/* Filters */}
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 no-print filters-container">
                 <div className="flex items-center gap-2 mb-4 text-slate-800 font-semibold border-b pb-2">
                     <LayoutList className="w-5 h-5 text-primary" />
                     <h3>Filtros de Análisis</h3>
                 </div>
-
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-                    <MultiSelect
-                        label="Comercial"
-                        options={filterOptions.asesores}
-                        selected={filters.comercial}
-                        onChange={(val) => handleFilterChange('comercial', val)}
-                    />
-                    <MultiSelect
-                        label="Ente"
-                        options={filterOptions.entes}
-                        selected={filters.ente}
-                        onChange={(val) => handleFilterChange('ente', val)}
-                    />
-                    <MultiSelect
-                        label="Año"
-                        options={filterOptions.anios}
-                        selected={filters.anio}
-                        onChange={(val) => handleFilterChange('anio', val)}
-                    />
-                    <MultiSelect
-                        label="Mes"
-                        options={filterOptions.meses}
-                        selected={filters.mes}
-                        onChange={(val) => handleFilterChange('mes', val)}
-                    />
-                    <MultiSelect
-                        label="Estado"
-                        options={filterOptions.estados}
-                        selected={filters.estado}
-                        onChange={(val) => handleFilterChange('estado', val)}
-                    />
+                    <MultiSelect label="Comercial" options={filterOptions.asesores} selected={filters.comercial} onChange={(val) => setFilters(prev => ({ ...prev, comercial: val }))} />
+                    <MultiSelect label="Ente" options={filterOptions.entes} selected={filters.ente} onChange={(val) => setFilters(prev => ({ ...prev, ente: val }))} />
+                    <MultiSelect label="Año" options={filterOptions.anios} selected={filters.anio} onChange={(val) => setFilters(prev => ({ ...prev, anio: val }))} />
+                    <MultiSelect label="Mes" options={filterOptions.meses} selected={filters.mes} onChange={(val) => setFilters(prev => ({ ...prev, mes: val }))} />
+                    <MultiSelect label="Estado" options={filterOptions.estados} selected={filters.estado} onChange={(val) => setFilters(prev => ({ ...prev, estado: val }))} />
                 </div>
             </div>
 
-            {/* Interactive Charts Section */}
             {!loading && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     <BarChart
-                        data={[...asesorBreakdown].sort((a, b) => b.totalPrimas - a.totalPrimas)}
+                        data={[...filteredAsesoresForChart].sort((a, b) => b.totalPrimas - a.totalPrimas)}
                         dataKey="totalPrimas"
                         nameKey="asesor"
                         label="Producción Total por Asesor"
                         color="bg-primary/60"
-                        selection={interactiveAsesor}
-                        onSelect={setInteractiveAsesor}
+                        selection={filters.comercial}
+                        onSelect={(val) => toggleInteractiveSelection('comercial', val)}
+                        onClear={() => clearInteractiveSelection('comercial')}
                     />
                     <BarChart
-                        // Show all entes if no asesor selected, or filtered entes if selected
-                        data={[...filteredEnteChartData].sort((a, b) => b.primas - a.primas)}
+                        data={[...filteredEntesForChart].sort((a, b) => b.primas - a.primas)}
                         dataKey="primas"
                         nameKey="ente"
-                        label={interactiveAsesor ? `Entes vinculados a: ${interactiveAsesor}` : "Top Entes por Producción"}
+                        label={filters.comercial.length > 0 ? `Entes vinculado a selección` : "Top Entes por Producción"}
                         color="bg-slate-400 group-hover:bg-primary/80"
-                        selection={interactiveEnte}
-                        onSelect={setInteractiveEnte}
+                        selection={filters.ente}
+                        onSelect={(val) => toggleInteractiveSelection('ente', val)}
+                        onClear={() => clearInteractiveSelection('ente')}
                     />
                 </div>
             )}
 
-            {/* Details Section (Power BI style split) */}
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-                {/* Asesor Table */}
                 <div className="xl:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden break-inside-avoid">
                     <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center text-slate-800">
                         <h3 className="text-lg font-semibold flex items-center gap-2">
@@ -442,8 +395,8 @@ export default function ProductividadPage() {
                                 ) : sortedAsesorData.map((item, idx) => (
                                     <tr
                                         key={idx}
-                                        className={`hover:bg-primary/5 transition-colors cursor-pointer ${interactiveAsesor === item.asesor ? 'bg-primary/10 ring-inset ring-1 ring-primary/20' : ''}`}
-                                        onClick={() => setInteractiveAsesor(interactiveAsesor === item.asesor ? null : item.asesor)}
+                                        className={`hover:bg-primary/5 transition-colors cursor-pointer ${filters.comercial.includes(item.asesor) ? 'bg-primary/10 ring-inset ring-1 ring-primary/20' : ''}`}
+                                        onClick={() => toggleInteractiveSelection('comercial', item.asesor)}
                                     >
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900">{item.asesor}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 text-right font-mono">{item.numEntes}</td>
@@ -456,7 +409,6 @@ export default function ProductividadPage() {
                                                     router.push(`/comerciales/evolucion?asesor=${encodeURIComponent(item.asesor)}`);
                                                 }}
                                                 className="p-2 hover:bg-white rounded-lg text-primary transition-all hover:shadow-md border border-transparent hover:border-slate-100"
-                                                title="Ver Evolución Asesor"
                                             >
                                                 <TrendingUp className="w-5 h-5" />
                                             </button>
@@ -468,7 +420,6 @@ export default function ProductividadPage() {
                     </div>
                 </div>
 
-                {/* Ente Detail Side Table */}
                 <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden print:overflow-visible break-inside-avoid">
                     <div className="px-4 py-4 border-b border-slate-200 bg-slate-50 text-slate-800">
                         <h3 className="text-sm font-bold flex items-center gap-2">
@@ -489,8 +440,8 @@ export default function ProductividadPage() {
                                 {sortedEnteData.map((item, idx) => (
                                     <tr
                                         key={idx}
-                                        className={`hover:bg-slate-50 cursor-pointer ${interactiveEnte === item.ente ? 'bg-primary/5 font-bold' : ''}`}
-                                        onClick={() => router.push(`/entes/evolucion?ente=${encodeURIComponent(item.ente)}`)}
+                                        className={`hover:bg-slate-50 cursor-pointer ${filters.ente.includes(item.ente) ? 'bg-primary/5 font-bold' : ''}`}
+                                        onClick={() => toggleInteractiveSelection('ente', item.ente)}
                                     >
                                         <td className="px-4 py-3 text-[11px] text-slate-700 leading-tight">
                                             <div className="hover:text-primary transition-colors hover:underline">
