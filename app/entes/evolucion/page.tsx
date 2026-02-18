@@ -121,6 +121,7 @@ function EvolutionContent() {
     const [ramoSearchTerm, setRamoSearchTerm] = useState('');
 
     const [selectedPeriod, setSelectedPeriod] = useState<{ year: number, month: number } | null>(null);
+    const [selectedPeriods, setSelectedPeriods] = useState<number[]>([]);
     const [periodMix, setPeriodMix] = useState<{ productMix: ProductMixItem[], ramosMix: RamoMixItem[] } | null>(null);
     const [startPeriod, setStartPeriod] = useState({ year: 0, month: 1 });
     const [endPeriod, setEndPeriod] = useState({ year: 0, month: 12 });
@@ -128,18 +129,27 @@ function EvolutionContent() {
 
     useEffect(() => {
         if (ente) fetchEvolution();
-    }, [ente, selectedRamos, selectedProducts]);
+    }, [ente, selectedRamos, selectedProducts, startPeriod, endPeriod, selectedPeriods]);
 
     const fetchEvolution = async () => {
+        // We set loading but we'll remove the blocking overly in the render part
         setLoading(true);
         try {
             const params = new URLSearchParams();
             params.append('ente', ente!);
             if (selectedRamos.length > 0) params.append('ramo', selectedRamos.join(','));
             if (selectedProducts.length > 0) params.append('producto', selectedProducts.join(','));
-            if (selectedPeriod) {
+
+            if (selectedPeriods.length > 0) {
+                params.append('periods', selectedPeriods.join(','));
+            } else if (selectedPeriod) {
                 params.append('anio', selectedPeriod.year.toString());
                 params.append('mes', selectedPeriod.month.toString());
+            } else {
+                params.append('startYear', startPeriod.year.toString());
+                params.append('startMonth', startPeriod.month.toString());
+                params.append('endYear', endPeriod.year.toString());
+                params.append('endMonth', endPeriod.month.toString());
             }
 
             const res = await fetch(`/api/entes/evolucion?${params.toString()}`);
@@ -190,25 +200,24 @@ function EvolutionContent() {
         });
     }, [data, startPeriod, endPeriod]);
 
-    // === MoM % Change ===
+    // MOM Changes for full history
     const momChanges = useMemo(() => {
-        return filteredData.map((d, i) => {
+        return data.map((d, i) => {
             if (i === 0) return null;
-            const prev = filteredData[i - 1].primas;
-            if (prev === 0) return d.primas > 0 ? 100 : 0;
-            return Math.round(((d.primas - prev) / prev) * 100);
+            const prev = data[i - 1];
+            if (prev.primas === 0) return null;
+            return ((d.primas - prev.primas) / prev.primas) * 100;
         });
-    }, [filteredData]);
+    }, [data]);
 
-    // === MoM % Change Polizas ===
     const momChangesPolizas = useMemo(() => {
-        return filteredData.map((d, i) => {
+        return data.map((d, i) => {
             if (i === 0) return null;
-            const prev = filteredData[i - 1].polizas;
-            if (prev === 0) return d.polizas > 0 ? 100 : 0;
-            return Math.round(((d.polizas - prev) / prev) * 100);
+            const prev = data[i - 1];
+            if (prev.polizas === 0) return null;
+            return ((d.polizas - prev.polizas) / prev.polizas) * 100;
         });
-    }, [filteredData]);
+    }, [data]);
 
     const sortedData = useMemo(() => {
         if (!sortConfig) return [...filteredData].reverse();
@@ -243,7 +252,7 @@ function EvolutionContent() {
             return 0;
         });
         return sorted;
-    }, [filteredData, sortConfig, momChanges, momChangesPolizas]);
+    }, [evolution, sortConfig, momChanges, momChangesPolizas]); // Use evolution (full history) for the table
 
     const requestSort = (key: string) => {
         let direction: 'asc' | 'desc' = 'desc';
@@ -260,32 +269,44 @@ function EvolutionContent() {
             <ChevronDown className="w-3 h-3 text-indigo-500 ml-1 inline" />;
     };
 
-    // === CHART DATA with Ticket Medio + YoY ===
     const chartData = useMemo(() => {
-        const labels = filteredData.map(d => `${MONTHS[d.mes - 1]} ${d.anio}`);
+        // We always show the full range in the chart for context
+        const displayData = filteredData;
+
+        const labels = displayData.map(d => `${MONTHS[d.mes - 1]} ${d.anio}`);
+
+        const isSel = (d: EvolutionData) => {
+            if (selectedPeriods.length === 0) return true;
+            return selectedPeriods.includes(d.anio * 100 + d.mes);
+        };
+
         const datasets: any[] = [
             {
                 label: 'Primas (€)',
-                data: filteredData.map(d => d.primas),
-                borderColor: '#4f46e5',
-                backgroundColor: 'rgba(79, 70, 229, 0.8)',
+                data: displayData.map((d: EvolutionData) => d.primas),
+                borderColor: displayData.map((d: EvolutionData) => isSel(d) ? '#4f46e5' : '#4f46e540'),
+                backgroundColor: displayData.map((d: EvolutionData) => isSel(d) ? 'rgba(79, 70, 229, 0.8)' : 'rgba(79, 70, 229, 0.1)'),
                 fill: false,
                 yAxisID: 'y',
                 tension: 0.1,
+                pointRadius: displayData.map((d: EvolutionData) => isSel(d) ? 5 : 2),
+                pointHoverRadius: 7,
             },
             {
                 label: 'Número de Pólizas',
-                data: filteredData.map(d => d.polizas),
-                borderColor: '#10b981',
-                backgroundColor: 'rgba(16, 185, 129, 0.8)',
+                data: displayData.map((d: EvolutionData) => d.polizas),
+                borderColor: displayData.map((d: EvolutionData) => isSel(d) ? '#10b981' : '#10b98140'),
+                backgroundColor: displayData.map((d: EvolutionData) => isSel(d) ? 'rgba(16, 185, 129, 0.8)' : 'rgba(16, 185, 129, 0.1)'),
                 fill: false,
                 yAxisID: 'y1',
                 tension: 0.1,
+                pointRadius: displayData.map((d: EvolutionData) => isSel(d) ? 5 : 2),
+                pointHoverRadius: 7,
             },
             {
                 label: 'Ticket Medio (€)',
-                data: filteredData.map(d => d.polizas > 0 ? d.primas / d.polizas : 0),
-                borderColor: '#ec4899',
+                data: displayData.map((d: EvolutionData) => d.polizas > 0 ? d.primas / d.polizas : 0),
+                borderColor: displayData.map((d: EvolutionData) => isSel(d) ? '#ec4899' : '#ec489940'),
                 backgroundColor: 'transparent',
                 fill: false,
                 yAxisID: 'y',
@@ -295,30 +316,30 @@ function EvolutionContent() {
             },
             {
                 label: 'Cartera Activa',
-                data: filteredData.map(d => d.enVigor),
-                borderColor: '#10b981',
-                backgroundColor: 'rgba(16, 185, 129, 0.4)',
+                data: displayData.map((d: EvolutionData) => d.enVigor),
+                borderColor: displayData.map((d: EvolutionData) => isSel(d) ? '#10b981' : '#10b98120'),
+                backgroundColor: 'transparent',
                 fill: false, yAxisID: 'y1', tension: 0.1,
                 borderDash: [5, 5],
             },
             {
                 label: 'Anuladas',
-                data: filteredData.map(d => d.anuladas),
-                borderColor: '#ef4444',
-                backgroundColor: 'rgba(239, 68, 68, 0.8)',
+                data: displayData.map((d: EvolutionData) => d.anuladas),
+                borderColor: displayData.map((d: EvolutionData) => isSel(d) ? '#ef4444' : '#ef444420'),
+                backgroundColor: displayData.map((d: EvolutionData) => isSel(d) ? 'rgba(239, 68, 68, 0.8)' : 'rgba(239, 68, 68, 0.1)'),
                 fill: false, yAxisID: 'y1', tension: 0.1,
             },
             {
                 label: 'En Suspensión',
-                data: filteredData.map(d => d.suspension),
-                borderColor: '#f59e0b',
-                backgroundColor: 'rgba(245, 158, 11, 0.8)',
+                data: displayData.map((d: EvolutionData) => d.suspension),
+                borderColor: displayData.map((d: EvolutionData) => isSel(d) ? '#f59e0b' : '#f59e0b20'),
+                backgroundColor: displayData.map((d: EvolutionData) => isSel(d) ? 'rgba(245, 158, 11, 0.8)' : 'rgba(245, 158, 11, 0.1)'),
                 fill: false, yAxisID: 'y1', tension: 0.1,
             }
         ];
 
         return { labels, datasets };
-    }, [filteredData]);
+    }, [filteredData, selectedPeriods]);
 
     const chartOptions = {
         responsive: true,
@@ -339,8 +360,14 @@ function EvolutionContent() {
         onClick: (_event: any, elements: any) => {
             if (elements.length > 0) {
                 const index = elements[0].index;
+                // Now displayData is always filteredData for the chart
                 const item = filteredData[index];
-                router.push(`/entes/evolucion/mes?ente=${encodeURIComponent(ente!)}&anio=${item.anio}&mes=${item.mes}`);
+                const val = item.anio * 100 + item.mes;
+
+                const newSelection = selectedPeriods.includes(val)
+                    ? selectedPeriods.filter((v: number) => v !== val)
+                    : [...selectedPeriods, val];
+                setSelectedPeriods(newSelection);
             }
         },
         scales: {
@@ -496,7 +523,9 @@ function EvolutionContent() {
         const params = new URLSearchParams();
         if (selectedRamos.length > 0) params.append('ramo', selectedRamos.join(','));
         if (selectedProducts.length > 0) params.append('producto', selectedProducts.join(','));
-        if (selectedPeriod) {
+        if (selectedPeriods.length > 0) {
+            params.append('periods', selectedPeriods.join(','));
+        } else if (selectedPeriod) {
             params.append('anio', selectedPeriod.year.toString());
             params.append('mes', selectedPeriod.month.toString());
         }
@@ -513,7 +542,7 @@ function EvolutionContent() {
                     <ArrowLeft className="w-5 h-5" /> Volver
                 </button>
                 <div className="flex gap-2">
-                    {(selectedRamos.length > 0 || selectedProducts.length > 0 || interactiveProduct || searchTerm || selectedPeriod) && (
+                    {(selectedRamos.length > 0 || selectedProducts.length > 0 || interactiveProduct || searchTerm || selectedPeriod || selectedPeriods.length > 0) && (
                         <button onClick={() => {
                             setSelectedRamos([]);
                             setSelectedProducts([]);
@@ -522,6 +551,7 @@ function EvolutionContent() {
                             setInteractiveProduct(null);
                             setSearchTerm('');
                             setSelectedPeriod(null);
+                            setSelectedPeriods([]);
                             setPeriodMix(null);
                         }} className="flex items-center gap-2 px-4 py-2 bg-red-50 border border-red-200 rounded-xl hover:bg-red-100 transition-all shadow-sm text-sm font-medium text-red-600">
                             <X className="w-4 h-4" /> Limpiar Filtros
@@ -548,54 +578,52 @@ function EvolutionContent() {
                 </div>
 
                 {/* Feature 1: Refined KPIs (Global Stock vs Period Flow) */}
-                {!loading && (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                        {/* 1. CARTERA ACTIVA (Global Stock) */}
-                        <KPITooltip text="Ver listado de pólizas actualmente EN VIGOR.">
-                            <div
-                                onClick={() => router.push(`/polizas/listado?ente=${encodeURIComponent(ente!)}&estado=VIGOR${getFilterParams()}`)}
-                                className="bg-emerald-50 rounded-xl p-4 border border-emerald-100 h-full transition-all hover:border-emerald-400 hover:shadow-md cursor-pointer group/card"
-                            >
-                                <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-1">
-                                    <ShieldCheck className="w-3 h-3" /> Cartera Activa
-                                </p>
-                                <p className="text-2xl font-extrabold text-emerald-700 mt-1 group-hover/card:scale-105 transition-transform origin-left">{numberFormatter.format(globalStats.active)}</p>
-                            </div>
-                        </KPITooltip>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                    {/* 1. CARTERA ACTIVA (Global Stock) */}
+                    <KPITooltip text="Ver listado de pólizas actualmente EN VIGOR.">
+                        <div
+                            onClick={() => router.push(`/polizas/listado?ente=${encodeURIComponent(ente!)}&estado=VIGOR${getFilterParams()}`)}
+                            className="bg-emerald-50 rounded-xl p-4 border border-emerald-100 h-full transition-all hover:border-emerald-400 hover:shadow-md cursor-pointer group/card"
+                        >
+                            <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-1">
+                                <ShieldCheck className="w-3 h-3" /> Cartera Activa
+                            </p>
+                            <p className="text-2xl font-extrabold text-emerald-700 mt-1 group-hover/card:scale-105 transition-transform origin-left">{loading ? '...' : numberFormatter.format(globalStats.active)}</p>
+                        </div>
+                    </KPITooltip>
 
-                        {/* 2. EN SUSPENSIÓN (Global Stock) */}
-                        <KPITooltip text="Ver listado de pólizas actualmente en estado de SUSPENSIÓN.">
-                            <div
-                                onClick={() => router.push(`/polizas/listado?ente=${encodeURIComponent(ente!)}&estado=SUSPENSION${getFilterParams()}`)}
-                                className="bg-amber-50 rounded-xl p-4 border border-amber-100 h-full transition-all hover:border-amber-400 hover:shadow-md cursor-pointer group/card"
-                            >
-                                <p className="text-xs font-bold text-amber-600 uppercase tracking-wider flex items-center gap-1">
-                                    <AlertTriangle className="w-3 h-3" /> En Suspensión
-                                </p>
-                                <p className="text-2xl font-extrabold text-amber-700 mt-1 group-hover/card:scale-105 transition-transform origin-left">{numberFormatter.format(globalStats.suspension)}</p>
-                            </div>
-                        </KPITooltip>
+                    {/* 2. EN SUSPENSIÓN (Global Stock) */}
+                    <KPITooltip text="Ver listado de pólizas actualmente en estado de SUSPENSIÓN.">
+                        <div
+                            onClick={() => router.push(`/polizas/listado?ente=${encodeURIComponent(ente!)}&estado=SUSPENSION${getFilterParams()}`)}
+                            className="bg-amber-50 rounded-xl p-4 border border-amber-100 h-full transition-all hover:border-amber-400 hover:shadow-md cursor-pointer group/card"
+                        >
+                            <p className="text-xs font-bold text-amber-600 uppercase tracking-wider flex items-center gap-1">
+                                <AlertTriangle className="w-3 h-3" /> En Suspensión
+                            </p>
+                            <p className="text-2xl font-extrabold text-amber-700 mt-1 group-hover/card:scale-105 transition-transform origin-left">{loading ? '...' : numberFormatter.format(globalStats.suspension)}</p>
+                        </div>
+                    </KPITooltip>
 
-                        {/* 3. ANULADAS DEL PERIODO (Flow) */}
-                        <KPITooltip text="Ver listado de pólizas producidas en este periodo que han sido anuladas.">
-                            <div
-                                onClick={() => router.push(`/polizas/listado?ente=${encodeURIComponent(ente!)}&estado=ANULADA&startYear=${startPeriod.year}&startMonth=${startPeriod.month}&endYear=${endPeriod.year}&endMonth=${endPeriod.month}${getFilterParams()}`)}
-                                className="bg-slate-50 rounded-xl p-4 border border-slate-100 h-full transition-all hover:border-slate-400 hover:shadow-md cursor-pointer group/card"
-                            >
-                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Anuladas Periodo</p>
-                                <p className="text-2xl font-extrabold text-slate-700 mt-1 group-hover/card:scale-105 transition-transform origin-left">{numberFormatter.format(retentionKPIs.anuladas)}</p>
-                            </div>
-                        </KPITooltip>
+                    {/* 3. ANULADAS DEL PERIODO (Flow) */}
+                    <KPITooltip text="Ver listado de pólizas producidas en este periodo que han sido anuladas.">
+                        <div
+                            onClick={() => router.push(`/polizas/listado?ente=${encodeURIComponent(ente!)}&estado=ANULADA&startYear=${startPeriod.year}&startMonth=${startPeriod.month}&endYear=${endPeriod.year}&endMonth=${endPeriod.month}${getFilterParams()}`)}
+                            className="bg-slate-50 rounded-xl p-4 border border-slate-100 h-full transition-all hover:border-slate-400 hover:shadow-md cursor-pointer group/card"
+                        >
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Anuladas Periodo</p>
+                            <p className="text-2xl font-extrabold text-slate-700 mt-1 group-hover/card:scale-105 transition-transform origin-left">{loading ? '...' : numberFormatter.format(retentionKPIs.anuladas)}</p>
+                        </div>
+                    </KPITooltip>
 
-                        {/* 4. RETENCIÓN DEL PERIODO (Flow) */}
-                        <KPITooltip text="Porcentaje de pólizas producidas en el periodo que NO han sido anuladas.">
-                            <div className={`rounded-xl p-4 border h-full transition-colors ${retentionKPIs.ratio >= 70 ? 'bg-white border-slate-200' : 'bg-red-50 border-red-100'}`}>
-                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Retención Periodo</p>
-                                <p className={`text-2xl font-extrabold mt-1 ${retentionKPIs.ratio >= 70 ? 'text-slate-700' : 'text-red-700'}`}>{retentionKPIs.ratio}%</p>
-                            </div>
-                        </KPITooltip>
-                    </div>
-                )}
+                    {/* 4. RETENCIÓN DEL PERIODO (Flow) */}
+                    <KPITooltip text="Porcentaje de pólizas producidas en el periodo que NO han sido anuladas.">
+                        <div className={`rounded-xl p-4 border h-full transition-colors ${retentionKPIs.ratio >= 70 ? 'bg-white border-slate-200' : 'bg-red-50 border-red-100'}`}>
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Retención Periodo</p>
+                            <p className={`text-2xl font-extrabold mt-1 ${retentionKPIs.ratio >= 70 ? 'text-slate-700' : 'text-red-700'}`}>{loading ? '...' : `${retentionKPIs.ratio}%`}</p>
+                        </div>
+                    </KPITooltip>
+                </div>
 
                 {/* Period Filters */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-slate-50/50 rounded-2xl border border-slate-100 no-print">
@@ -900,6 +928,7 @@ function EvolutionContent() {
                         <thead>
                             <tr className="bg-slate-50 border-b border-slate-100">
                                 <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs cursor-pointer hover:bg-slate-100" onClick={() => requestSort('anio')}>Periodo <SortIcon column="anio" /></th>
+                                <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-center no-print border-l border-slate-100">Acción</th>
                                 <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('primas')}>Primas (€) <SortIcon column="primas" /></th>
                                 <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('varPrimas')}>Var. Primas <SortIcon column="varPrimas" /></th>
                                 <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('polizas')}>Pólizas <SortIcon column="polizas" /></th>
@@ -908,33 +937,58 @@ function EvolutionContent() {
                                 <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('ratioRetencion')}>Retención <SortIcon column="ratioRetencion" /></th>
                                 <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('anuladas')}>Anuladas <SortIcon column="anuladas" /></th>
                                 <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('anulacionesTempranas')}>Tempranas <SortIcon column="anulacionesTempranas" /></th>
-                                <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right no-print">Link</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {sortedData.map((d, i) => {
-                                const origIdx = filteredData.findIndex(x => x.anio === d.anio && x.mes === d.mes);
+                                // Important: We calculate highlighting based on selectedPeriods or range
+                                const currentVal = d.anio * 100 + d.mes;
+                                const isSelected = selectedPeriods.includes(currentVal);
+                                const startVal = startPeriod.year * 100 + startPeriod.month;
+                                const endVal = endPeriod.year * 100 + endPeriod.month;
+                                const isInRange = currentVal >= startVal && currentVal <= endVal;
+
+                                // Visual highlight: selectedPeriods takes priority. 
+                                // If none selected, highlight the range.
+                                const isHighlighted = selectedPeriods.length > 0 ? isSelected : isInRange;
+                                const isBoundary = selectedPeriods.length > 0
+                                    ? isSelected
+                                    : (currentVal === startVal || currentVal === endVal);
+
+                                // Calc index in original full data for momChanges
+                                const origIdx = data.findIndex(x => x.anio === d.anio && x.mes === d.mes);
                                 const pct = momChanges[origIdx];
-                                const isPeriodSelected = selectedPeriod?.year === d.anio && selectedPeriod?.month === d.mes;
+                                const pctP = momChangesPolizas[origIdx];
+
                                 return (
                                     <tr
                                         key={i}
-                                        className={`hover:bg-slate-50 transition-colors group cursor-pointer ${isPeriodSelected ? 'bg-indigo-50 ring-1 ring-indigo-200' : ''}`}
+                                        className={`hover:bg-slate-50 transition-colors group cursor-pointer ${isHighlighted ? 'bg-indigo-50' : ''} ${isBoundary ? 'ring-1 ring-indigo-300 z-10' : ''}`}
                                         onClick={() => {
-                                            if (isPeriodSelected) {
-                                                setSelectedPeriod(null);
-                                                setPeriodMix(null);
-                                            } else {
-                                                setSelectedPeriod({ year: d.anio, month: d.mes });
-                                                fetchPeriodDetails(d.anio, d.mes);
-                                            }
+                                            const clickedVal = d.anio * 100 + d.mes;
+                                            const newSelection = selectedPeriods.includes(clickedVal)
+                                                ? selectedPeriods.filter((v: number) => v !== clickedVal)
+                                                : [...selectedPeriods, clickedVal];
+                                            setSelectedPeriods(newSelection);
                                         }}
                                     >
                                         <td className="p-4 font-medium">
-                                            <span className="text-slate-700 font-bold group-hover:text-primary transition-colors">
+                                            <span className={`font-bold transition-colors ${isHighlighted ? 'text-indigo-600' : 'text-slate-700 group-hover:text-primary'}`}>
                                                 {MONTHS[d.mes - 1]} {d.anio}
                                             </span>
-                                            {isPeriodSelected && <span className="ml-2 text-indigo-500 text-xs font-bold">✓</span>}
+                                            {isBoundary && <span className="ml-2 text-indigo-500 text-xs font-bold">✓</span>}
+                                        </td>
+                                        <td className="p-4 text-center no-print border-x border-slate-50 bg-slate-50/10">
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    router.push(`/entes/evolucion/mes?ente=${encodeURIComponent(ente!)}&anio=${d.anio}&mes=${d.mes}`);
+                                                }}
+                                                className="p-1.5 text-primary hover:text-primary/70 transition-colors hover:bg-white rounded-lg shadow-sm border border-slate-200"
+                                                title="Ver detalle mensual"
+                                            >
+                                                <TrendingUp className="w-4 h-4" />
+                                            </button>
                                         </td>
                                         <td className="p-4 text-right font-bold text-slate-700">{currencyFormatter.format(d.primas)}</td>
                                         <td className={`p-4 text-right font-bold text-xs ${pct === null ? 'text-slate-300' : pct >= 0 ? 'text-green-600' : 'text-red-600'}`}>

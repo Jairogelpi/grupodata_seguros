@@ -17,6 +17,8 @@ export async function GET(request: Request) {
         const endMonth = searchParams.get('endMonth');
         const targetAnio = searchParams.get('anio');
         const targetMes = searchParams.get('mes');
+        const periodsParam = searchParams.get('periods');
+        const periodsFilter = periodsParam ? periodsParam.split(',').map(Number) : null;
         const ramoFilter = searchParams.get('ramo'); // Ramo classification filter
         const productoFilter = searchParams.get('producto');
 
@@ -78,14 +80,18 @@ export async function GET(request: Request) {
                 if (estadoFilter === 'ANULADA' && !estado.includes('ANULADA')) return false;
             }
 
-            // Filter by Period Ratio (Año/Mes de producción)
-            if (startYear && startMonth && endYear && endMonth) {
-                const pAnio = parseInt(p['AÑO_PROD']);
-                const pMes = parseInt(p['MES_Prod']);
+            // Filter by PeriodSelection (pAnio/pMes used for multiple filters)
+            const pAnio = parseInt(p['AÑO_PROD']);
+            const pMes = parseInt(p['MES_Prod']);
+            const currentVal = pAnio * 100 + pMes;
+
+            if (periodsFilter && periodsFilter.length > 0) {
+                if (!periodsFilter.includes(currentVal)) return false;
+            } else if (targetAnio && targetMes) {
+                if (pAnio !== parseInt(targetAnio) || pMes !== parseInt(targetMes)) return false;
+            } else if (startYear && startMonth && endYear && endMonth) {
                 const startVal = parseInt(startYear) * 100 + parseInt(startMonth);
                 const endVal = parseInt(endYear) * 100 + parseInt(endMonth);
-                const currentVal = pAnio * 100 + pMes;
-
                 if (currentVal < startVal || currentVal > endVal) return false;
             }
 
@@ -103,12 +109,6 @@ export async function GET(request: Request) {
                 if (!productos.includes(producto)) return false;
             }
 
-            // Filter by Exact Month
-            if (targetAnio && targetMes) {
-                const pAnio = parseInt(p['AÑO_PROD']);
-                const pMes = parseInt(p['MES_Prod']);
-                if (pAnio !== parseInt(targetAnio) || pMes !== parseInt(targetMes)) return false;
-            }
 
             return true;
         }).map(p => {

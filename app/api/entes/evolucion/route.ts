@@ -10,11 +10,24 @@ export async function GET(request: Request) {
         const { searchParams } = new URL(request.url);
         const enteName = searchParams.get('ente');
         const ramoParam = searchParams.get('ramo');
+        const productParam = searchParams.get('producto');
         const anioParam = searchParams.get('anio');
         const mesParam = searchParams.get('mes');
+        const startYearParam = searchParams.get('startYear');
+        const startMonthParam = searchParams.get('startMonth');
+        const endYearParam = searchParams.get('endYear');
+        const endMonthParam = searchParams.get('endMonth');
+        const periodsParam = searchParams.get('periods');
+        const periodsFilter = periodsParam ? periodsParam.split(',').map(Number) : null;
+
         const ramoFilter = ramoParam ? ramoParam.split(',') : null;
+        const productFilter = productParam ? productParam.split(',') : null;
         const targetAnio = anioParam ? parseInt(anioParam) : null;
         const targetMes = mesParam ? parseInt(mesParam) : null;
+        const startYear = startYearParam ? parseInt(startYearParam) : null;
+        const startMonth = startMonthParam ? parseInt(startMonthParam) : null;
+        const endYear = endYearParam ? parseInt(endYearParam) : null;
+        const endMonth = endMonthParam ? parseInt(endMonthParam) : null;
 
         if (!enteName) {
             return NextResponse.json({ error: 'Falta el parámetro ente' }, { status: 400 });
@@ -90,26 +103,28 @@ export async function GET(request: Request) {
 
             // Apply Filters (Before Aggregation)
             const producto = String(p['Producto'] || 'Sin Producto');
+            const currentVal = anio * 100 + mes;
 
-            // Filter by Period (if params present)
-            if (targetAnio && anio !== targetAnio) return;
-            if (targetMes && mes !== targetMes) return;
+            // 3.1. ALWAYS Initialize bucket (regardless of filters)
+            const key = `${anio}-${String(mes).padStart(2, '0')}`;
+            if (!monthlyStats.has(key)) {
+                monthlyStats.set(key, { anio, mes, primas: 0, polizas: 0, anuladas: 0, enVigor: 0, suspension: 0, anulacionesTempranas: 0 });
+            }
 
-            // Filter by Ramo (if param present)
+            // 3.2. Apply Ramo/Product Filters EARLY (for aggregation)
             if (ramoFilter) {
                 const r = getRamo(producto);
                 if (!ramoFilter.includes(r)) return;
             }
+            if (productFilter) { // Assuming productFilter exists from searchParams
+                if (!productFilter.includes(producto)) return;
+            }
 
-            const key = `${anio}-${String(mes).padStart(2, '0')}`;
             const pStr = String(p['P.Produccion'] || '0').replace(',', '.');
             const primas = parseFloat(pStr) || 0;
             const estado = String(p['Estado'] || '').toUpperCase();
 
-            // Monthly aggregation
-            if (!monthlyStats.has(key)) {
-                monthlyStats.set(key, { anio, mes, primas: 0, polizas: 0, anuladas: 0, enVigor: 0, suspension: 0, anulacionesTempranas: 0 });
-            }
+            // Aggregation into monthly buckets (now filtered by Ramo/Product)
             const stats = monthlyStats.get(key)!;
             stats.primas += primas;
             stats.polizas += 1;
@@ -126,9 +141,28 @@ export async function GET(request: Request) {
                 stats.suspension += 1;
             }
 
-            // Product mix aggregation
-            // Extract ramo prefix like "<A> AUTOS" -> just take the whole product name
-            const ramo = producto; // Use full name to preserve tags like <A> for frontend classification
+            // 3.3. Period Filters for Mix and Global stats ONLY
+            let passPeriodFilter = true;
+            if (periodsFilter && periodsFilter.length > 0) {
+                if (!periodsFilter.includes(currentVal)) passPeriodFilter = false;
+            } else {
+                if (targetAnio && anio !== targetAnio) passPeriodFilter = false;
+                if (targetMes && mes !== targetMes) passPeriodFilter = false;
+
+                if (startYear !== null && startMonth !== null) {
+                    const startVal = startYear * 100 + startMonth;
+                    if (currentVal < startVal) passPeriodFilter = false;
+                }
+                if (endYear !== null && endMonth !== null) {
+                    const endVal = endYear * 100 + endMonth;
+                    if (currentVal > endVal) passPeriodFilter = false;
+                }
+            }
+
+            if (!passPeriodFilter) return;
+
+            // Product/Ramo mix aggregation
+            const ramo = producto;
             if (!productMix.has(ramo)) {
                 productMix.set(ramo, { primas: 0, polizas: 0 });
             }
@@ -136,7 +170,6 @@ export async function GET(request: Request) {
             pm.primas += primas;
             pm.polizas += 1;
 
-            // Ramo (depth 1) aggregation
             const ramoName = getRamo(producto);
             if (!ramosMix.has(ramoName)) {
                 ramosMix.set(ramoName, { primas: 0, polizas: 0 });
@@ -162,23 +195,39 @@ export async function GET(request: Request) {
             .map(([producto, data]) => ({ producto, ...data }))
             .sort((a, b) => b.primas - a.primas);
 
-        // 5. Global Stats (Stock)
+        // 5. Global Stats (Flow in period)
         const globalStats = {
             active: 0,
             suspension: 0,
             totalAnuladas: 0
         };
 
-        polizas.forEach(p => {
-            const name = getPolizaEnteName(p);
-            if (name !== enteName) return;
+        // Recalculate globalStats based on those months that passed the period filter
+        // We accumulate the flags from the filtered months
+        monthlyStats.forEach((s, key) => {
+            const [anio, mes] = key.split('-').map(Number);
+            const currentVal = anio * 100 + mes;
 
-            const estado = String(p['Estado'] || '').toUpperCase();
-            if (estado.includes('VIGOR')) globalStats.active++;
-            else if (estado.includes('SUSPENSIÓN') || estado.includes('SUSPENSION')) globalStats.suspension++;
-            else if (estado.includes('ANULADA')) globalStats.totalAnuladas++;
+            let pass = true;
+            if (periodsFilter && periodsFilter.length > 0) {
+                if (!periodsFilter.includes(currentVal)) pass = false;
+            } else {
+                if (targetAnio && anio !== targetAnio) pass = false;
+                if (targetMes && mes !== targetMes) pass = false;
+                if (startYear !== null && startMonth !== null) {
+                    if (currentVal < (startYear * 100 + startMonth)) pass = false;
+                }
+                if (endYear !== null && endMonth !== null) {
+                    if (currentVal > (endYear * 100 + endMonth)) pass = false;
+                }
+            }
+
+            if (pass) {
+                globalStats.active += s.enVigor || 0;
+                globalStats.suspension += s.suspension || 0;
+                globalStats.totalAnuladas += s.anuladas || 0;
+            }
         });
-
         const ramosMixArray = Array.from(ramosMix.entries())
             .map(([ramo, data]) => ({ ramo, ...data }))
             .sort((a, b) => b.primas - a.primas);
