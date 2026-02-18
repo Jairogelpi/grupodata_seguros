@@ -1,0 +1,1006 @@
+﻿
+> grupo-data-system@0.1.0 build
+> next build
+
+node.exe : ÔÜá 
+Warning: Next.js 
+inferred your 
+workspace root, but 
+it may not be 
+correct.
+En C:\Program Files\n
+odejs\npm.ps1: 29 
+Carácter: 3
++   & $NODE_EXE 
+$NPM_CLI_JS $args
++   ~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~
+    + CategoryInfo   
+           : 
+NotSpecified: (Ô    
+Üá Warning: Ne...not 
+    be 
+correct.:String) [   
+ ], RemoteException
+    + 
+FullyQualifiedError  
+  Id : 
+NativeCommandErr    
+or
+ 
+ We detected 
+multiple lockfiles 
+and selected the 
+directory of C:\Users
+\jairo.gelpi\Desktop\
+package-lock.json as 
+the root directory.
+ To silence this 
+warning, set 
+`turbopack.root` in 
+your Next.js config, 
+or consider removing 
+one of the lockfiles 
+if it's not needed.
+   See https://nextjs
+.org/docs/app/api-ref
+erence/config/next-co
+nfig-js/turbopack#roo
+t-directory for more 
+information.
+ Detected additional 
+lockfiles: 
+   * C:\Users\jairo.g
+elpi\Desktop\metricas
+_carlos\grupo-data-sy
+stem\package-lock.jso
+n
+
+Ôû▓ Next.js 16.1.6 (Turbopack)
+- Environments: .env.local
+
+ÔÜá The "middleware" 
+file convention is 
+deprecated. Please 
+use "proxy" instead. 
+Learn more: https://n
+extjs.org/docs/messag
+es/middleware-to-prox
+y
+  Creating an optimized production build ...
+
+> Build error 
+occurred
+Error: Turbopack 
+build failed with 6 
+errors:
+./metricas_carlos/gru
+po-data-system/app/co
+merciales/evolucion/p
+age.tsx:9:1
+Module not found: 
+Can't resolve 'chartj
+s-plugin-datalabels'
+[0m [90m  7 |[39m 
+[36mimport[39m { 
+[33mChart[39m 
+[36mas[39m [33mCha
+rtJS[39m[33m,[39m 
+[33mCategoryScale[3
+9m[33m,[39m [33mLi
+nearScale[39m[33m,
+[39m [33mPointElemen
+t[39m[33m,[39m [3
+3mLineElement[39m[3
+3m,[39m [33mBarElem
+ent[39m[33m,[39m 
+[33mArcElement[39m[
+33m,[39m [33mTitle
+[39m[33m,[39m [33m
+Tooltip[39m[33m,[3
+9m [33mLegend[39m[
+33m,[39m 
+[33mFiller[39m } 
+[36mfrom[39m [32m'
+chart.js'[39m[33m;
+[39m
+ [90m  8 |[39m 
+[36mimport[39m { [
+33mLine[39m[33m,[3
+9m [33mBar[39m[33m
+,[39m 
+[33mDoughnut[39m } 
+[36mfrom[39m [32m'
+react-chartjs-2'[39m
+[33m;[39m
+[31m[1m>[22m[39m
+[90m  9 |[39m 
+[36mimport[39m [33
+mChartDataLabels[39m
+ [36mfrom[39m [32m
+'chartjs-plugin-datal
+abels'[39m[33m;[39
+m
+ [90m    |[39m [31
+m[1m^[22m[39m[31m
+[1m^[22m[39m[31m
+[1m^[22m[39m[31m[
+1m^[22m[39m[31m[1
+m^[22m[39m[31m[1m
+^[22m[39m[31m[1m^
+[22m[39m[31m[1m^
+[22m[39m[31m[1m^[
+22m[39m[31m[1m^[2
+2m[39m[31m[1m^[22
+m[39m[31m[1m^[22m
+[39m[31m[1m^[22m
+[39m[31m[1m^[22m[
+39m[31m[1m^[22m[3
+9m[31m[1m^[22m[39
+m[31m[1m^[22m[39m
+[31m[1m^[22m[39m
+[31m[1m^[22m[39m[
+31m[1m^[22m[39m[3
+1m[1m^[22m[39m[31
+m[1m^[22m[39m[31m
+[1m^[22m[39m[31m
+[1m^[22m[39m[31m[
+1m^[22m[39m[31m[1
+m^[22m[39m[31m[1m
+^[22m[39m[31m[1m^
+[22m[39m[31m[1m^
+[22m[39m[31m[1m^[
+22m[39m[31m[1m^[2
+2m[39m[31m[1m^[22
+m[39m[31m[1m^[22m
+[39m[31m[1m^[22m
+[39m[31m[1m^[22m[
+39m[31m[1m^[22m[3
+9m[31m[1m^[22m[39
+m[31m[1m^[22m[39m
+[31m[1m^[22m[39m
+[31m[1m^[22m[39m[
+31m[1m^[22m[39m[3
+1m[1m^[22m[39m[31
+m[1m^[22m[39m[31m
+[1m^[22m[39m[31m
+[1m^[22m[39m[31m[
+1m^[22m[39m[31m[1
+m^[22m[39m[31m[1m
+^[22m[39m[31m[1m^
+[22m[39m[31m[1m^
+[22m[39m[31m[1m^[
+22m[39m[31m[1m^[2
+2m[39m[31m[1m^[22
+m[39m[31m[1m^[22m
+[39m[31m[1m^[22m
+[39m[31m[1m^[22m[
+39m
+ [90m 10 |[39m 
+[36mimport[39m 
+[33m*[39m 
+[36mas[39m 
+[33mXLSX[39m 
+[36mfrom[39m [32m'
+xlsx'[39m[33m;[39m
+ [90m 11 |[39m [33
+mChartJS[39m[33m.[
+39mregister([33mCate
+goryScale[39m[33m,
+[39m [33mLinearScale
+[39m[33m,[39m [33
+mPointElement[39m[3
+3m,[39m [33mLineEle
+ment[39m[33m,[39m 
+[33mBarElement[39m
+[33m,[39m [33mArcEl
+ement[39m[33m,[39m
+ [33mTitle[39m[33m
+,[39m [33mTooltip[
+39m[33m,[39m [33mL
+egend[39m[33m,[39m
+ [33mFiller[39m[33
+m,[39m [33mChartDat
+aLabels[39m)[33m;[
+39m
+ [90m 12 |[39m 
+[36mconst[39m 
+currencyFormatter 
+[33m=[39m 
+[36mnew[39m [33mIn
+tl[39m[33m.[39m[3
+3mNumberFormat[39m(
+[32m'es-ES'[39m[33m
+,[39m {[0m
+
+
+
+Import traces:
+  Client Component 
+Browser:
+    ./metricas_carlos
+/grupo-data-system/ap
+p/comerciales/evoluci
+on/page.tsx [Client 
+Component Browser]
+    ./metricas_carlos
+/grupo-data-system/ap
+p/comerciales/evoluci
+on/page.tsx [Server 
+Component]
+
+  Client Component 
+SSR:
+    ./metricas_carlos
+/grupo-data-system/ap
+p/comerciales/evoluci
+on/page.tsx [Client 
+Component SSR]
+    ./metricas_carlos
+/grupo-data-system/ap
+p/comerciales/evoluci
+on/page.tsx [Server 
+Component]
+
+https://nextjs.org/do
+cs/messages/module-no
+t-found
+
+
+./metricas_carlos/gru
+po-data-system/app/co
+merciales/evolucion/p
+age.tsx:36:1
+Module not found: 
+Can't resolve 'chartj
+s-plugin-datalabels'
+[0m [90m 34 |[39m 
+} [36mfrom[39m [32
+m'chart.js'[39m[33m
+;[39m
+ [90m 35 |[39m 
+[36mimport[39m { [
+33mLine[39m[33m,[3
+9m [33mBar[39m[33m
+,[39m 
+[33mDoughnut[39m } 
+[36mfrom[39m [32m'
+react-chartjs-2'[39m
+[33m;[39m
+[31m[1m>[22m[39m
+[90m 36 |[39m 
+[36mimport[39m [33
+mChartDataLabels[39m
+ [36mfrom[39m [32m
+'chartjs-plugin-datal
+abels'[39m[33m;[39
+m
+ [90m    |[39m [31
+m[1m^[22m[39m[31m
+[1m^[22m[39m[31m
+[1m^[22m[39m[31m[
+1m^[22m[39m[31m[1
+m^[22m[39m[31m[1m
+^[22m[39m[31m[1m^
+[22m[39m[31m[1m^
+[22m[39m[31m[1m^[
+22m[39m[31m[1m^[2
+2m[39m[31m[1m^[22
+m[39m[31m[1m^[22m
+[39m[31m[1m^[22m
+[39m[31m[1m^[22m[
+39m[31m[1m^[22m[3
+9m[31m[1m^[22m[39
+m[31m[1m^[22m[39m
+[31m[1m^[22m[39m
+[31m[1m^[22m[39m[
+31m[1m^[22m[39m[3
+1m[1m^[22m[39m[31
+m[1m^[22m[39m[31m
+[1m^[22m[39m[31m
+[1m^[22m[39m[31m[
+1m^[22m[39m[31m[1
+m^[22m[39m[31m[1m
+^[22m[39m[31m[1m^
+[22m[39m[31m[1m^
+[22m[39m[31m[1m^[
+22m[39m[31m[1m^[2
+2m[39m[31m[1m^[22
+m[39m[31m[1m^[22m
+[39m[31m[1m^[22m
+[39m[31m[1m^[22m[
+39m[31m[1m^[22m[3
+9m[31m[1m^[22m[39
+m[31m[1m^[22m[39m
+[31m[1m^[22m[39m
+[31m[1m^[22m[39m[
+31m[1m^[22m[39m[3
+1m[1m^[22m[39m[31
+m[1m^[22m[39m[31m
+[1m^[22m[39m[31m
+[1m^[22m[39m[31m[
+1m^[22m[39m[31m[1
+m^[22m[39m[31m[1m
+^[22m[39m[31m[1m^
+[22m[39m[31m[1m^
+[22m[39m[31m[1m^[
+22m[39m[31m[1m^[2
+2m[39m[31m[1m^[22
+m[39m[31m[1m^[22m
+[39m[31m[1m^[22m
+[39m[31m[1m^[22m[
+39m
+ [90m 37 |[39m 
+[36mimport[39m 
+[33m*[39m 
+[36mas[39m 
+[33mXLSX[39m 
+[36mfrom[39m [32m'
+xlsx'[39m[33m;[39m
+ [90m 38 |[39m
+ [90m 39 |[39m [33
+mChartJS[39m[33m.[
+39mregister([0m
+
+
+
+Import traces:
+  Client Component 
+Browser:
+    ./metricas_carlos
+/grupo-data-system/ap
+p/comerciales/evoluci
+on/page.tsx [Client 
+Component Browser]
+    ./metricas_carlos
+/grupo-data-system/ap
+p/comerciales/evoluci
+on/page.tsx [Server 
+Component]
+
+  Client Component 
+SSR:
+    ./metricas_carlos
+/grupo-data-system/ap
+p/comerciales/evoluci
+on/page.tsx [Client 
+Component SSR]
+    ./metricas_carlos
+/grupo-data-system/ap
+p/comerciales/evoluci
+on/page.tsx [Server 
+Component]
+
+https://nextjs.org/do
+cs/messages/module-no
+t-found
+
+
+./metricas_carlos/gru
+po-data-system/app/co
+mpanias/page.tsx:7:1
+Module not found: 
+Can't resolve 'chartj
+s-plugin-datalabels'
+[0m [90m  5 |[39m 
+[36mimport[39m { 
+[33mDoughnut[39m } 
+[36mfrom[39m [32m'
+react-chartjs-2'[39m
+[33m;[39m
+ [90m  6 |[39m 
+[36mimport[39m { 
+[33mChart[39m 
+[36mas[39m [33mCha
+rtJS[39m[33m,[39m 
+[33mArcElement[39m
+[33m,[39m [33mToolt
+ip[39m[33m,[39m [
+33mLegend[39m[33m,
+[39m [33mChartEvent
+[39m[33m,[39m [33m
+ActiveElement[39m } 
+[36mfrom[39m [32m'
+chart.js'[39m[33m;
+[39m
+[31m[1m>[22m[39m
+[90m  7 |[39m 
+[36mimport[39m [33
+mChartDataLabels[39m
+ [36mfrom[39m [32m
+'chartjs-plugin-datal
+abels'[39m[33m;[39
+m
+ [90m    |[39m [31
+m[1m^[22m[39m[31m
+[1m^[22m[39m[31m
+[1m^[22m[39m[31m[
+1m^[22m[39m[31m[1
+m^[22m[39m[31m[1m
+^[22m[39m[31m[1m^
+[22m[39m[31m[1m^
+[22m[39m[31m[1m^[
+22m[39m[31m[1m^[2
+2m[39m[31m[1m^[22
+m[39m[31m[1m^[22m
+[39m[31m[1m^[22m
+[39m[31m[1m^[22m[
+39m[31m[1m^[22m[3
+9m[31m[1m^[22m[39
+m[31m[1m^[22m[39m
+[31m[1m^[22m[39m
+[31m[1m^[22m[39m[
+31m[1m^[22m[39m[3
+1m[1m^[22m[39m[31
+m[1m^[22m[39m[31m
+[1m^[22m[39m[31m
+[1m^[22m[39m[31m[
+1m^[22m[39m[31m[1
+m^[22m[39m[31m[1m
+^[22m[39m[31m[1m^
+[22m[39m[31m[1m^
+[22m[39m[31m[1m^[
+22m[39m[31m[1m^[2
+2m[39m[31m[1m^[22
+m[39m[31m[1m^[22m
+[39m[31m[1m^[22m
+[39m[31m[1m^[22m[
+39m[31m[1m^[22m[3
+9m[31m[1m^[22m[39
+m[31m[1m^[22m[39m
+[31m[1m^[22m[39m
+[31m[1m^[22m[39m[
+31m[1m^[22m[39m[3
+1m[1m^[22m[39m[31
+m[1m^[22m[39m[31m
+[1m^[22m[39m[31m
+[1m^[22m[39m[31m[
+1m^[22m[39m[31m[1
+m^[22m[39m[31m[1m
+^[22m[39m[31m[1m^
+[22m[39m[31m[1m^
+[22m[39m[31m[1m^[
+22m[39m[31m[1m^[2
+2m[39m[31m[1m^[22
+m[39m[31m[1m^[22m
+[39m[31m[1m^[22m
+[39m[31m[1m^[22m[
+39m
+ [90m  8 |[39m 
+[36mimport[39m [33
+mMultiSelect[39m 
+[36mfrom[39m [32m'
+@/components/MultiSel
+ect'[39m[33m;[39m
+ [90m  9 |[39m 
+[36mimport[39m 
+[33m*[39m 
+[36mas[39m 
+[33mXLSX[39m 
+[36mfrom[39m [32m'
+xlsx'[39m[33m;[39m
+ [90m 10 |[39m[0m
+
+
+
+Import traces:
+  Client Component 
+Browser:
+    ./metricas_carlos
+/grupo-data-system/ap
+p/companias/page.tsx 
+[Client Component 
+Browser]
+    ./metricas_carlos
+/grupo-data-system/ap
+p/companias/page.tsx 
+[Server Component]
+
+  Client Component 
+SSR:
+    ./metricas_carlos
+/grupo-data-system/ap
+p/companias/page.tsx 
+[Client Component 
+SSR]
+    ./metricas_carlos
+/grupo-data-system/ap
+p/companias/page.tsx 
+[Server Component]
+
+https://nextjs.org/do
+cs/messages/module-no
+t-found
+
+
+./metricas_carlos/gru
+po-data-system/app/co
+mpanias/page.tsx:19:1
+Module not found: 
+Can't resolve 'chartj
+s-plugin-datalabels'
+[0m [90m 17 |[39m 
+[36mimport[39m { 
+[33mDoughnut[39m } 
+[36mfrom[39m [32m'
+react-chartjs-2'[39m
+[33m;[39m
+ [90m 18 |[39m 
+[36mimport[39m { 
+[33mChart[39m 
+[36mas[39m [33mCha
+rtJS[39m[33m,[39m 
+[33mArcElement[39m
+[33m,[39m [33mToolt
+ip[39m[33m,[39m [
+33mLegend[39m[33m,
+[39m [33mChartEvent
+[39m[33m,[39m [33m
+ActiveElement[39m } 
+[36mfrom[39m [32m'
+chart.js'[39m[33m;
+[39m
+[31m[1m>[22m[39m
+[90m 19 |[39m 
+[36mimport[39m [33
+mChartDataLabels[39m
+ [36mfrom[39m [32m
+'chartjs-plugin-datal
+abels'[39m[33m;[39
+m
+ [90m    |[39m [31
+m[1m^[22m[39m[31m
+[1m^[22m[39m[31m
+[1m^[22m[39m[31m[
+1m^[22m[39m[31m[1
+m^[22m[39m[31m[1m
+^[22m[39m[31m[1m^
+[22m[39m[31m[1m^
+[22m[39m[31m[1m^[
+22m[39m[31m[1m^[2
+2m[39m[31m[1m^[22
+m[39m[31m[1m^[22m
+[39m[31m[1m^[22m
+[39m[31m[1m^[22m[
+39m[31m[1m^[22m[3
+9m[31m[1m^[22m[39
+m[31m[1m^[22m[39m
+[31m[1m^[22m[39m
+[31m[1m^[22m[39m[
+31m[1m^[22m[39m[3
+1m[1m^[22m[39m[31
+m[1m^[22m[39m[31m
+[1m^[22m[39m[31m
+[1m^[22m[39m[31m[
+1m^[22m[39m[31m[1
+m^[22m[39m[31m[1m
+^[22m[39m[31m[1m^
+[22m[39m[31m[1m^
+[22m[39m[31m[1m^[
+22m[39m[31m[1m^[2
+2m[39m[31m[1m^[22
+m[39m[31m[1m^[22m
+[39m[31m[1m^[22m
+[39m[31m[1m^[22m[
+39m[31m[1m^[22m[3
+9m[31m[1m^[22m[39
+m[31m[1m^[22m[39m
+[31m[1m^[22m[39m
+[31m[1m^[22m[39m[
+31m[1m^[22m[39m[3
+1m[1m^[22m[39m[31
+m[1m^[22m[39m[31m
+[1m^[22m[39m[31m
+[1m^[22m[39m[31m[
+1m^[22m[39m[31m[1
+m^[22m[39m[31m[1m
+^[22m[39m[31m[1m^
+[22m[39m[31m[1m^
+[22m[39m[31m[1m^[
+22m[39m[31m[1m^[2
+2m[39m[31m[1m^[22
+m[39m[31m[1m^[22m
+[39m[31m[1m^[22m
+[39m[31m[1m^[22m[
+39m
+ [90m 20 |[39m 
+[36mimport[39m [33
+mMultiSelect[39m 
+[36mfrom[39m [32m'
+@/components/MultiSel
+ect'[39m[33m;[39m
+ [90m 21 |[39m 
+[36mimport[39m 
+[33m*[39m 
+[36mas[39m 
+[33mXLSX[39m 
+[36mfrom[39m [32m'
+xlsx'[39m[33m;[39m
+ [90m 22 |[39m[0m
+
+
+
+Import traces:
+  Client Component 
+Browser:
+    ./metricas_carlos
+/grupo-data-system/ap
+p/companias/page.tsx 
+[Client Component 
+Browser]
+    ./metricas_carlos
+/grupo-data-system/ap
+p/companias/page.tsx 
+[Server Component]
+
+  Client Component 
+SSR:
+    ./metricas_carlos
+/grupo-data-system/ap
+p/companias/page.tsx 
+[Client Component 
+SSR]
+    ./metricas_carlos
+/grupo-data-system/ap
+p/companias/page.tsx 
+[Server Component]
+
+https://nextjs.org/do
+cs/messages/module-no
+t-found
+
+
+./metricas_carlos/gru
+po-data-system/app/en
+tes/evolucion/page.ts
+x:9:1
+Module not found: 
+Can't resolve 'chartj
+s-plugin-datalabels'
+[0m [90m  7 |[39m 
+[36mimport[39m { 
+[33mChart[39m 
+[36mas[39m [33mCha
+rtJS[39m[33m,[39m 
+[33mCategoryScale[3
+9m[33m,[39m [33mLi
+nearScale[39m[33m,
+[39m [33mPointElemen
+t[39m[33m,[39m [3
+3mLineElement[39m[3
+3m,[39m [33mBarElem
+ent[39m[33m,[39m 
+[33mArcElement[39m[
+33m,[39m [33mTitle
+[39m[33m,[39m [33m
+Tooltip[39m[33m,[3
+9m [33mLegend[39m[
+33m,[39m 
+[33mFiller[39m } 
+[36mfrom[39m [32m'
+chart.js'[39m[33m;
+[39m
+ [90m  8 |[39m 
+[36mimport[39m { [
+33mLine[39m[33m,[3
+9m [33mBar[39m[33m
+,[39m 
+[33mDoughnut[39m } 
+[36mfrom[39m [32m'
+react-chartjs-2'[39m
+[33m;[39m
+[31m[1m>[22m[39m
+[90m  9 |[39m 
+[36mimport[39m [33
+mChartDataLabels[39m
+ [36mfrom[39m [32m
+'chartjs-plugin-datal
+abels'[39m[33m;[39
+m
+ [90m    |[39m [31
+m[1m^[22m[39m[31m
+[1m^[22m[39m[31m
+[1m^[22m[39m[31m[
+1m^[22m[39m[31m[1
+m^[22m[39m[31m[1m
+^[22m[39m[31m[1m^
+[22m[39m[31m[1m^
+[22m[39m[31m[1m^[
+22m[39m[31m[1m^[2
+2m[39m[31m[1m^[22
+m[39m[31m[1m^[22m
+[39m[31m[1m^[22m
+[39m[31m[1m^[22m[
+39m[31m[1m^[22m[3
+9m[31m[1m^[22m[39
+m[31m[1m^[22m[39m
+[31m[1m^[22m[39m
+[31m[1m^[22m[39m[
+31m[1m^[22m[39m[3
+1m[1m^[22m[39m[31
+m[1m^[22m[39m[31m
+[1m^[22m[39m[31m
+[1m^[22m[39m[31m[
+1m^[22m[39m[31m[1
+m^[22m[39m[31m[1m
+^[22m[39m[31m[1m^
+[22m[39m[31m[1m^
+[22m[39m[31m[1m^[
+22m[39m[31m[1m^[2
+2m[39m[31m[1m^[22
+m[39m[31m[1m^[22m
+[39m[31m[1m^[22m
+[39m[31m[1m^[22m[
+39m[31m[1m^[22m[3
+9m[31m[1m^[22m[39
+m[31m[1m^[22m[39m
+[31m[1m^[22m[39m
+[31m[1m^[22m[39m[
+31m[1m^[22m[39m[3
+1m[1m^[22m[39m[31
+m[1m^[22m[39m[31m
+[1m^[22m[39m[31m
+[1m^[22m[39m[31m[
+1m^[22m[39m[31m[1
+m^[22m[39m[31m[1m
+^[22m[39m[31m[1m^
+[22m[39m[31m[1m^
+[22m[39m[31m[1m^[
+22m[39m[31m[1m^[2
+2m[39m[31m[1m^[22
+m[39m[31m[1m^[22m
+[39m[31m[1m^[22m
+[39m[31m[1m^[22m[
+39m
+ [90m 10 |[39m 
+[36mimport[39m 
+[33m*[39m 
+[36mas[39m 
+[33mXLSX[39m 
+[36mfrom[39m [32m'
+xlsx'[39m[33m;[39m
+ [90m 11 |[39m [33
+mChartJS[39m[33m.[
+39mregister([33mCate
+goryScale[39m[33m,
+[39m [33mLinearScale
+[39m[33m,[39m [33
+mPointElement[39m[3
+3m,[39m [33mLineEle
+ment[39m[33m,[39m 
+[33mBarElement[39m
+[33m,[39m [33mArcEl
+ement[39m[33m,[39m
+ [33mTitle[39m[33m
+,[39m [33mTooltip[
+39m[33m,[39m [33mL
+egend[39m[33m,[39m
+ [33mFiller[39m[33
+m,[39m [33mChartDat
+aLabels[39m)[33m;[
+39m
+ [90m 12 |[39m 
+[36mconst[39m 
+currencyFormatter 
+[33m=[39m 
+[36mnew[39m [33mIn
+tl[39m[33m.[39m[3
+3mNumberFormat[39m(
+[32m'es-ES'[39m[33m
+,[39m {[0m
+
+
+
+Import traces:
+  Client Component 
+Browser:
+    ./metricas_carlos
+/grupo-data-system/ap
+p/entes/evolucion/pag
+e.tsx [Client 
+Component Browser]
+    ./metricas_carlos
+/grupo-data-system/ap
+p/entes/evolucion/pag
+e.tsx [Server 
+Component]
+
+  Client Component 
+SSR:
+    ./metricas_carlos
+/grupo-data-system/ap
+p/entes/evolucion/pag
+e.tsx [Client 
+Component SSR]
+    ./metricas_carlos
+/grupo-data-system/ap
+p/entes/evolucion/pag
+e.tsx [Server 
+Component]
+
+https://nextjs.org/do
+cs/messages/module-no
+t-found
+
+
+./metricas_carlos/gru
+po-data-system/app/en
+tes/evolucion/page.ts
+x:37:1
+Module not found: 
+Can't resolve 'chartj
+s-plugin-datalabels'
+[0m [90m 35 |[39m 
+} [36mfrom[39m [32
+m'chart.js'[39m[33m
+;[39m
+ [90m 36 |[39m 
+[36mimport[39m { [
+33mLine[39m[33m,[3
+9m [33mBar[39m[33m
+,[39m 
+[33mDoughnut[39m } 
+[36mfrom[39m [32m'
+react-chartjs-2'[39m
+[33m;[39m
+[31m[1m>[22m[39m
+[90m 37 |[39m 
+[36mimport[39m [33
+mChartDataLabels[39m
+ [36mfrom[39m [32m
+'chartjs-plugin-datal
+abels'[39m[33m;[39
+m
+ [90m    |[39m [31
+m[1m^[22m[39m[31m
+[1m^[22m[39m[31m
+[1m^[22m[39m[31m[
+1m^[22m[39m[31m[1
+m^[22m[39m[31m[1m
+^[22m[39m[31m[1m^
+[22m[39m[31m[1m^
+[22m[39m[31m[1m^[
+22m[39m[31m[1m^[2
+2m[39m[31m[1m^[22
+m[39m[31m[1m^[22m
+[39m[31m[1m^[22m
+[39m[31m[1m^[22m[
+39m[31m[1m^[22m[3
+9m[31m[1m^[22m[39
+m[31m[1m^[22m[39m
+[31m[1m^[22m[39m
+[31m[1m^[22m[39m[
+31m[1m^[22m[39m[3
+1m[1m^[22m[39m[31
+m[1m^[22m[39m[31m
+[1m^[22m[39m[31m
+[1m^[22m[39m[31m[
+1m^[22m[39m[31m[1
+m^[22m[39m[31m[1m
+^[22m[39m[31m[1m^
+[22m[39m[31m[1m^
+[22m[39m[31m[1m^[
+22m[39m[31m[1m^[2
+2m[39m[31m[1m^[22
+m[39m[31m[1m^[22m
+[39m[31m[1m^[22m
+[39m[31m[1m^[22m[
+39m[31m[1m^[22m[3
+9m[31m[1m^[22m[39
+m[31m[1m^[22m[39m
+[31m[1m^[22m[39m
+[31m[1m^[22m[39m[
+31m[1m^[22m[39m[3
+1m[1m^[22m[39m[31
+m[1m^[22m[39m[31m
+[1m^[22m[39m[31m
+[1m^[22m[39m[31m[
+1m^[22m[39m[31m[1
+m^[22m[39m[31m[1m
+^[22m[39m[31m[1m^
+[22m[39m[31m[1m^
+[22m[39m[31m[1m^[
+22m[39m[31m[1m^[2
+2m[39m[31m[1m^[22
+m[39m[31m[1m^[22m
+[39m[31m[1m^[22m
+[39m[31m[1m^[22m[
+39m
+ [90m 38 |[39m 
+[36mimport[39m 
+[33m*[39m 
+[36mas[39m 
+[33mXLSX[39m 
+[36mfrom[39m [32m'
+xlsx'[39m[33m;[39m
+ [90m 39 |[39m
+ [90m 40 |[39m [33
+mChartJS[39m[33m.[
+39mregister([0m
+
+
+
+Import traces:
+  Client Component 
+Browser:
+    ./metricas_carlos
+/grupo-data-system/ap
+p/entes/evolucion/pag
+e.tsx [Client 
+Component Browser]
+    ./metricas_carlos
+/grupo-data-system/ap
+p/entes/evolucion/pag
+e.tsx [Server 
+Component]
+
+  Client Component 
+SSR:
+    ./metricas_carlos
+/grupo-data-system/ap
+p/entes/evolucion/pag
+e.tsx [Client 
+Component SSR]
+    ./metricas_carlos
+/grupo-data-system/ap
+p/entes/evolucion/pag
+e.tsx [Server 
+Component]
+
+https://nextjs.org/do
+cs/messages/module-no
+t-found
+
+
+    at <unknown> (./m
+etricas_carlos/grupo-
+data-system/app/comer
+ciales/evolucion/page
+.tsx:9:1)
+    at <unknown> (htt
+ps://nextjs.org/docs/
+messages/module-not-f
+ound)
+    at <unknown> (./m
+etricas_carlos/grupo-
+data-system/app/comer
+ciales/evolucion/page
+.tsx:36:1)
+    at <unknown> (htt
+ps://nextjs.org/docs/
+messages/module-not-f
+ound)
+    at <unknown> (./m
+etricas_carlos/grupo-
+data-system/app/compa
+nias/page.tsx:7:1)
+    at <unknown> (htt
+ps://nextjs.org/docs/
+messages/module-not-f
+ound)
+    at <unknown> (./m
+etricas_carlos/grupo-
+data-system/app/compa
+nias/page.tsx:19:1)
+    at <unknown> (htt
+ps://nextjs.org/docs/
+messages/module-not-f
+ound)
+    at <unknown> (./m
+etricas_carlos/grupo-
+data-system/app/entes
+/evolucion/page.tsx:9
+:1)
+    at <unknown> (htt
+ps://nextjs.org/docs/
+messages/module-not-f
+ound)
+    at <unknown> (./m
+etricas_carlos/grupo-
+data-system/app/entes
+/evolucion/page.tsx:3
+7:1)
+    at <unknown> (htt
+ps://nextjs.org/docs/
+messages/module-not-f
+ound)

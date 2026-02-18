@@ -279,8 +279,13 @@ function EvolutionContent() {
         maintainAspectRatio: false,
         plugins: {
             legend: {
-                position: 'bottom' as const,
-                labels: { boxWidth: 10, font: { size: 9 }, padding: 8 }
+                position: 'top' as const,
+                labels: {
+                    boxWidth: 12,
+                    font: { size: 11, weight: 'bold' as const },
+                    padding: 15,
+                    color: '#334155'
+                }
             },
             tooltip: { mode: 'index' as const, intersect: false },
             datalabels: { display: false },
@@ -295,17 +300,40 @@ function EvolutionContent() {
         scales: {
             y: {
                 type: 'linear' as const, display: true, position: 'left' as const,
-                title: { display: true, text: 'Primas (€)', font: { size: 9 } },
-                ticks: { font: { size: 8 } }
+                title: {
+                    display: true,
+                    text: 'Primas (€)',
+                    font: { size: 12, weight: 'bold' as const },
+                    color: '#475569',
+                    padding: { bottom: 10 }
+                },
+                ticks: {
+                    font: { size: 11, weight: 'normal' as const },
+                    color: '#64748b'
+                }
             },
             y1: {
                 type: 'linear' as const, display: true, position: 'right' as const,
                 grid: { drawOnChartArea: false },
-                title: { display: true, text: 'Número de Pólizas', font: { size: 9 } },
-                ticks: { font: { size: 8 } }
+                title: {
+                    display: true,
+                    text: 'Número de Pólizas',
+                    font: { size: 12, weight: 'bold' as const },
+                    color: '#475569',
+                    padding: { bottom: 10 }
+                },
+                ticks: {
+                    font: { size: 11, weight: 'normal' as const },
+                    color: '#64748b'
+                }
             },
             x: {
-                ticks: { font: { size: 8 }, maxRotation: 45, minRotation: 45 }
+                ticks: {
+                    font: { size: 11, weight: 'normal' as const },
+                    color: '#64748b',
+                    maxRotation: 45,
+                    minRotation: 45
+                }
             }
         }
     };
@@ -429,36 +457,45 @@ function EvolutionContent() {
                 {!loading && (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                         {/* 1. CARTERA ACTIVA (Global Stock) */}
-                        <KPITooltip text="Número total de pólizas actualmente EN VIGOR (Cartera Activa), independientemente de la fecha de producción.">
-                            <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100 h-full transition-colors hover:border-emerald-300 cursor-help">
+                        <KPITooltip text="Ver listado de pólizas actualmente EN VIGOR.">
+                            <div
+                                onClick={() => router.push(`/polizas/listado?ente=${encodeURIComponent(ente!)}&estado=VIGOR`)}
+                                className="bg-emerald-50 rounded-xl p-4 border border-emerald-100 h-full transition-all hover:border-emerald-400 hover:shadow-md cursor-pointer group/card"
+                            >
                                 <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-1">
                                     <ShieldCheck className="w-3 h-3" /> Cartera Activa
                                 </p>
-                                <p className="text-2xl font-extrabold text-emerald-700 mt-1">{numberFormatter.format(globalStats.active)}</p>
+                                <p className="text-2xl font-extrabold text-emerald-700 mt-1 group-hover/card:scale-105 transition-transform origin-left">{numberFormatter.format(globalStats.active)}</p>
                             </div>
                         </KPITooltip>
 
                         {/* 2. EN SUSPENSIÓN (Global Stock) */}
-                        <KPITooltip text="Número total de pólizas actualmente en estado de SUSPENSIÓN.">
-                            <div className="bg-amber-50 rounded-xl p-4 border border-amber-100 h-full transition-colors hover:border-amber-300 cursor-help">
+                        <KPITooltip text="Ver listado de pólizas actualmente en estado de SUSPENSIÓN.">
+                            <div
+                                onClick={() => router.push(`/polizas/listado?ente=${encodeURIComponent(ente!)}&estado=SUSPENSION`)}
+                                className="bg-amber-50 rounded-xl p-4 border border-amber-100 h-full transition-all hover:border-amber-400 hover:shadow-md cursor-pointer group/card"
+                            >
                                 <p className="text-xs font-bold text-amber-600 uppercase tracking-wider flex items-center gap-1">
                                     <AlertTriangle className="w-3 h-3" /> En Suspensión
                                 </p>
-                                <p className="text-2xl font-extrabold text-amber-700 mt-1">{numberFormatter.format(globalStats.suspension)}</p>
+                                <p className="text-2xl font-extrabold text-amber-700 mt-1 group-hover/card:scale-105 transition-transform origin-left">{numberFormatter.format(globalStats.suspension)}</p>
                             </div>
                         </KPITooltip>
 
                         {/* 3. ANULADAS DEL PERIODO (Flow) */}
-                        <KPITooltip text="Pólizas producidas en el periodo seleccionado que han sido anuladas.">
-                            <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 h-full transition-colors hover:border-slate-300 cursor-help">
+                        <KPITooltip text="Ver listado de pólizas producidas en este periodo que han sido anuladas.">
+                            <div
+                                onClick={() => router.push(`/polizas/listado?ente=${encodeURIComponent(ente!)}&estado=ANULADA&startYear=${startPeriod.year}&startMonth=${startPeriod.month}&endYear=${endPeriod.year}&endMonth=${endPeriod.month}`)}
+                                className="bg-slate-50 rounded-xl p-4 border border-slate-100 h-full transition-all hover:border-slate-400 hover:shadow-md cursor-pointer group/card"
+                            >
                                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Anuladas Periodo</p>
-                                <p className="text-2xl font-extrabold text-slate-700 mt-1">{numberFormatter.format(retentionKPIs.anuladas)}</p>
+                                <p className="text-2xl font-extrabold text-slate-700 mt-1 group-hover/card:scale-105 transition-transform origin-left">{numberFormatter.format(retentionKPIs.anuladas)}</p>
                             </div>
                         </KPITooltip>
 
                         {/* 4. RETENCIÓN DEL PERIODO (Flow) */}
-                        <KPITooltip text="Porcentaje de pólizas producidas en el periodo seleccionado que NO han sido anuladas.">
-                            <div className={`rounded-xl p-4 border h-full transition-colors cursor-help ${retentionKPIs.ratio >= 70 ? 'bg-white border-slate-200' : 'bg-red-50 border-red-100'}`}>
+                        <KPITooltip text="Porcentaje de pólizas producidas en el periodo que NO han sido anuladas.">
+                            <div className={`rounded-xl p-4 border h-full transition-colors ${retentionKPIs.ratio >= 70 ? 'bg-white border-slate-200' : 'bg-red-50 border-red-100'}`}>
                                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Retención Periodo</p>
                                 <p className={`text-2xl font-extrabold mt-1 ${retentionKPIs.ratio >= 70 ? 'text-slate-700' : 'text-red-700'}`}>{retentionKPIs.ratio}%</p>
                             </div>

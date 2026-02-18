@@ -137,18 +137,28 @@ export default function Dashboard() {
         ];
 
         // 2. Prepare Data
-        const dataToExport = sortedData.map(item => ({
-            'Ente Comercial': item.ente,
-            'Primas NP (€)': item.primas,
-            'Tendencia Primas (%)': (item.trendPrimas ?? 0).toFixed(2),
-            'Nº Pólizas': item.polizas,
-            'Tendencia Pólizas (%)': (item.trendPolizas ?? 0).toFixed(2)
-        }));
+        const headers = [
+            'Ente Comercial',
+            'Primas NP (€)',
+            'Tendencia Primas (%)',
+            'Nº Pólizas',
+            'Tendencia Pólizas (%)'
+        ];
 
-        // 3. Create Workbook
+        const dataRows = sortedData.map(item => [
+            item.ente,
+            item.primas,
+            parseFloat((item.trendPrimas ?? 0).toFixed(2)),
+            item.polizas,
+            parseFloat((item.trendPolizas ?? 0).toFixed(2))
+        ]);
+
+        // 3. Combine everything
+        const allRows = [...filterRows, headers, ...dataRows];
+
+        // 4. Create Workbook
         const wb = XLSX.utils.book_new();
-        const ws = XLSX.utils.aoa_to_sheet(filterRows);
-        XLSX.utils.sheet_add_json(ws, dataToExport, { origin: filterRows.length });
+        const ws = XLSX.utils.aoa_to_sheet(allRows);
 
         // Widths
         ws['!cols'] = [{ wch: 40 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 20 }];
