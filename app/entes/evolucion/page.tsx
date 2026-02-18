@@ -413,69 +413,6 @@ function EvolutionContent() {
         }
     }), [filteredData]);
 
-    const durationChartData = useMemo(() => {
-        const displayData = filteredData;
-        const labels = displayData.map((d: EvolutionData) => `${MONTHS[d.mes - 1]} ${d.anio}`);
-
-        const isSel = (d: EvolutionData) => {
-            if (selectedPeriods.length === 0) return true;
-            return selectedPeriods.includes(d.anio * 100 + d.mes);
-        };
-
-        return {
-            labels,
-            datasets: [{
-                label: 'Media Duración (Días)',
-                data: displayData.map((d: EvolutionData) => d.mediaDuracion),
-                borderColor: displayData.map((d: EvolutionData) => isSel(d) ? '#f59e0b' : '#f59e0b40'),
-                backgroundColor: displayData.map((d: EvolutionData) => isSel(d) ? 'rgba(245, 158, 11, 0.1)' : 'rgba(245, 158, 11, 0.05)'),
-                fill: true,
-                tension: 0.4,
-                pointRadius: displayData.map((d: EvolutionData) => isSel(d) ? 4 : 2),
-                pointHoverRadius: 6,
-            }]
-        };
-    }, [filteredData, selectedPeriods]);
-
-    const durationChartOptions = useMemo(() => ({
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: { display: false },
-            tooltip: { mode: 'index' as const, intersect: false },
-            datalabels: {
-                display: (context: any) => {
-                    const dataIndex = context.dataIndex;
-                    const item = filteredData[dataIndex];
-                    if (selectedPeriods.length === 0) return false;
-                    return selectedPeriods.includes(item.anio * 100 + item.mes);
-                },
-                align: 'top' as const,
-                formatter: (val: number) => `${val} días`,
-                font: { size: 10, weight: 'bold' as const }
-            }
-        },
-        onClick: (_event: any, elements: any) => {
-            if (elements.length > 0) {
-                const index = elements[0].index;
-                const item = filteredData[index];
-                const val = item.anio * 100 + item.mes;
-                setSelectedPeriods((prev: number[]) =>
-                    prev.includes(val) ? prev.filter((v: number) => v !== val) : [...prev, val]
-                );
-            }
-        },
-        scales: {
-            y: {
-                beginAtZero: true,
-                title: { display: true, text: 'Días promedio', font: { size: typeof window !== 'undefined' && window.innerWidth < 768 ? 9 : 11, weight: 'bold' as const } },
-                ticks: { font: { size: typeof window !== 'undefined' && window.innerWidth < 768 ? 8 : 10 } }
-            },
-            x: {
-                ticks: { font: { size: typeof window !== 'undefined' && window.innerWidth < 768 ? 8 : 10 }, maxRotation: 45, minRotation: 45 }
-            }
-        }
-    }), [filteredData, selectedPeriods]);
 
     // === FEATURE 3: Donut Chart ===
     const activeMixData = useMemo(() => {
@@ -727,20 +664,33 @@ function EvolutionContent() {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8 no-print">
-                    {/* Main Chart (2/3) */}
-                    <div className="lg:col-span-2 bg-white p-8 print:p-6 rounded-2xl shadow-sm border border-slate-200 break-inside-avoid h-full">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                                <BarChart3 className="w-5 h-5 text-indigo-500" />
-                                Producción, Pólizas y Ticket Medio
-                            </h2>
-                            <div className="flex bg-slate-100 p-1 rounded-lg no-print">
-                                <button onClick={() => setChartType('line')} className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${chartType === 'line' ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Línea</button>
-                                <button onClick={() => setChartType('bar')} className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${chartType === 'bar' ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Barras</button>
+                <div className="grid grid-cols-1 gap-6">
+                    {/* Evolution Chart (Full Width) */}
+                    <div className="bg-white p-8 print:p-6 rounded-2xl shadow-sm border border-slate-200 break-inside-avoid">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 no-print">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-indigo-50 rounded-2xl">
+                                    <TrendingUp className="w-6 h-6 text-primary" />
+                                </div>
+                                <h2 className="text-xl font-bold text-slate-800 tracking-tight">Evolución en el Periodo</h2>
+                            </div>
+                            <div className="flex items-center bg-slate-100/80 p-1.5 rounded-xl border border-slate-100 self-end md:self-auto">
+                                <button
+                                    onClick={() => setChartType('line')}
+                                    className={`px-5 py-2 rounded-lg text-xs font-bold transition-all duration-300 ${chartType === 'line' ? 'bg-white text-primary shadow-lg ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
+                                >
+                                    Líneas
+                                </button>
+                                <button
+                                    onClick={() => setChartType('bar')}
+                                    className={`px-5 py-2 rounded-lg text-xs font-bold transition-all duration-300 ${chartType === 'bar' ? 'bg-white text-primary shadow-lg ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
+                                >
+                                    Barras
+                                </button>
                             </div>
                         </div>
-                        <div className="h-[400px] w-full print:h-[500px] print:w-full">
+
+                        <div className="h-[450px] w-full print:h-[500px] print:w-full">
                             {loading ? (
                                 <div className="h-full w-full bg-slate-50 animate-pulse rounded-2xl flex items-center justify-center text-slate-400 font-medium">Cargando histórico...</div>
                             ) : filteredData.length > 0 ? (
@@ -749,26 +699,6 @@ function EvolutionContent() {
                                 <div className="h-full w-full bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400">No hay datos para el periodo seleccionado</div>
                             )}
                         </div>
-                    </div>
-
-                    {/* Duration Chart (1/3) */}
-                    <div className="bg-white p-8 print:p-6 rounded-2xl shadow-sm border border-slate-200 break-inside-avoid h-full">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                                <TrendingUp className="w-5 h-5 text-amber-500" />
-                                Media de Duración
-                            </h2>
-                        </div>
-                        <div className="h-[400px] w-full">
-                            {loading ? (
-                                <div className="h-full w-full bg-slate-50 animate-pulse rounded-2xl flex items-center justify-center text-slate-400 font-medium">Calculando...</div>
-                            ) : filteredData.length > 0 ? (
-                                <Line data={durationChartData} options={durationChartOptions} />
-                            ) : (
-                                <div className="h-full w-full bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 text-center px-4">Seleccione un periodo</div>
-                            )}
-                        </div>
-                        <p className="mt-4 text-[10px] text-slate-400 italic">Días promedio de vida de las pólizas anuladas en cada periodo.</p>
                     </div>
                 </div>
             </div>
@@ -835,7 +765,7 @@ function EvolutionContent() {
                                                     <td className="p-2 md:p-3 text-right font-bold text-primary font-mono text-[10px] md:text-xs">{currencyFormatter.format(p.primas)}</td>
                                                     <td className="p-2 md:p-3 text-right font-mono text-slate-600 text-[10px] md:text-xs">{numberFormatter.format(p.polizas)}</td>
                                                     <td className="p-2 md:p-3 text-right font-bold text-slate-500 text-[10px] md:text-xs">{pct}%</td>
-                                                    <td className="p-3 text-right no-print">
+                                                    <td className="p-2 md:p-3 text-right no-print">
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
@@ -843,10 +773,10 @@ function EvolutionContent() {
                                                                 const filter = mixDepth === 'ramo' ? `&ramo=${encodeURIComponent(p.name)}` : `&producto=${encodeURIComponent(p.name)}`;
                                                                 router.push(`${base}${filter}${getFilterParams()}`);
                                                             }}
-                                                            className="p-2 text-slate-400 hover:text-primary transition-colors hover:bg-slate-100 rounded-xl"
+                                                            className="p-1.5 text-primary hover:text-primary/70 transition-colors bg-slate-50 hover:bg-white rounded-lg shadow-sm border border-slate-200"
                                                             title="Ver listado de pólizas"
                                                         >
-                                                            <ArrowUpRight className="w-5 h-5" />
+                                                            <TrendingUp className="w-4 h-4" />
                                                         </button>
                                                     </td>
                                                 </tr>
@@ -908,7 +838,7 @@ function EvolutionContent() {
                                                     <th className="p-3 text-right text-xs font-bold text-slate-400 uppercase">Primas</th>
                                                     <th className="p-3 text-right text-xs font-bold text-slate-400 uppercase">Pólizas</th>
                                                     <th className="p-3 text-right text-xs font-bold text-slate-400 uppercase">Peso</th>
-                                                    <th className="p-3 text-right text-xs font-bold text-slate-400 uppercase no-print">Link</th>
+                                                    <th className="p-3 text-right text-xs font-bold text-slate-400 uppercase no-print">Acción</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-50">
@@ -929,10 +859,10 @@ function EvolutionContent() {
                                                                         const base = `/polizas/listado?ente=${encodeURIComponent(ente!)}`;
                                                                         router.push(`${base}&producto=${encodeURIComponent(p.producto)}${getFilterParams()}`);
                                                                     }}
-                                                                    className="p-1.5 text-slate-400 hover:text-primary transition-colors hover:bg-slate-100 rounded-lg"
+                                                                    className="p-1.5 text-primary hover:text-primary/70 transition-colors bg-slate-50 hover:bg-white rounded-lg shadow-sm border border-slate-200"
                                                                     title="Ver listado de pólizas"
                                                                 >
-                                                                    <ArrowUpRight className="w-4 h-4" />
+                                                                    <TrendingUp className="w-4 h-4" />
                                                                 </button>
                                                             </td>
                                                         </tr>
@@ -1026,7 +956,6 @@ function EvolutionContent() {
                         <thead>
                             <tr className="bg-slate-50 border-b border-slate-100">
                                 <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs cursor-pointer hover:bg-slate-100" onClick={() => requestSort('anio')}>Periodo <SortIcon column="anio" /></th>
-                                <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-center no-print border-l border-slate-100">Acción</th>
                                 <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('primas')}>Primas (€) <SortIcon column="primas" /></th>
                                 <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('varPrimas')}>Var. Primas <SortIcon column="varPrimas" /></th>
                                 <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('polizas')}>Pólizas <SortIcon column="polizas" /></th>
@@ -1036,6 +965,7 @@ function EvolutionContent() {
                                 <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('mediaDuracion')}>Media Dura. <SortIcon column="mediaDuracion" /></th>
                                 <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('anuladas')}>Anuladas <SortIcon column="anuladas" /></th>
                                 <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right cursor-pointer hover:bg-slate-100" onClick={() => requestSort('anulacionesTempranas')}>Tempranas <SortIcon column="anulacionesTempranas" /></th>
+                                <th className="p-4 font-bold text-slate-500 uppercase tracking-widest text-xs text-right no-print">Acción</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -1049,10 +979,9 @@ function EvolutionContent() {
 
                                 // Visual highlight: selectedPeriods takes priority. 
                                 // If none selected, highlight the range.
-                                const isHighlighted = selectedPeriods.length > 0 ? isSelected : isInRange;
-                                const isBoundary = selectedPeriods.length > 0
-                                    ? isSelected
-                                    : (currentVal === startVal || currentVal === endVal);
+                                // Visual highlight: Only when selectedPeriods is active.
+                                const isHighlighted = selectedPeriods.length > 0 && isSelected;
+                                const isBoundary = selectedPeriods.length > 0 && isSelected;
 
                                 // Calc index in original full data for momChanges
                                 const origIdx = data.findIndex(x => x.anio === d.anio && x.mes === d.mes);
@@ -1076,28 +1005,16 @@ function EvolutionContent() {
                                             </span>
                                             {isBoundary && <span className="ml-2 text-indigo-500 text-xs font-bold">✓</span>}
                                         </td>
-                                        <td className="p-4 text-center no-print border-x border-slate-50 bg-slate-50/10">
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    router.push(`/entes/evolucion/mes?ente=${encodeURIComponent(ente!)}&anio=${d.anio}&mes=${d.mes}`);
-                                                }}
-                                                className="p-1.5 text-primary hover:text-primary/70 transition-colors hover:bg-white rounded-lg shadow-sm border border-slate-200"
-                                                title="Ver detalle mensual"
-                                            >
-                                                <TrendingUp className="w-4 h-4" />
-                                            </button>
-                                        </td>
                                         <td className="p-4 text-right font-bold text-slate-700">{currencyFormatter.format(d.primas)}</td>
                                         <td className={`p-4 text-right font-bold text-xs ${pct === null ? 'text-slate-300' : pct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                            {pct !== null ? `${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct)}%` : '—'}
+                                            {pct !== null ? `${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct).toFixed(2)}%` : '—'}
                                         </td>
                                         <td className="p-4 text-right font-semibold text-slate-700">{numberFormatter.format(d.polizas)}</td>
                                         {(() => {
                                             const pctPol = momChangesPolizas[origIdx];
                                             return (
                                                 <td className={`p-4 text-right font-bold text-xs ${pctPol === null ? 'text-slate-300' : pctPol >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                                    {pctPol !== null ? `${pctPol >= 0 ? '▲' : '▼'} ${Math.abs(pctPol)}%` : '—'}
+                                                    {pctPol !== null ? `${pctPol >= 0 ? '▲' : '▼'} ${Math.abs(pctPol).toFixed(2)}%` : '—'}
                                                 </td>
                                             );
                                         })()}
@@ -1106,6 +1023,18 @@ function EvolutionContent() {
                                         <td className="p-4 text-right font-mono font-bold text-amber-600">{d.mediaDuracion}d</td>
                                         <td className="p-4 text-right text-orange-600 font-mono">{d.anuladas}</td>
                                         <td className={`p-4 text-right font-mono ${d.anulacionesTempranas > 0 ? 'text-red-600 font-bold' : 'text-slate-300'}`}>{d.anulacionesTempranas}</td>
+                                        <td className="p-4 text-right no-print">
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    router.push(`/entes/evolucion/mes?ente=${encodeURIComponent(ente!)}&anio=${d.anio}&mes=${d.mes}`);
+                                                }}
+                                                className="p-1.5 text-primary hover:text-primary/70 transition-colors bg-slate-50 hover:bg-white rounded-lg shadow-sm border border-slate-200"
+                                                title="Ver detalle mensual"
+                                            >
+                                                <TrendingUp className="w-4 h-4" />
+                                            </button>
+                                        </td>
                                     </tr>);
                             })}
                         </tbody>

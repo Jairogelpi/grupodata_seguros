@@ -96,8 +96,8 @@ export async function GET(request: Request) {
         const ramosMix = new Map<string, { primas: number; polizas: number }>();
 
         polizas.forEach(p => {
-            const name = getPolizaEnteName(p);
-            if (name !== enteName) return;
+            const name = String(p['Ente'] || '').trim().toUpperCase();
+            if (name !== enteName.trim().toUpperCase()) return;
 
             const anio = parseInt(p['AÑO_PROD']);
             const mes = parseInt(p['MES_Prod']);
@@ -213,8 +213,15 @@ export async function GET(request: Request) {
             totalAnuladas: 0
         };
 
-        // Recalculate globalStats based on those months that passed the period filter
-        // We accumulate the flags from the filtered months
+        const sortedMonths = Array.from(monthlyStats.keys())
+            .sort((a, b) => {
+                const [yA, mA] = a.split('-').map(Number);
+                const [yB, mB] = b.split('-').map(Number);
+                return (yA * 100 + mA) - (yB * 100 + mB);
+            });
+
+        let lastPassedKey: string | null = null;
+
         monthlyStats.forEach((s, key) => {
             const [anio, mes] = key.split('-').map(Number);
             const currentVal = anio * 100 + mes;
@@ -234,11 +241,21 @@ export async function GET(request: Request) {
             }
 
             if (pass) {
-                globalStats.active += s.enVigor || 0;
-                globalStats.suspension += s.suspension || 0;
                 globalStats.totalAnuladas += s.anuladas || 0;
+                // Only keep track of the most recent month in the selection for stock metrics
+                if (!lastPassedKey || currentVal > (parseInt(lastPassedKey.split('-')[0]) * 100 + parseInt(lastPassedKey.split('-')[1]))) {
+                    lastPassedKey = key;
+                }
             }
         });
+
+        // Finally set stock fields from the LAST month in the selection
+        if (lastPassedKey && monthlyStats.has(lastPassedKey)) {
+            const lastStats = monthlyStats.get(lastPassedKey)!;
+            globalStats.active = lastStats.enVigor || 0;
+            globalStats.suspension = lastStats.suspension || 0;
+        }
+
         const ramosMixArray = Array.from(ramosMix.entries())
             .map(([ramo, data]) => ({ ramo, ...data }))
             .sort((a, b) => b.primas - a.primas);
