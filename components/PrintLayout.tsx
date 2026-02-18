@@ -48,23 +48,25 @@ export default function PrintLayout() {
                     
                     /* Main Content Scaling */
                     main {
-                        margin-top: 20px !important; /* Small margin relative to spacer */
+                        margin-top: 20px !important;
                         margin-bottom: 80px !important;
-                        margin-left: 0 !important;
-                        margin-right: 0 !important;
                         
-                        transform: scale(0.75); /* Reduced scale to fit more content */
-                        transform-origin: top left;
+                        transform: scale(0.75);
+                        transform-origin: top center;
                         width: 133.3% !important; /* 100 / 0.75 = 133.3% */
-                        
-                        margin-left: 0 !important;
-                        margin-right: 0 !important;
+                        margin-left: auto !important;
+                        margin-right: auto !important;
                         padding-left: 30px !important;
-                        padding-right: 15px !important; /* Less right padding to avoid cut-off scales */
+                        padding-right: 30px !important;
+                        
+                        /* Center the scaled content on the page */
+                        position: relative !important;
+                        left: 50% !important;
+                        transform: translateX(-50%) scale(0.75) !important;
+                        transform-origin: top center !important;
                         
                         overflow: visible !important;
                         display: block !important;
-                        width: 133.3% !important;
                     }
                     
                     /* Table Condensation for Print */
