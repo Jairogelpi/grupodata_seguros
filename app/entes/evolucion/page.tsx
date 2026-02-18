@@ -114,6 +114,7 @@ function EvolutionContent() {
     const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
     const [interactiveProduct, setInteractiveProduct] = useState<string | null>(null);
     const [selectedRamos, setSelectedRamos] = useState<string[]>([]);
+    const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
     const [ramoPolizas, setRamoPolizas] = useState<any[]>([]);
     const [loadingRamoDetail, setLoadingRamoDetail] = useState(false);
     const [ramoSearchTerm, setRamoSearchTerm] = useState('');
@@ -126,7 +127,7 @@ function EvolutionContent() {
 
     useEffect(() => {
         if (ente) fetchEvolution();
-    }, [ente, selectedRamos]); // Re-fetch when Ramos change
+    }, [ente, selectedRamos, selectedProducts]);
 
     const fetchEvolution = async () => {
         setLoading(true);
@@ -134,6 +135,7 @@ function EvolutionContent() {
             const params = new URLSearchParams();
             params.append('ente', ente!);
             if (selectedRamos.length > 0) params.append('ramo', selectedRamos.join(','));
+            if (selectedProducts.length > 0) params.append('producto', selectedProducts.join(','));
 
             const res = await fetch(`/api/entes/evolucion?${params.toString()}`);
             const json = await res.json();
@@ -436,7 +438,18 @@ function EvolutionContent() {
             if (elements.length > 0) {
                 const index = elements[0].index;
                 const label = chart.data.labels[index];
-                setInteractiveProduct(prev => prev === label ? null : label);
+
+                if (mixDepth === 'ramo') {
+                    const newSelection = selectedRamos.includes(label)
+                        ? selectedRamos.filter((r: string) => r !== label)
+                        : [...selectedRamos, label];
+                    setSelectedRamos(newSelection);
+                } else {
+                    const newSelection = selectedProducts.includes(label)
+                        ? selectedProducts.filter((r: string) => r !== label)
+                        : [...selectedProducts, label];
+                    setSelectedProducts(newSelection);
+                }
             }
         }
     };
@@ -474,6 +487,14 @@ function EvolutionContent() {
         XLSX.writeFile(wb, `Evolucion_${ente?.replace(/ /g, '_')}.xlsx`);
     };
 
+    const getFilterParams = () => {
+        const params = new URLSearchParams();
+        if (selectedRamos.length > 0) params.append('ramo', selectedRamos.join(','));
+        if (selectedProducts.length > 0) params.append('producto', selectedProducts.join(','));
+        const str = params.toString();
+        return str ? `&${str}` : '';
+    };
+
     if (!ente) return <div className="p-8 text-center">No se ha seleccionado ningún ente</div>;
 
     return (
@@ -483,8 +504,17 @@ function EvolutionContent() {
                     <ArrowLeft className="w-5 h-5" /> Volver
                 </button>
                 <div className="flex gap-2">
-                    {(selectedRamos.length > 0 || interactiveProduct || searchTerm || selectedPeriod) && (
-                        <button onClick={() => { setSelectedRamos([]); setRamoPolizas([]); setRamoSearchTerm(''); setInteractiveProduct(null); setSearchTerm(''); setSelectedPeriod(null); setPeriodMix(null); }} className="flex items-center gap-2 px-4 py-2 bg-red-50 border border-red-200 rounded-xl hover:bg-red-100 transition-all shadow-sm text-sm font-medium text-red-600">
+                    {(selectedRamos.length > 0 || selectedProducts.length > 0 || interactiveProduct || searchTerm || selectedPeriod) && (
+                        <button onClick={() => {
+                            setSelectedRamos([]);
+                            setSelectedProducts([]);
+                            setRamoPolizas([]);
+                            setRamoSearchTerm('');
+                            setInteractiveProduct(null);
+                            setSearchTerm('');
+                            setSelectedPeriod(null);
+                            setPeriodMix(null);
+                        }} className="flex items-center gap-2 px-4 py-2 bg-red-50 border border-red-200 rounded-xl hover:bg-red-100 transition-all shadow-sm text-sm font-medium text-red-600">
                             <X className="w-4 h-4" /> Limpiar Filtros
                         </button>
                     )}
