@@ -315,7 +315,7 @@ export default function CarteraPage() {
                     type: 'bar' as const,
                     label: 'Primas (€)',
                     data: chartData.map((d: any) => d.primas),
-                    backgroundColor: 'rgba(79, 70, 229, 0.4)',
+                    backgroundColor: 'rgba(99, 102, 241, 0.6)',
                     borderColor: 'rgb(79, 70, 229)',
                     borderWidth: 1,
                     yAxisID: 'y',
