@@ -325,7 +325,7 @@ export default function CarteraPage() {
     };
 
     const paretoOptions = {
-        indexAxis: 'x' as const, // Standard Vertical Bars
+        indexAxis: 'x' as const, // Vertical Columns (Axes Reversed)
         responsive: true,
         maintainAspectRatio: false,
         layout: {
@@ -350,18 +350,18 @@ export default function CarteraPage() {
         },
         scales: {
             x: {
-                display: true, // Labels on Bottom
+                display: true, // Client Names on Bottom
                 grid: { display: false },
                 ticks: {
                     autoSkip: false,
                     maxRotation: 45,
                     minRotation: 45,
-                    font: { size: 9, weight: 'bold' as const }, // Smaller font for vertical labels
+                    font: { size: 9, weight: 'bold' as const },
                     color: '#475569'
                 }
             },
             y: {
-                display: false, // Clean look
+                display: false, // Clean look for values
             },
             y1: {
                 display: false,
