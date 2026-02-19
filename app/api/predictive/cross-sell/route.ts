@@ -73,12 +73,12 @@ export async function GET(request: Request) {
         enteTransactions.forEach((history) => {
             // Sort by date to define sequence
             const sorted = history.sort((a, b) => a.date.getTime() - b.date.getTime());
-            const uniqueRamos = new Set(sorted.map(s => s.ramo));
+            const uniqueRamosForThisEnte = new Set(sorted.map(s => s.ramo));
 
-            uniqueRamos.forEach(r => ramoFrequencies.set(r, (ramoFrequencies.get(r) || 0) + 1));
+            uniqueRamosForThisEnte.forEach(r => ramoFrequencies.set(r, (ramoFrequencies.get(r) || 0) + 1));
 
-            // Find sequential pairs: Customer had Ramo A, then (or same day) bought Ramo B
-            const ramosList = Array.from(uniqueRamos);
+            // Find unique sequential pairs for this customer
+            const pairsFound = new Set<string>();
             for (let i = 0; i < sorted.length; i++) {
                 for (let j = i + 1; j < sorted.length; j++) {
                     const rA = sorted[i].ramo;
@@ -86,9 +86,10 @@ export async function GET(request: Request) {
                     if (rA === rB) continue;
 
                     const pairKey = `${rA} -> ${rB}`;
-                    sequentialFreq.set(pairKey, (sequentialFreq.get(pairKey) || 0) + 1);
+                    pairsFound.add(pairKey);
                 }
             }
+            pairsFound.forEach(key => sequentialFreq.set(key, (sequentialFreq.get(key) || 0) + 1));
         });
 
         // 5. Generate Rules with Sequential Logic and Chi-Square
@@ -118,7 +119,16 @@ export async function GET(request: Request) {
             const chiSquare = (N * Math.pow(a * d - b * c, 2)) / ((a + b) * (c + d) * (a + c) * (b + d));
             const isSignificant = chiSquare > 3.84; // p < 0.05 threshold
 
-            if (lift > 1.2 && confidence > 0.1 && isSignificant) {
+            if (lift > 1.2 && confidence > 0.05 && isSignificant) {
+                // Find target customers: Have Ramo A, never had Ramo B
+                const targetEntes: string[] = [];
+                enteTransactions.forEach((history, ente) => {
+                    const ramos = new Set(history.map(h => h.ramo));
+                    if (ramos.has(ramoA) && !ramos.has(ramoB)) {
+                        targetEntes.push(ente);
+                    }
+                });
+
                 rules.push({
                     antecedent: [ramoA],
                     consequent: ramoB,
@@ -128,7 +138,8 @@ export async function GET(request: Request) {
                     chiSquare,
                     pVal: isSignificant ? '< 0.05' : '> 0.05',
                     count: observedAB,
-                    totalA: countA
+                    totalA: countA,
+                    targets: targetEntes.slice(0, 5) // Sample targets for immediate value
                 });
             }
         });

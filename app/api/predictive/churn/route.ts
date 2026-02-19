@@ -1,0 +1,167 @@
+import { NextResponse } from 'next/server';
+import { readData } from '@/lib/storage';
+import { getRamo } from '@/lib/ramos';
+
+export const dynamic = 'force-dynamic';
+
+const parseAnyDate = (val: any) => {
+    if (!val) return null;
+    if (typeof val === 'number') return new Date((val - 25569) * 86400 * 1000);
+    const parts = String(val).split('/');
+    if (parts.length === 3) {
+        const day = parseInt(parts[0]);
+        const month = parseInt(parts[1]);
+        const year = parseInt(parts[2]);
+        return new Date(year, month - 1, day);
+    }
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? null : d;
+};
+
+export async function GET(request: Request) {
+    try {
+        const polizas = await readData('listado_polizas.xlsx');
+
+        // 1. Unique-ify policies by Number to avoid population inflation
+        const uniquePolizasMap = new Map<string, any>();
+        polizas.forEach(p => {
+            const num = String(p['Póliza'] || 'S/N');
+            if (!uniquePolizasMap.has(num)) {
+                uniquePolizasMap.set(num, p);
+            } else {
+                // If duplicates exist, keep the one with most info or latest (approx)
+                const existing = uniquePolizasMap.get(num);
+                const isCancelled = String(p['Estado'] || '').toLowerCase().includes('anula');
+                if (isCancelled) uniquePolizasMap.set(num, p); // Cancellation info is usually more relevant for churn
+            }
+        });
+
+        const uniquePolizas = Array.from(uniquePolizasMap.values());
+
+        const cancelled = uniquePolizas.filter(p => {
+            const estado = String(p['Estado'] || '').toLowerCase();
+            return estado.includes('anula') || estado.includes('baja');
+        });
+
+        const active = uniquePolizas.filter(p => {
+            const estado = String(p['Estado'] || '').toLowerCase();
+            return estado.includes('vigor');
+        });
+
+        if (cancelled.length === 0 || active.length === 0) {
+            return NextResponse.json({ riskList: [], stats: { totalActive: active.length } });
+        }
+
+        // 2. Analyze Factors in Cancelled Policies
+        const stats = {
+            ramo: new Map<string, { total: number, cancelled: number }>(),
+            compania: new Map<string, { total: number, cancelled: number }>(),
+            seniority: new Map<string, { total: number, cancelled: number }>()
+        };
+
+        const totalPop = uniquePolizas.length;
+
+        uniquePolizas.forEach(p => {
+            const ramo = getRamo(String(p['Producto'] || ''));
+            const cia = String(p['Compañía'] || 'Otros');
+            const estado = String(p['Estado'] || '').toLowerCase();
+            const isCancelled = estado.includes('anula') || estado.includes('baja');
+
+            // Seniority logic (months between Effekt and current or Cancel date)
+            const dateEfecto = parseAnyDate(p['F.Efecto']);
+            const dateAnula = parseAnyDate(p['F.Anulación']);
+            const now = new Date();
+            let seniorityRange = 'Desconocido';
+
+            if (dateEfecto) {
+                const endDate = isCancelled ? (dateAnula || now) : now;
+                const months = (endDate.getTime() - dateEfecto.getTime()) / (1000 * 60 * 60 * 24 * 30.44);
+                if (months < 12) seniorityRange = '< 1 año';
+                else if (months < 24) seniorityRange = '1-2 años';
+                else if (months < 60) seniorityRange = '2-5 años';
+                else seniorityRange = '> 5 años';
+            }
+
+            [
+                { map: stats.ramo, key: ramo },
+                { map: stats.compania, key: cia },
+                { map: stats.seniority, key: seniorityRange }
+            ].forEach(s => {
+                if (!s.map.has(s.key)) s.map.set(s.key, { total: 0, cancelled: 0 });
+                const current = s.map.get(s.key)!;
+                current.total++;
+                if (isCancelled) current.cancelled++;
+            });
+        });
+
+        // 3. Score Active Policies
+        // Factor Weight = (Cancelled in Category / Total in Category) / (Total Cancelled / Total Population)
+        const avgChurn = cancelled.length / totalPop;
+
+        const getFactorRisk = (map: Map<string, any>, key: string) => {
+            const s = map.get(key);
+            if (!s || s.total < 10) return 1.0; // Neutral if not enough data
+            const catChurn = s.cancelled / s.total;
+            return catChurn / avgChurn; // Probability relative to mean
+        };
+
+        const riskList = active.map(p => {
+            const ramo = getRamo(String(p['Producto'] || ''));
+            const cia = String(p['Compañía'] || 'Otros');
+            const dateEfecto = parseAnyDate(p['F.Efecto']);
+            const now = new Date();
+            let seniorityRange = 'Desconocido';
+
+            if (dateEfecto) {
+                const months = (now.getTime() - dateEfecto.getTime()) / (1000 * 60 * 60 * 24 * 30.44);
+                if (months < 12) seniorityRange = '< 1 año';
+                else if (months < 24) seniorityRange = '1-2 años';
+                else if (months < 60) seniorityRange = '2-5 años';
+                else seniorityRange = '> 5 años';
+            }
+
+            const riskRamo = getFactorRisk(stats.ramo, ramo);
+            const riskCia = getFactorRisk(stats.compania, cia);
+            const riskSeniority = getFactorRisk(stats.seniority, seniorityRange);
+
+            // Aggregate Score
+            const rawScore = (riskRamo * riskCia * riskSeniority);
+
+            // Normalize to a 0-1 probability scale (Approximate)
+            // If rawScore = 1, prob = avgChurn
+            const probability = Math.min(0.99, avgChurn * rawScore);
+
+            return {
+                poliza: String(p['Póliza'] || 'S/N'),
+                ente: String(p['Ente Comercial'] || 'Cliente Desconocido'),
+                ramo,
+                cia,
+                seniority: seniorityRange,
+                score: probability,
+                factors: [
+                    { name: 'Ramo', impact: riskRamo },
+                    { name: 'Compañía', impact: riskCia },
+                    { name: 'Antigüedad', impact: riskSeniority }
+                ].sort((a, b) => b.impact - a.impact)
+            };
+        });
+
+        // 4. Return Top Risks
+        const sortedRisk = riskList
+            .filter(r => r.score > 0.05) // Top relevant risks
+            .sort((a, b) => b.score - a.score);
+
+        return NextResponse.json({
+            riskList: sortedRisk.slice(0, 50),
+            stats: {
+                avgChurn,
+                totalActive: active.length,
+                atHighRisk: sortedRisk.filter(r => r.score > avgChurn * 2).length
+            }
+        });
+
+    } catch (error) {
+        console.error("Churn API Error:", error);
+        return NextResponse.json({ error: 'Failed to generate churn risk' }, { status: 500 });
+    }
+}
