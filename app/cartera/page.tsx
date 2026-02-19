@@ -57,6 +57,11 @@ export default function CarteraPage() {
     const [metrics, setMetrics] = useState<any>(null);
     const [advancedMetrics, setAdvancedMetrics] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+
+    // Modals State
+    const [selectedEnteForProfile, setSelectedEnteForProfile] = useState<any | null>(null);
+    const [selectedRamoForList, setSelectedRamoForList] = useState<{ ramoName: string, clients: any[] } | null>(null);
+
     const [filterOptions, setFilterOptions] = useState<FilterOptions>({
         anios: [],
         meses: [],
@@ -819,18 +824,21 @@ export default function CarteraPage() {
                 <div className="px-8 py-5 border-b border-slate-200 bg-slate-50/50 flex justify-between items-center">
                     <h3 className="text-lg font-extrabold flex items-center gap-3 tracking-tight">
                         <div className="p-2 bg-amber-50 rounded-lg text-amber-600"><Users className="w-5 h-5" /></div>
-                        Inteligencia de Clientes por Ramo
+                        Inteligencia de Entes por Ramo
                     </h3>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Top 5 Clientes por Ramo</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Top 5 Entes Comerciales por Ramo</span>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-0 divide-x divide-y divide-slate-100">
                     {ramosBreakdown?.map((ramo: any) => (
                         <div key={ramo.ramo} className="p-6 hover:bg-slate-50/50 transition-colors">
                             <div className="flex justify-between items-start mb-4">
-                                <div>
-                                    <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight">{ramo.ramo}</h4>
-                                    <p className="text-[10px] font-bold text-slate-400 mt-1">{ramo.entes} Clientes en este ramo</p>
+                                <div
+                                    className="cursor-pointer group/header"
+                                    onClick={() => setSelectedRamoForList({ ramoName: ramo.ramo, clients: ramo.fullClients || ramo.topClients })}
+                                >
+                                    <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight group-hover/header:text-indigo-600 transition-colors">{ramo.ramo}</h4>
+                                    <p className="text-[10px] font-bold text-slate-400 mt-1 group-hover/header:text-indigo-500 transition-colors">{ramo.entes} Entes en este ramo <span className="text-xs">→</span></p>
                                 </div>
                                 <div className="text-right">
                                     <div className="text-xs font-black text-primary">{new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(ramo.primas)}</div>
@@ -839,12 +847,16 @@ export default function CarteraPage() {
 
                             <div className="space-y-3">
                                 {ramo.topClients?.map((client: any, idx: number) => (
-                                    <div key={idx} className="group p-3 bg-white rounded-xl border border-slate-100 shadow-sm hover:border-indigo-200 transition-all relative overflow-hidden">
+                                    <div
+                                        key={idx}
+                                        onClick={() => setSelectedEnteForProfile(client)}
+                                        className="group p-3 bg-white rounded-xl border border-slate-100 shadow-sm hover:border-indigo-300 hover:shadow-md transition-all relative overflow-hidden cursor-pointer"
+                                    >
                                         {client.nba && (
                                             <div className="absolute top-0 right-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-purple-500" />
                                         )}
                                         <div className="flex justify-between items-start mb-1">
-                                            <span className="text-[10px] font-bold text-slate-800 truncate max-w-[120px]">{client.name}</span>
+                                            <span className="text-[10px] font-bold text-slate-800 truncate max-w-[120px] group-hover:text-indigo-700 transition-colors">{client.name}</span>
                                             {client.nba ? (
                                                 <span className="text-[8px] font-black text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100">
                                                     {client.nba.confidence}% Éxito
@@ -926,6 +938,151 @@ export default function CarteraPage() {
                     </table>
                 </div>
             </div>
+            {/* Modal: Full Client List per Ramo */}
+            {selectedRamoForList && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+                    <div className="bg-white rounded-3xl shadow-xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                            <div>
+                                <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                                    <Users className="w-5 h-5 text-indigo-500" />
+                                    Entes Comerciales - {selectedRamoForList.ramoName}
+                                </h3>
+                                <p className="text-xs text-slate-500 mt-1 font-medium">{selectedRamoForList.clients.length} entes encontrados en este ramo</p>
+                            </div>
+                            <button onClick={() => setSelectedRamoForList(null)} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-400 hover:text-slate-600">
+                                <XCircle className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="p-6 overflow-y-auto flex-1 bg-slate-50/30">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {selectedRamoForList.clients.map((client: any, idx: number) => (
+                                    <div
+                                        key={idx}
+                                        onClick={() => {
+                                            setSelectedRamoForList(null);
+                                            setSelectedEnteForProfile(client);
+                                        }}
+                                        className="group p-4 bg-white rounded-2xl border border-slate-200 shadow-sm hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer"
+                                    >
+                                        <div className="flex justify-between items-start mb-2">
+                                            <span className="text-xs font-bold text-slate-800 line-clamp-2 max-w-[75%] group-hover:text-indigo-700 transition-colors">{client.name}</span>
+                                            <div className="text-right">
+                                                <div className="text-xs font-black text-primary">{currencyFormatter.format(client.primas)}</div>
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-wrap gap-1 mt-3">
+                                            {client.products.slice(0, 4).map((p: string) => (
+                                                <span key={p} className="text-[9px] px-2 py-1 bg-slate-100 text-slate-600 rounded-md font-medium border border-slate-200/50">{p}</span>
+                                            ))}
+                                            {client.products.length > 4 && <span className="text-[9px] px-2 py-1 bg-slate-50 text-slate-400 rounded-md">+{client.products.length - 4}</span>}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal: Ente 360 Profile */}
+            {selectedEnteForProfile && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+                    <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in slide-in-from-bottom-8 duration-300 border border-slate-200/50">
+                        {/* Header */}
+                        <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-start bg-gradient-to-br from-slate-50 to-white relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50 rounded-full blur-3xl -mr-20 -mt-20 opacity-50 pointer-events-none"></div>
+
+                            <div className="relative z-10 w-full pr-8">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <span className="px-2 py-1 bg-indigo-100 text-indigo-700 text-[10px] font-black rounded uppercase tracking-widest">
+                                        Perfil 360
+                                    </span>
+                                    <span className="text-xs font-bold text-slate-400">{selectedEnteForProfile.ramosCount} Ramos Contratados</span>
+                                </div>
+                                <h3 className="text-2xl font-black text-slate-900 leading-tight">
+                                    {selectedEnteForProfile.name}
+                                </h3>
+                                <div className="mt-3 flex gap-4">
+                                    <div className="flex items-center gap-1.5 text-sm font-bold text-slate-600">
+                                        <TrendingUp className="w-4 h-4 text-emerald-500" />
+                                        {currencyFormatter.format(selectedEnteForProfile.primas)} Primas Anuales
+                                    </div>
+                                </div>
+                            </div>
+                            <button onClick={() => setSelectedEnteForProfile(null)} className="relative z-10 p-2 hover:bg-slate-200/50 rounded-full transition-colors text-slate-400 hover:text-slate-700">
+                                <XCircle className="w-6 h-6" />
+                            </button>
+                        </div>
+
+                        <div className="p-8 overflow-y-auto flex-1 bg-slate-50/30 flex flex-col gap-8">
+
+                            {/* Predictive NBA Panel */}
+                            {selectedEnteForProfile.nba ? (
+                                <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
+                                    <div className="flex items-start gap-4 relative z-10">
+                                        <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md">
+                                            <Zap className="w-6 h-6 text-white" />
+                                        </div>
+                                        <div>
+                                            <h4 className="text-xs font-black uppercase tracking-widest text-indigo-100 mb-1">Motor Predictivo (Venta Cruzada)</h4>
+                                            <div className="text-xl font-bold mb-2">Oportunidad: Vender <span className="font-black text-white bg-white/20 px-2 py-0.5 rounded-lg">{selectedEnteForProfile.nba.product}</span></div>
+                                            <div className="flex items-center gap-2 mt-3">
+                                                <span className="bg-emerald-400 text-emerald-950 text-xs font-black px-2.5 py-1 rounded-md">
+                                                    {selectedEnteForProfile.nba.confidence}% de Probabilidad de Éxito
+                                                </span>
+                                                <span className="text-xs text-indigo-100 font-medium flex items-center gap-1">
+                                                    <Info className="w-3.5 h-3.5" />
+                                                    Basado en un {selectedEnteForProfile.nba.reason.toLowerCase()}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="bg-white border border-slate-200 rounded-3xl p-6 flex items-center justify-between shadow-sm">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-emerald-50 rounded-xl"><ShieldCheck className="w-5 h-5 text-emerald-500" /></div>
+                                        <div>
+                                            <h4 className="text-sm font-bold text-slate-800">Alta Vinculación</h4>
+                                            <p className="text-xs text-slate-500">Este ente ya posee múltiples productos estratégicos.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Timeline section */}
+                            <div>
+                                <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2">
+                                    <LayoutList className="w-4 h-4 text-slate-400" />
+                                    Línea Temporal de Productos
+                                </h4>
+
+                                <div className="relative border-l-2 border-slate-200 ml-3 space-y-6 pb-4">
+                                    {selectedEnteForProfile.timeline?.map((item: any, idx: number) => (
+                                        <div key={idx} className="relative pl-6">
+                                            <div className="absolute -left-[5px] top-1.5 w-2 h-2 rounded-full bg-indigo-500 ring-4 ring-indigo-50"></div>
+                                            <div className="bg-white border border-slate-100 shadow-sm rounded-2xl p-4 hover:border-indigo-200 transition-colors">
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <span className="font-bold text-slate-800">{item.producto}</span>
+                                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 bg-slate-100 px-2 py-1 rounded-md">
+                                                        {item.fechaEfecto || 'Fecha Desconocida'}
+                                                    </span>
+                                                </div>
+                                                <span className="text-[10px] text-slate-500 font-medium">Activo</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {(!selectedEnteForProfile.timeline || selectedEnteForProfile.timeline.length === 0) && (
+                                        <div className="pl-6 text-sm text-slate-500 italic">No hay historial temporal disponible para este ente.</div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div >
     );
 }

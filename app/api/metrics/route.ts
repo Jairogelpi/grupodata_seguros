@@ -326,15 +326,8 @@ export async function GET(request: Request) {
                 color: 'purple',
                 description: `El **${pctMono.toFixed(1)}%** de tus clientes tiene un solo producto. Es una base enorme sin explotar. Ofréceles un segundo producto con descuento por vinculación.`
             });
-        } else if (pctMono < 40) {
-            marketingStrategies.push({
-                type: 'EXPANSION',
-                title: 'Cartera Muy Vinculada',
-                color: 'emerald',
-                description: `Excelente trabajo: la mayoría de tus clientes tienen múltiples productos. Enfócate ahora en aumentar el ticket medio con productos premium (Up-selling).`
-            });
         } else {
-            // Generic fallback if neither extreme
+            // Generic fallback if not extreme mono-product
             marketingStrategies.push({
                 type: 'EXPANSION',
                 title: 'Desarrollo de Cliente',
@@ -478,16 +471,54 @@ export async function GET(request: Request) {
                     }
                 }
 
+                // Generate Timeline Data
+                const timelineMap = new Map<string, string>(); // producto -> primera fecha de efecto
+                deduplicatedPolizas.forEach(p => {
+                    const pCode = getPolizaEnteCode(p);
+                    if (pCode === code) {
+                        const prod = p['Producto'] ? String(p['Producto']).trim().toUpperCase() : 'SIN PRODUCTO';
+                        const effectDate = p['F.Efecto'] ? String(p['F.Efecto']) : null;
+                        if (effectDate) {
+                            const existingDate = timelineMap.get(prod);
+
+                            const parsedEffectDate = parseAnyDate(effectDate);
+                            const parsedExistingDate = existingDate ? parseAnyDate(existingDate) : null;
+
+                            if (!existingDate ||
+                                (parsedEffectDate && parsedExistingDate && parsedEffectDate < parsedExistingDate)) {
+                                timelineMap.set(prod, effectDate);
+                            }
+                        }
+                    }
+                });
+
+                const timeline = Array.from(timelineMap.entries())
+                    .map(([producto, fechaEfecto]) => ({ producto, fechaEfecto }))
+                    .sort((a, b) => {
+                        const dateA = parseAnyDate(a.fechaEfecto);
+                        const dateB = parseAnyDate(b.fechaEfecto);
+                        const timeA = dateA ? dateA.getTime() : 0;
+                        const timeB = dateB ? dateB.getTime() : 0;
+                        return timeA - timeB;
+                    });
+
+
                 return {
                     name: codeToNameMap.get(code) || code,
                     primas: b?.primas || 0,
                     products: productsArray,
                     ramosCount: enteRamosMap.get(code)?.size || 0,
+                    timeline, // Include the timeline
                     nba // Add NBA object
                 };
-            }).sort((a, b) => b.primas - a.primas).slice(0, 5); // Just top 5 for UI performance
+            }).sort((a, b) => b.primas - a.primas); // Do NOT slice here yet, keep full list
 
-            return { ...r, entes: r.entes.size, topClients: clientsInRamo };
+            return {
+                ...r,
+                entes: r.entes.size,
+                fullClients: clientsInRamo, // The full list for the modal
+                topClients: clientsInRamo.slice(0, 5) // The truncated list for the initial UI
+            };
         }).sort((a, b) => b.primas - a.primas);
 
         return NextResponse.json({
