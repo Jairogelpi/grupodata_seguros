@@ -20,6 +20,8 @@ export async function GET(request: Request) {
         const meses = parseParam(searchParams.get('mes'));
         const estados = parseParam(searchParams.get('estado'));
         const entesFilter = parseParam(searchParams.get('ente'));
+        const ramosFilter = parseParam(searchParams.get('ramo'));
+        const productosFilter = parseParam(searchParams.get('producto'));
 
         // 1. Read Data (All sources use hybrid storage: disk in dev, Blob in prod)
         const [polizas, links, asesoresList, entesData] = await Promise.all([
@@ -105,6 +107,8 @@ export async function GET(request: Request) {
             const pAnio = String(p['AÑO_PROD'] || '');
             const pMes = String(p['MES_Prod'] || '');
             const pEstado = String(p['Estado'] || '');
+            const producto = String(p['Producto'] || 'Otros'); // Need product for ramo check
+            const ramoName = getRamo(producto);
             const code = getPolizaEnteCode(p);
 
             if (!code) return;
@@ -117,30 +121,31 @@ export async function GET(request: Request) {
             const matchEstado = estados.length === 0 || estados.includes(pEstado);
             const matchAsesor = comerciales.length === 0 || comerciales.includes(pAsesor);
             const matchEnte = entesFilter.length === 0 || entesFilter.includes(pEnteName);
+            const matchRamo = ramosFilter.length === 0 || ramosFilter.includes(ramoName);
+            const matchProducto = productosFilter.length === 0 || productosFilter.includes(producto);
 
             // Cross-Filtering logic: Update options for each filter independently
-            if (matchMes && matchEstado && matchAsesor && matchEnte) {
+            if (matchMes && matchEstado && matchAsesor && matchEnte && matchRamo && matchProducto) {
                 if (pAnio) dynAnios.add(pAnio);
             }
-            if (matchAnio && matchEstado && matchAsesor && matchEnte) {
+            if (matchAnio && matchEstado && matchAsesor && matchEnte && matchRamo && matchProducto) {
                 if (pMes) dynMeses.add(pMes);
             }
-            if (matchAnio && matchMes && matchAsesor && matchEnte) {
+            if (matchAnio && matchMes && matchAsesor && matchEnte && matchRamo && matchProducto) {
                 if (pEstado) dynEstados.add(pEstado);
             }
-            if (matchAnio && matchMes && matchEstado && matchEnte) {
+            if (matchAnio && matchMes && matchEstado && matchEnte && matchRamo && matchProducto) {
                 if (pAsesor) dynAsesores.add(pAsesor);
             }
-            if (matchAnio && matchMes && matchEstado && matchAsesor) {
+            if (matchAnio && matchMes && matchEstado && matchAsesor && matchRamo && matchProducto) {
                 if (pEnteName) dynEntes.add(pEnteName);
             }
 
             // Metrics application: Must match ALL filters
-            if (!matchAnio || !matchMes || !matchEstado || !matchAsesor || !matchEnte) return;
+            if (!matchAnio || !matchMes || !matchEstado || !matchAsesor || !matchEnte || !matchRamo || !matchProducto) return;
 
             const pStr = String(p['P.Produccion'] || '0').replace(',', '.');
             const primas = parseFloat(pStr) || 0;
-            const producto = String(p['Producto'] || 'Otros');
             const company = String(p['Abrev.Cía'] || 'Desconocida').trim();
             const fAnulacion = p['F.Anulación'];
             const motAnulacion = String(p['Mot.Anulación'] || '').trim();
@@ -172,7 +177,6 @@ export async function GET(request: Request) {
             ps.polizas += 1;
 
             // Ramo (depth 1) aggregation
-            const ramoName = getRamo(producto);
             if (!ramoStats.has(ramoName)) ramoStats.set(ramoName, { ramo: ramoName, primas: 0, polizas: 0 });
             const rs = ramoStats.get(ramoName)!;
             rs.primas += primas;

@@ -61,7 +61,9 @@ export default function CarteraPage() {
         ente: [] as string[],
         anio: [] as string[],
         mes: [] as string[],
-        estado: [] as string[]
+        estado: [] as string[],
+        ramo: [] as string[],
+        producto: [] as string[]
     });
 
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' }>({
@@ -78,6 +80,8 @@ export default function CarteraPage() {
             if (filters.anio.length > 0) params.append('anio', filters.anio.join(','));
             if (filters.mes.length > 0) params.append('mes', filters.mes.join(','));
             if (filters.estado.length > 0) params.append('estado', filters.estado.join(','));
+            if (filters.ramo.length > 0) params.append('ramo', filters.ramo.join(','));
+            if (filters.producto.length > 0) params.append('producto', filters.producto.join(','));
 
             const res = await fetch(`/api/metrics?${params.toString()}`);
             if (!res.ok) throw new Error('Failed to fetch metrics');
@@ -103,6 +107,31 @@ export default function CarteraPage() {
     useEffect(() => {
         fetchMetrics();
     }, [filters]);
+
+    // Handle interactive chart/table clicks
+    const toggleFilter = (type: 'ramo' | 'producto', value: string) => {
+        setFilters(prev => {
+            const current = type === 'ramo' ? prev.ramo : prev.producto;
+            const exists = current.includes(value);
+            const newValues = exists ? current.filter(v => v !== value) : [...current, value];
+
+            // If selecting a Ramo, optionally switch view to Product to see breakdown
+            if (type === 'ramo' && !exists) {
+                setMixDepth('producto');
+            }
+
+            return { ...prev, [type]: newValues };
+        });
+    };
+
+    const handleChartClick = (event: any, elements: any, chart: any) => {
+        if (elements.length > 0) {
+            const index = elements[0].index;
+            const label = chart.data.labels[index];
+            if (label === 'Otros') return;
+            toggleFilter(mixDepth, label);
+        }
+    };
 
     const handleFilterChange = (key: keyof typeof filters, selected: string[]) => {
         setFilters(prev => ({ ...prev, [key]: selected }));
@@ -220,18 +249,24 @@ export default function CarteraPage() {
         const labels = top.map(p => p.name);
         const values = top.map(p => p.primas);
 
+        // Parallel arrays for tooltip data
+        const polizas = top.map(p => p.polizas);
+
         if (restTotal > 0) {
             labels.push('Otros');
             values.push(restTotal);
+            polizas.push(rest.reduce((sum, r) => sum + r.polizas, 0));
         }
 
         return {
             labels,
             datasets: [{
                 data: values,
+                // Extra data for tooltip
+                polizas: polizas,
                 backgroundColor: DONUT_COLORS.slice(0, labels.length),
                 borderWidth: 2,
-                borderColor: '#fff'
+                borderColor: '#ffffff',
             }]
         };
     };
@@ -239,18 +274,44 @@ export default function CarteraPage() {
     const donutOptions = {
         responsive: true,
         maintainAspectRatio: false,
+        onClick: handleChartClick, // Enabling click interaction
         plugins: {
             legend: {
                 position: 'bottom' as const,
-                labels: { boxWidth: 10, font: { size: 9 }, padding: 10 }
+                labels: { boxWidth: 10, font: { size: 9 }, padding: 10, usePointStyle: true }
+            },
+            datalabels: {
+                formatter: (val: number, ctx: any) => {
+                    const total = ctx.dataset.data.reduce((a: number, b: number) => a + b, 0);
+                    const pct = total > 0 ? (val / total * 100) : 0;
+                    // Only show if > 4% to avoid clutter
+                    if (pct < 4) return null;
+                    return Math.round(pct) + '%';
+                },
+                color: '#fff',
+                font: { weight: 'bold' as const, size: 10 },
+                align: 'center' as const,
+                anchor: 'center' as const,
             },
             tooltip: {
+                backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                padding: 12,
+                titleFont: { size: 13 },
+                bodyFont: { size: 12 },
                 callbacks: {
                     label: (context: any) => {
                         const val = context.raw;
                         const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
                         const pct = total > 0 ? ((val / total) * 100).toFixed(1) : '0';
-                        return `${context.label}: ${currencyFormatter.format(val)} (${pct}%)`;
+                        return `${context.label}: ${pct}%`;
+                    },
+                    afterLabel: (context: any) => {
+                        const val = context.raw;
+                        const polizasCount = context.dataset.polizas[context.dataIndex];
+                        return [
+                            `Primas: ${currencyFormatter.format(val)}`,
+                            `Pólizas: ${numberFormatter.format(polizasCount)}`
+                        ];
                     }
                 }
             }
@@ -264,9 +325,11 @@ export default function CarteraPage() {
         if (filters.anio.length > 0) params.append('anio', filters.anio.join(','));
         if (filters.mes.length > 0) params.append('mes', filters.mes.join(','));
         if (filters.estado.length > 0) params.append('estado', filters.estado.join(','));
+        if (filters.ramo.length > 0) params.append('ramo', filters.ramo.join(',')); // Add global ramo filter
+        if (filters.producto.length > 0) params.append('producto', filters.producto.join(',')); // Add global product filter
 
         if (mixDepth === 'ramo') {
-            params.append('ramo', item);
+            params.append('ramo', item); // Specific item override/add
         } else {
             params.append('producto', item);
         }
@@ -309,22 +372,21 @@ export default function CarteraPage() {
                     <MultiSelect label="Mes" options={filterOptions.meses} selected={filters.mes} onChange={(val) => handleFilterChange('mes', val)} />
                     <MultiSelect label="Estado" options={filterOptions.estados} selected={filters.estado} onChange={(val) => handleFilterChange('estado', val)} />
                 </div>
-            </div>
-
-            {/* Capa Superior: Ramo Cards - Stylized like Evolution page */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                {ramosBreakdown.sort((a, b) => b.primas - a.primas).map((ramo, idx) => (
-                    <div key={idx} className="bg-slate-50/50 rounded-xl p-4 border border-slate-100 h-full transition-all hover:border-primary/20 hover:shadow-md group/card">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate">{ramo.ramo}</p>
-                        <p className="text-xl font-extrabold text-slate-900 mt-1 transition-transform origin-left group-hover/card:scale-105">{currencyFormatter.format(ramo.primas).replace(",00", "")}</p>
-                        <div className="flex justify-between items-center mt-2 pt-2 border-t border-slate-100">
-                            <span className="text-[10px] font-medium text-slate-500">{numberFormatter.format(ramo.polizas)} pólizas</span>
-                            <span className="text-[10px] font-bold text-primary bg-primary/5 px-1.5 py-0.5 rounded">
-                                {((ramo.primas / (ramosBreakdown.reduce((s, r) => s + r.primas, 0) || 1)) * 100).toFixed(0)}%
+                {(filters.ramo.length > 0 || filters.producto.length > 0) && (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                        {filters.ramo.map(r => (
+                            <span key={r} onClick={() => toggleFilter('ramo', r)} className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 cursor-pointer hover:bg-indigo-100">
+                                Ramo: {r} <span className="text-indigo-400">×</span>
                             </span>
-                        </div>
+                        ))}
+                        {filters.producto.map(p => (
+                            <span key={p} onClick={() => toggleFilter('producto', p)} className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-purple-50 text-purple-700 cursor-pointer hover:bg-purple-100">
+                                Producto: {p} <span className="text-purple-400">×</span>
+                            </span>
+                        ))}
+                        <button onClick={() => setFilters(prev => ({ ...prev, ramo: [], producto: [] }))} className="text-xs text-slate-400 hover:text-slate-600 underline">Limpiar filtros interactivos</button>
                     </div>
-                ))}
+                )}
             </div>
 
             {/* Main Distribution Chart & Inline Table */}
@@ -381,8 +443,13 @@ export default function CarteraPage() {
                                 {activeMixData.sort((a, b) => b.primas - a.primas).slice(0, 10).map((p, i) => {
                                     const totalPrimas = activeMixData.reduce((s, x) => s + x.primas, 0);
                                     const pct = totalPrimas > 0 ? ((p.primas / totalPrimas) * 100).toFixed(1) : '0';
+                                    const isSelected = mixDepth === 'ramo' ? filters.ramo.includes(p.name) : filters.producto.includes(p.name);
                                     return (
-                                        <tr key={i} className="hover:bg-slate-50 transition-colors group/row">
+                                        <tr
+                                            key={i}
+                                            onClick={() => toggleFilter(mixDepth, p.name)}
+                                            className={`transition-colors cursor-pointer group/row ${isSelected ? 'bg-indigo-50/50' : 'hover:bg-slate-50'}`}
+                                        >
                                             <td className="p-3 font-semibold text-slate-700 flex items-center gap-3">
                                                 <div className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: DONUT_COLORS[i % DONUT_COLORS.length] }} />
                                                 <span className="truncate max-w-[120px] md:max-w-none uppercase tracking-tight text-xs">{p.name}</span>
@@ -392,7 +459,8 @@ export default function CarteraPage() {
                                             <td className="p-3 text-right font-bold text-slate-400 text-xs">{pct}%</td>
                                             <td className="p-3 text-right no-print">
                                                 <button
-                                                    onClick={() => {
+                                                    onClick={(e) => {
+                                                        e.stopPropagation(); // Prevent row click
                                                         const url = `/polizas/listado?${getFilterParams(p.name)}`;
                                                         window.location.href = url;
                                                     }}
