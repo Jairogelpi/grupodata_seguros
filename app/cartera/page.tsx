@@ -424,9 +424,11 @@ export default function CarteraPage() {
     };
 
     const statusHealthOptions = {
+        indexAxis: 'y' as const,
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
+            datalabels: { display: false },
             legend: { display: false },
             tooltip: {
                 callbacks: {
@@ -435,8 +437,8 @@ export default function CarteraPage() {
             }
         },
         scales: {
-            x: { grid: { display: false }, ticks: { font: { size: 9 } } },
-            y: { ticks: { font: { size: 9 } } }
+            x: { display: false },
+            y: { ticks: { font: { size: 9, weight: 'bold' as const } }, grid: { display: false } }
         }
     };
 
@@ -778,13 +780,13 @@ export default function CarteraPage() {
                 <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
                     <h2 className="text-lg font-bold text-slate-800 flex items-center gap-3 tracking-tight mb-4"><LayoutList className="w-4 h-4 text-indigo-500" /> Venta Cruzada</h2>
                     <div className="h-[100px]">
-                        {advancedMetrics ? <Bar data={crossSellData} options={{ responsive: true, maintainAspectRatio: false, indexAxis: 'y' as const, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { grid: { display: false }, ticks: { font: { size: 9 } } } } }} /> : <div className="h-full w-full bg-slate-50 animate-pulse rounded-2xl" />}
+                        {advancedMetrics ? <Bar data={crossSellData} options={{ indexAxis: 'y' as const, responsive: true, maintainAspectRatio: false, plugins: { datalabels: { display: false }, legend: { display: false } }, scales: { x: { display: false }, y: { grid: { display: false }, ticks: { font: { size: 9, weight: 'bold' } } } } }} /> : <div className="h-full w-full bg-slate-50 animate-pulse rounded-2xl" />}
                     </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                         <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-3"><TrendingUp className="w-4 h-4 text-red-500" /> Vida Media</h3>
-                        <div className="h-[100px]"><Bar data={survivalData} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { ticks: { font: { size: 8 } } } } }} /></div>
+                        <div className="h-[100px]"><Bar data={survivalData} options={{ indexAxis: 'y' as const, responsive: true, maintainAspectRatio: false, plugins: { datalabels: { display: false }, legend: { display: false } }, scales: { x: { display: false }, y: { grid: { display: false }, ticks: { font: { size: 8, weight: 'bold' } } } } }} /></div>
                     </div>
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                         <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-3"><ShieldCheck className="w-4 h-4 text-emerald-500" /> Salud por Estado</h3>
@@ -792,7 +794,7 @@ export default function CarteraPage() {
                     </div>
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                         <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-3"><XCircle className="w-4 h-4 text-slate-500" /> Por Ramo (Sin Efecto)</h3>
-                        <div className="h-[100px]"><Bar data={sinEfectoChartData} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { ticks: { font: { size: 8 }, precision: 0 } } } }} /></div>
+                        <div className="h-[100px]"><Bar data={sinEfectoChartData} options={{ indexAxis: 'y' as const, responsive: true, maintainAspectRatio: false, plugins: { datalabels: { display: false }, legend: { display: false } }, scales: { x: { display: false }, y: { grid: { display: false }, ticks: { font: { size: 8, weight: 'bold' }, precision: 0 } } } }} /></div>
                     </div>
                 </div>
             </div>
@@ -808,7 +810,7 @@ export default function CarteraPage() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-0 divide-x divide-y divide-slate-100">
-                    {advancedMetrics?.ramosBreakdown?.map((ramo: any) => (
+                    {ramosBreakdown?.map((ramo: any) => (
                         <div key={ramo.ramo} className="p-6 hover:bg-slate-50/50 transition-colors">
                             <div className="flex justify-between items-start mb-4">
                                 <div>
