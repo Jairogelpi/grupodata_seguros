@@ -325,14 +325,14 @@ export default function CarteraPage() {
     };
 
     const paretoOptions = {
-        indexAxis: 'y' as const, // Forzar orientación horizontal
+        indexAxis: 'x' as const, // Standard Vertical Bars
         responsive: true,
         maintainAspectRatio: false,
         layout: {
-            padding: { left: 10, right: 10, top: 0, bottom: 0 }
+            padding: { left: 0, right: 0, top: 20, bottom: 0 }
         },
         plugins: {
-            datalabels: { display: false }, // OCULTAR NÚMEROS EN BARRAS
+            datalabels: { display: false },
             legend: { position: 'bottom' as const, labels: { boxWidth: 10, font: { size: 10, weight: 'bold' as const } } },
             tooltip: {
                 backgroundColor: 'rgba(15, 23, 42, 0.9)',
@@ -349,17 +349,25 @@ export default function CarteraPage() {
             }
         },
         scales: {
-            y: {
-                display: true, // Mostrar nombres de clientes
+            x: {
+                display: true, // Labels on Bottom
                 grid: { display: false },
                 ticks: {
                     autoSkip: false,
-                    font: { size: 10, weight: 'bold' as const },
+                    maxRotation: 45,
+                    minRotation: 45,
+                    font: { size: 9, weight: 'bold' as const }, // Smaller font for vertical labels
                     color: '#475569'
                 }
             },
-            y1: { display: false }, // Ocultar eje acumulado
-            x: { display: false }, // Ocultar eje numérico X
+            y: {
+                display: false, // Clean look
+            },
+            y1: {
+                display: false,
+                position: 'right' as const,
+                grid: { display: false }
+            }
         }
     };
 
