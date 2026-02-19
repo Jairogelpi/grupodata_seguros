@@ -217,13 +217,35 @@ export async function GET(request: Request) {
         });
 
         const crossSellingCounts = { 1: 0, 2: 0, '3+': 0 };
+        const pairFreq = new Map<string, number>(); // Simple association frequency
         let totalEntesWithPolizas = 0, totalRamosCoverage = 0;
+
         enteRamosMap.forEach((ramos) => {
             totalEntesWithPolizas++;
             const count = ramos.size;
             totalRamosCoverage += count;
-            if (count === 1) crossSellingCounts[1]++; else if (count === 2) crossSellingCounts[2]++; else crossSellingCounts['3+']++;
+            if (count === 1) crossSellingCounts[1]++;
+            else if (count === 2) crossSellingCounts[2]++;
+            else crossSellingCounts['3+']++;
+
+            // Calculate pairs for NBA argument
+            const ramosArr = Array.from(ramos);
+            for (let i = 0; i < ramosArr.length; i++) {
+                for (let j = i + 1; j < ramosArr.length; j++) {
+                    const pair = [ramosArr[i], ramosArr[j]].sort().join(' + ');
+                    pairFreq.set(pair, (pairFreq.get(pair) || 0) + 1);
+                }
+            }
         });
+
+        // Find Top Pair for NBA Argument
+        const topPairEntry = Array.from(pairFreq.entries()).sort((a, b) => b[1] - a[1])[0];
+        const topNBA = topPairEntry ? {
+            pair: topPairEntry[0],
+            count: topPairEntry[1],
+            description: `El binomio ${topPairEntry[0]} es tu éxito histórico más repetido (${topPairEntry[1]} casos). Úsalo para convertir a la Larga Cola.`
+        } : null;
+
         const crossSellRatio = totalEntesWithPolizas > 0 ? totalRamosCoverage / totalEntesWithPolizas : 0;
 
         const entesSortedByPrimas = Array.from(breakdownMap.values()).sort((a, b) => b.primas - a.primas);
@@ -275,6 +297,8 @@ export async function GET(request: Request) {
                 polizasSinEfecto
             },
             advanced: {
+                totalEntes: paretoData.length,
+                topNBA,
                 crossSellingDistribution: crossSellingCounts,
                 paretoData: paretoData.slice(0, 50),
                 survivalByRamo: Array.from(survivalStats.entries()).map(([ramo, stats]) => ({

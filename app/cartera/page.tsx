@@ -646,18 +646,101 @@ export default function CarteraPage() {
 
             {/* Strategic Analysis Section */}
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 no-print">
-                <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
-                    <h2 className="text-xl font-bold text-slate-800 flex items-center gap-3 tracking-tight mb-6">
-                        <div className="p-2 bg-amber-50 rounded-lg"><Zap className="w-5 h-5 text-amber-500" /></div>
-                        Concentración Pareto (80/20)
-                    </h2>
-                    <div className="h-[300px]">
-                        {advancedMetrics?.paretoData ? <Chart type="bar" data={generateParetoData()} options={paretoOptions as any} /> : <div className="h-full w-full bg-slate-50 animate-pulse rounded-2xl" />}
+                {/* Concentration & Pareto Analysis */}
+                <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
+                    <div className="flex items-center justify-between mb-8">
+                        <h2 className="text-xl font-bold text-slate-800 flex items-center gap-3 tracking-tight">
+                            <div className="p-2 bg-amber-50 rounded-lg"><Zap className="w-5 h-5 text-amber-500" /></div>
+                            Análisis de Concentración (Pareto)
+                        </h2>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+                        {/* Dynamic Insights - Left Side */}
+                        <div className="lg:col-span-2 space-y-6">
+                            {advancedMetrics?.paretoData ? (
+                                (() => {
+                                    const data = advancedMetrics.paretoData;
+                                    const totalEntes = advancedMetrics.totalEntes || 0;
+                                    const criticalIdx = data.findIndex((d: any) => d.cumulativePct >= 80);
+                                    const vips = criticalIdx !== -1 ? criticalIdx + 1 : 0;
+                                    const concentrationPct = totalEntes > 0 ? (vips / totalEntes) * 100 : 0;
+
+                                    const isRisky = concentrationPct > 0 && concentrationPct < 15;
+                                    const isResilient = concentrationPct > 25;
+
+                                    return (
+                                        <div className="space-y-6 animate-in fade-in slide-in-from-left duration-700">
+                                            <div className={`p-4 rounded-2xl border-l-4 shadow-sm ${isRisky ? 'bg-red-50 border-red-500' : isResilient ? 'bg-emerald-50 border-emerald-500' : 'bg-blue-50 border-blue-500'}`}>
+                                                <h4 className={`text-xs font-black uppercase tracking-wider ${isRisky ? 'text-red-700' : isResilient ? 'text-emerald-700' : 'text-blue-700'}`}>
+                                                    {isRisky ? 'Riesgo Alto de Concentración' : isResilient ? 'Cartera Resiliente y Atomizada' : 'Distribución Equilibrada'}
+                                                </h4>
+                                                <p className="text-[11px] text-slate-600 mt-2 leading-relaxed font-medium">
+                                                    {vips} de tus clientes generan el 80% de tus ingresos.
+                                                    {isRisky ? ' Tu facturación depende de un grupo muy reducido; fidelizarlos es crítico.' : ' Tienes un modelo robusto donde la pérdida de un ente no compromete el total.'}
+                                                </p>
+                                            </div>
+
+                                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex gap-4">
+                                                <div className="p-2 bg-indigo-50 rounded-xl h-min"><Zap className="w-4 h-4 text-primary" /></div>
+                                                <div>
+                                                    <h4 className="text-xs font-bold text-slate-800 uppercase flex items-center gap-2">
+                                                        Estrategia "Larga Cola"
+                                                    </h4>
+                                                    <p className="text-[11px] text-slate-500 mt-2 leading-relaxed">
+                                                        Hay **{(totalEntes - vips)} clientes** con potencial de cruce.
+                                                        {advancedMetrics.topNBA ? (
+                                                            <span> {advancedMetrics.topNBA.description}</span>
+                                                        ) : (
+                                                            ' Utiliza campañas de Venta Cruzada para diversificar y aumentar su valor.'
+                                                        )}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })()
+                            ) : (
+                                <div className="space-y-4">
+                                    <div className="h-24 bg-slate-50 animate-pulse rounded-2xl" />
+                                    <div className="h-24 bg-slate-50 animate-pulse rounded-2xl" />
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Chart - Right Side (Horizontal & Minimalist) */}
+                        <div className="lg:col-span-3 h-[280px]">
+                            {advancedMetrics?.paretoData ? (
+                                <Chart
+                                    type="bar"
+                                    data={generateParetoData()}
+                                    options={{
+                                        ...paretoOptions,
+                                        indexAxis: 'y',
+                                        // Remove numbers from axes as requested
+                                        scales: {
+                                            x: { display: false },
+                                            y: {
+                                                display: true,
+                                                grid: { display: false },
+                                                ticks: {
+                                                    font: { size: 9, weight: 'bold' },
+                                                    color: '#94a3b8'
+                                                }
+                                            },
+                                            y1: { display: false }
+                                        }
+                                    } as any}
+                                />
+                            ) : (
+                                <div className="h-full w-full bg-slate-50 animate-pulse rounded-2xl" />
+                            )}
+                        </div>
                     </div>
                 </div>
 
                 <div className="grid grid-cols-1 gap-8">
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
                         <h2 className="text-lg font-bold text-slate-800 flex items-center gap-3 tracking-tight mb-4"><LayoutList className="w-4 h-4 text-indigo-500" /> Venta Cruzada</h2>
                         <div className="h-[100px]">
                             {advancedMetrics ? <Bar data={crossSellData} options={{ responsive: true, maintainAspectRatio: false, indexAxis: 'y' as const, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { grid: { display: false }, ticks: { font: { size: 9 } } } } }} /> : <div className="h-full w-full bg-slate-50 animate-pulse rounded-2xl" />}
@@ -681,7 +764,7 @@ export default function CarteraPage() {
             </div>
 
             {/* Detailed Table */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden no-print">
+            <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden no-print">
                 <div className="px-8 py-5 border-b border-slate-200 bg-slate-50/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 text-slate-800">
                     <h3 className="text-lg font-extrabold flex items-center gap-3 tracking-tight">
                         <div className="p-2 bg-indigo-50 rounded-lg text-indigo-600"><Package className="w-5 h-5" /></div>
