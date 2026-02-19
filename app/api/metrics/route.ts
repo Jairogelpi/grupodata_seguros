@@ -265,7 +265,10 @@ export async function GET(request: Request) {
                 numAsesores: c.asesores.size,
                 ticketMedio: c.polizas > 0 ? c.primas / c.polizas : 0
             })).sort((a, b) => b.primas - a.primas),
-            productosBreakdown: Array.from(productStats.values()).sort((a, b) => b.primas - a.primas),
+            productosBreakdown: Array.from(productStats.values()).map(p => ({
+                ...p,
+                ticketMedio: p.polizas > 0 ? p.primas / p.polizas : 0
+            })).sort((a, b) => b.primas - a.primas),
             ramosBreakdown: Array.from(ramoStats.values()).sort((a, b) => b.primas - a.primas),
             estadosBreakdown: Array.from(estadoStats.values()).sort((a, b) => b.polizas - a.polizas),
             cancellationReasons: Array.from(cancellationReasons.entries()).map(([reason, count]) => ({ reason, count })).sort((a, b) => b.count - a.count)

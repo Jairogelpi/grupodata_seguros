@@ -26,6 +26,7 @@ interface ProductBreakdownItem {
     primas: number;
     polizas: number;
     ramo?: string;
+    ticketMedio?: number;
 }
 
 interface RamoBreakdownItem {
@@ -42,11 +43,13 @@ interface FilterOptions {
     entes: string[];
 }
 
-type SortKey = 'producto' | 'primas' | 'polizas' | 'ramo';
+type SortKey = 'producto' | 'primas' | 'polizas' | 'ramo' | 'ticketMedio';
 
 export default function CarteraPage() {
     const [productosBreakdown, setProductosBreakdown] = useState<ProductBreakdownItem[]>([]);
     const [ramosBreakdown, setRamosBreakdown] = useState<RamoBreakdownItem[]>([]);
+    const [cancellationReasons, setCancellationReasons] = useState<{ reason: string; count: number }[]>([]);
+    const [metrics, setMetrics] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [filterOptions, setFilterOptions] = useState<FilterOptions>({
         anios: [],
@@ -97,6 +100,8 @@ export default function CarteraPage() {
 
             setProductosBreakdown(prodsWithRamos);
             setRamosBreakdown(data.ramosBreakdown || []);
+            setCancellationReasons(data.cancellationReasons || []);
+            setMetrics(data.metrics);
         } catch (error) {
             console.error(error);
         } finally {
@@ -153,7 +158,10 @@ export default function CarteraPage() {
         if (key === 'ramo') {
             return direction === 'asc' ? (a.ramo || '').localeCompare(b.ramo || '') : (b.ramo || '').localeCompare(a.ramo || '');
         }
-        return direction === 'asc' ? a[key] - b[key] : b[key] - a[key];
+        // Handle numeric fields
+        const x = Number(a[key]) || 0;
+        const y = Number(b[key]) || 0;
+        return direction === 'asc' ? x - y : y - x;
     });
 
     const SortIcon = ({ col }: { col: SortKey }) => {
@@ -385,6 +393,25 @@ export default function CarteraPage() {
                 </div>
             </div>
 
+            {/* Top Cancellation Reasons Widget */}
+            {cancellationReasons.length > 0 && (
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 no-print">
+                    <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-4">
+                        <AlertCircle className="w-5 h-5 text-red-500" />
+                        Top Motivos de Anulación
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                        {cancellationReasons.slice(0, 5).map((reason, idx) => (
+                            <div key={idx} className="bg-slate-50 border border-slate-100 p-3 rounded-lg flex flex-col">
+                                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">#{idx + 1}</span>
+                                <span className="text-sm font-bold text-slate-800 truncate" title={reason.reason}>{reason.reason || 'Sin Motivo'}</span>
+                                <span className="text-xs text-slate-500 font-medium mt-1">{reason.count} anulaciones</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             {/* Main Distribution Chart & Inline Table */}
             <div className="bg-white p-8 print:p-6 rounded-2xl shadow-sm border border-slate-200 break-inside-avoid">
                 <div className="flex items-center justify-between mb-8">
@@ -417,6 +444,17 @@ export default function CarteraPage() {
                         ) : (
                             <div className="h-full w-full bg-slate-50 animate-pulse rounded-2xl flex items-center justify-center text-slate-400 font-medium">Cargando distribución...</div>
                         )}
+                        {/* Summary in center of doughnut */}
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none hidden md:block" style={{ marginTop: '10px' }}>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Primas</p>
+                            <p className="text-lg font-extrabold text-slate-900">{currencyFormatter.format(activeMixData.reduce((s, d) => s + d.primas, 0)).split(',')[0]}€</p>
+                            {metrics && metrics.primasTrend !== undefined && metrics.primasTrend !== 0 && (
+                                <div className={`flex items-center justify-center gap-1 text-[10px] font-bold mt-1 ${metrics.primasTrend >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                                    {metrics.primasTrend >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingUp className="w-3 h-3 rotate-180" />}
+                                    {Math.abs(metrics.primasTrend).toFixed(1)}% vs Prev.
+                                </div>
+                            )}
+                        </div>
                     </div>
 
                     <div className="overflow-x-auto">
@@ -516,6 +554,9 @@ export default function CarteraPage() {
                                 <th onClick={() => handleSort('primas')} className="px-8 py-4 text-right text-[11px] font-black text-slate-400 uppercase tracking-[0.1em] cursor-pointer hover:text-primary transition-colors">
                                     <span className="flex items-center justify-end">Primas (€) <SortIcon col="primas" /></span>
                                 </th>
+                                <th onClick={() => handleSort('ticketMedio')} className="px-8 py-4 text-right text-[11px] font-black text-slate-400 uppercase tracking-[0.1em] cursor-pointer hover:text-primary transition-colors">
+                                    <span className="flex items-center justify-end">Prima Media (€) <SortIcon col="ticketMedio" /></span>
+                                </th>
                                 <th className="px-8 py-4 text-right text-[11px] font-black text-slate-400 uppercase tracking-[0.1em]">Peso</th>
                                 <th className="px-8 py-4 text-right text-[11px] font-black text-slate-400 uppercase tracking-[0.1em] no-print">Acción</th>
                             </tr>
@@ -535,6 +576,7 @@ export default function CarteraPage() {
                                         <td className="px-8 py-5 whitespace-nowrap text-sm font-bold text-slate-800">{item.producto}</td>
                                         <td className="px-8 py-5 whitespace-nowrap text-sm text-slate-500 text-right font-mono">{numberFormatter.format(item.polizas)}</td>
                                         <td className="px-8 py-5 whitespace-nowrap text-sm text-primary text-right font-black font-mono tracking-tight">{currencyFormatter.format(item.primas)}</td>
+                                        <td className="px-8 py-5 whitespace-nowrap text-sm text-indigo-600 text-right font-bold font-mono bg-indigo-50/30">{currencyFormatter.format(item.ticketMedio || 0)}</td>
                                         <td className="px-8 py-5 whitespace-nowrap text-[11px] text-slate-400 text-right font-bold bg-slate-50/20">
                                             {pct}%
                                         </td>
