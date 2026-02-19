@@ -9,7 +9,7 @@
 import * as XLSX from 'xlsx';
 import fs from 'fs';
 import path from 'path';
-import { put, list, del } from '@vercel/blob';
+
 
 const DATA_DIR = 'C:\\Users\\jairo.gelpi\\Desktop\\metricas_carlos\\data';
 const IS_PRODUCTION = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production';
@@ -97,12 +97,24 @@ function readFromDisk(filename: string): any[] {
 }
 
 // ============================================================
-// VERCEL BLOB IMPLEMENTATION
+// SUPABASE STORAGE IMPLEMENTATION
 // ============================================================
-const BLOB_PREFIX = ''; // Files are at root of Blob store
+import { createClient } from '@supabase/supabase-js';
+
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const BUCKET_NAME = 'metrics';
+
+// Initialize Supabase only if keys are present (prevents crash in some envs)
+const supabase = (SUPABASE_URL && SUPABASE_KEY)
+    ? createClient(SUPABASE_URL, SUPABASE_KEY)
+    : null;
 
 async function readFromBlob(filename: string): Promise<any[]> {
-    const blobPath = BLOB_PREFIX + filename;
+    if (!supabase) {
+        console.error('[Storage:Supabase] Missing credentials. Returning empty.');
+        return [];
+    }
 
     // Check in-memory cache first
     const cached = blobCache[filename];
@@ -111,50 +123,58 @@ async function readFromBlob(filename: string): Promise<any[]> {
     }
 
     try {
-        // List blobs to find our file
-        const { blobs } = await list({ prefix: blobPath });
-        const blob = blobs.find(b => b.pathname === blobPath);
+        const { data, error } = await supabase.storage
+            .from(BUCKET_NAME)
+            .download(filename);
 
-        if (!blob) {
-            console.log(`[Storage:Blob] File ${filename} not found in Blob. Returning empty.`);
+        if (error) {
+            console.log(`[Storage:Supabase] File ${filename} not found or error:`, error.message);
             return [];
         }
 
-        // Download the blob content (bypass Next.js cache)
-        const response = await fetch(blob.url, { cache: 'no-store' });
-        const arrayBuffer = await response.arrayBuffer();
+        const arrayBuffer = await data.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
 
         // Parse Excel
         const workbook = XLSX.read(buffer, { type: 'buffer' });
-        const data = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]) as any[];
+        const sheetName = workbook.SheetNames[0];
+        if (!sheetName) return [];
+
+        const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]) as any[];
 
         // Update cache
-        blobCache[filename] = { data, timestamp: Date.now() };
-        console.log(`[Storage:Blob] Loaded ${filename} from Blob (${data.length} rows)`);
-        return data;
+        blobCache[filename] = { data: sheetData, timestamp: Date.now() };
+        console.log(`[Storage:Supabase] Loaded ${filename} (${sheetData.length} rows)`);
+        return sheetData;
     } catch (error) {
-        console.error(`[Storage:Blob] Error reading ${filename}:`, error);
+        console.error(`[Storage:Supabase] Error reading ${filename}:`, error);
         return [];
     }
 }
 
 async function writeToBlob(filename: string, buffer: Buffer): Promise<void> {
-    const blobPath = BLOB_PREFIX + filename;
+    if (!supabase) {
+        throw new Error('[Storage:Supabase] Missing credentials.');
+    }
 
     try {
-        // Upload (overwrite if exists)
-        await put(blobPath, buffer, {
-            access: 'public',
-            addRandomSuffix: false,
-            allowOverwrite: true,
-        });
+        // Upload (upsert: true overwrites)
+        const { error } = await supabase.storage
+            .from(BUCKET_NAME)
+            .upload(filename, buffer, {
+                contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                upsert: true,
+            });
 
-        // Invalidate ALL cache so every file reloads fresh
+        if (error) {
+            throw error;
+        }
+
+        // Invalidate ALL cache
         Object.keys(blobCache).forEach(key => delete blobCache[key]);
-        console.log(`[Storage:Blob] Uploaded ${filename} to Blob — all cache cleared`);
+        console.log(`[Storage:Supabase] Uploaded ${filename} — cache cleared`);
     } catch (error) {
-        console.error(`[Storage:Blob] Error writing ${filename}:`, error);
+        console.error(`[Storage:Supabase] Error writing ${filename}:`, error);
         throw error;
     }
 }
@@ -163,7 +183,15 @@ async function writeToBlob(filename: string, buffer: Buffer): Promise<void> {
  * Sync: Upload all local data files to Blob (one-time setup helper)
  */
 export async function syncLocalToBlob(): Promise<string[]> {
-    const files = ['listado_polizas.xlsx', 'entes.xlsx', 'entes_registrados_asesor.xlsx', 'lista_asesores.xlsx'];
+    const files = [
+        'listado_polizas.xlsx',
+        'entes.xlsx',
+        'entes_registrados_asesor.xlsx',
+        'lista_asesores.xlsx',
+        'lista_anos.xlsx',
+        'lista_meses.xlsx',
+        'lista_estados.xlsx'
+    ];
     const synced: string[] = [];
 
     for (const file of files) {
