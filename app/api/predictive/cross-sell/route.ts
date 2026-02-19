@@ -158,7 +158,7 @@ export async function GET(request: Request) {
         const sortedRules = rules.sort((a, b) => b.lift - a.lift || b.confidence - a.confidence);
 
         return NextResponse.json({
-            rules: sortedRules.slice(0, 50),
+            rules: sortedRules,
             stats: {
                 totalTransactions,
                 avgConfidence: sortedRules.length > 0 ? sortedRules.reduce((sum, r) => sum + r.confidence, 0) / sortedRules.length : 0,

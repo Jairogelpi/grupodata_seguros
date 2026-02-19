@@ -166,7 +166,7 @@ export async function GET(request: Request) {
             .sort((a, b) => b.score - a.score);
 
         return NextResponse.json({
-            riskList: sortedRisk.slice(0, 50),
+            riskList: sortedRisk,
             stats: {
                 avgChurn,
                 totalActive: active.length,

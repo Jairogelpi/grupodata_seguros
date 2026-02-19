@@ -311,8 +311,8 @@ export default function PredictivePage() {
                                 <History className="w-4 h-4 text-emerald-500" />
                             </div>
                             <div className="mt-4">
-                                <span className="text-2xl font-black text-emerald-600 tracking-tight">Top 50</span>
-                                <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Revisión Recomendada</p>
+                                <span className="text-2xl font-black text-emerald-600 tracking-tight">{churnList.length}</span>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Pólizas en Revisión</p>
                             </div>
                         </div>
                     </div>
