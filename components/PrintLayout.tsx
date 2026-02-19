@@ -1,12 +1,19 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 
 export default function PrintLayout() {
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
     return (
         <div className="hidden print:block pointer-events-none z-50">
-            {/* CSS for page numbers */}
-            <style jsx global>{`
+            {/* CSS for page numbers - moved to a standard style tag to avoid hydration issues with styled-jsx hashes */}
+            <style dangerouslySetInnerHTML={{
+                __html: `
                 @media print {
                     @page {
                         margin: 0;
@@ -98,7 +105,7 @@ export default function PrintLayout() {
                         page-break-inside: avoid;
                     }
                 }
-            `}</style>
+            `}} />
 
             {/* Header Structure for Print */}
             <div className="print-header hidden print:flex justify-between items-center border-b-2 border-primary/20">
@@ -123,7 +130,10 @@ export default function PrintLayout() {
             {/* Footer Structure for Print */}
             <div className="print-footer hidden print:flex justify-between items-end border-t border-slate-200">
                 <div className="text-[9px] text-slate-400">
-                    <p>Documento generado el {new Date().toLocaleDateString('es-ES')} a las {new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</p>
+                    <p>
+                        Documento generado el {mounted ? new Date().toLocaleDateString('es-ES') : ''}
+                        a las {mounted ? new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : ''}
+                    </p>
                     <p className="mt-0.5">Confidencial - Propiedad de Grupo Data Seguros</p>
                 </div>
                 <div className="text-right text-[9px] text-slate-400">

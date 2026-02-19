@@ -96,8 +96,8 @@ export async function GET(request: Request) {
         const ramosMix = new Map<string, { primas: number; polizas: number }>();
 
         polizas.forEach(p => {
-            const name = String(p['Ente'] || '').trim().toUpperCase();
-            if (name !== enteName.trim().toUpperCase()) return;
+            const name = getPolizaEnteName(p);
+            if (!name || name.toUpperCase() !== enteName.toUpperCase()) return;
 
             const anio = parseInt(p['AÑO_PROD']);
             const mes = parseInt(p['MES_Prod']);
