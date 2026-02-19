@@ -237,9 +237,9 @@ export default function CarteraPage() {
 
     const activeMixData = useMemo(() => {
         if (mixDepth === 'ramo') {
-            return ramosBreakdown.map(r => ({ name: r.ramo, primas: r.primas, polizas: r.polizas }));
+            return ramosBreakdown.map(r => ({ name: r.ramo, primas: r.primas, polizas: r.polizas, entes: (r as any).entes || 0 }));
         }
-        return productosBreakdown.map(p => ({ name: p.producto, primas: p.primas, polizas: p.polizas }));
+        return productosBreakdown.map(p => ({ name: p.producto, primas: p.primas, polizas: p.polizas, entes: (p as any).entes || 0 }));
     }, [mixDepth, ramosBreakdown, productosBreakdown]);
 
     const DONUT_COLORS = [
@@ -259,11 +259,13 @@ export default function CarteraPage() {
 
         // Parallel arrays for tooltip data
         const polizas = top.map(p => p.polizas);
+        const entes = top.map(p => p.entes);
 
         if (restTotal > 0) {
             labels.push('Otros');
             values.push(restTotal);
             polizas.push(rest.reduce((sum, r) => sum + r.polizas, 0));
+            entes.push(rest.reduce((sum, r) => sum + r.entes, 0));
         }
 
         return {
@@ -272,6 +274,7 @@ export default function CarteraPage() {
                 data: values,
                 // Extra data for tooltip
                 polizas: polizas,
+                entes: entes,
                 backgroundColor: DONUT_COLORS.slice(0, labels.length),
                 borderWidth: 2,
                 borderColor: '#ffffff',
@@ -316,9 +319,11 @@ export default function CarteraPage() {
                     afterLabel: (context: any) => {
                         const val = context.raw;
                         const polizasCount = context.dataset.polizas[context.dataIndex];
+                        const entesCount = context.dataset.entes[context.dataIndex];
                         return [
                             `Primas: ${currencyFormatter.format(val)}`,
-                            `Pólizas: ${numberFormatter.format(polizasCount)}`
+                            `Pólizas: ${numberFormatter.format(polizasCount)}`,
+                            `Entes: ${numberFormatter.format(entesCount)}`
                         ];
                     }
                 }
@@ -444,17 +449,6 @@ export default function CarteraPage() {
                         ) : (
                             <div className="h-full w-full bg-slate-50 animate-pulse rounded-2xl flex items-center justify-center text-slate-400 font-medium">Cargando distribución...</div>
                         )}
-                        {/* Summary in center of doughnut */}
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none hidden md:block" style={{ marginTop: '10px' }}>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Primas</p>
-                            <p className="text-lg font-extrabold text-slate-900">{currencyFormatter.format(activeMixData.reduce((s, d) => s + d.primas, 0)).split(',')[0]}€</p>
-                            {metrics && metrics.primasTrend !== undefined && metrics.primasTrend !== 0 && (
-                                <div className={`flex items-center justify-center gap-1 text-[10px] font-bold mt-1 ${metrics.primasTrend >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                                    {metrics.primasTrend >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingUp className="w-3 h-3 rotate-180" />}
-                                    {Math.abs(metrics.primasTrend).toFixed(1)}% vs Prev.
-                                </div>
-                            )}
-                        </div>
                     </div>
 
                     <div className="overflow-x-auto">

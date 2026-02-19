@@ -71,12 +71,14 @@ interface ProductMixItem {
     producto: string;
     primas: number;
     polizas: number;
+    entes: number;
 }
 
 interface RamoMixItem {
     ramo: string;
     primas: number;
     polizas: number;
+    entes: number;
 }
 
 const MONTHS = [
@@ -426,9 +428,9 @@ function EvolutionContent() {
         // which come from fetchEvolution which handles the 'periods' param.
 
         if (mixDepth === 'ramo') {
-            return sourceRamos.map((r: any) => ({ name: r.ramo, primas: r.primas, polizas: r.polizas }));
+            return sourceRamos.map((r: any) => ({ name: r.ramo, primas: r.primas, polizas: r.polizas, entes: r.entes || 0 }));
         }
-        return sourceProducts.map((p: any) => ({ name: p.producto, primas: p.primas, polizas: p.polizas }));
+        return sourceProducts.map((p: any) => ({ name: p.producto, primas: p.primas, polizas: p.polizas, entes: p.entes || 0 }));
     }, [mixDepth, ramosMix, productMix, selectedPeriod, periodMix, selectedPeriods]);
 
     const donutData = useMemo(() => {
@@ -437,14 +439,21 @@ function EvolutionContent() {
         const restTotal = rest.reduce((sum: number, r: any) => sum + r.primas, 0);
         const labels = top.map((p: any) => p.name);
         const values = top.map((p: any) => p.primas);
+        const polizas = top.map((p: any) => p.polizas);
+        const entes = top.map((p: any) => p.entes);
+
         if (restTotal > 0) {
             labels.push('Otros');
             values.push(restTotal);
+            polizas.push(rest.reduce((sum: number, r: any) => sum + r.polizas, 0));
+            entes.push(rest.reduce((sum: number, r: any) => sum + r.entes, 0));
         }
         return {
             labels,
             datasets: [{
                 data: values,
+                polizas: polizas,
+                entes: entes,
                 backgroundColor: DONUT_COLORS.slice(0, labels.length),
                 borderWidth: 2,
                 borderColor: '#fff'
@@ -471,6 +480,30 @@ function EvolutionContent() {
                 display: (ctx: any) => {
                     const total = ctx.dataset.data.reduce((a: number, b: number) => a + b, 0);
                     return total > 0 && (ctx.dataset.data[ctx.dataIndex] / total) > 0.05;
+                }
+            },
+            tooltip: {
+                backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                padding: 12,
+                titleFont: { size: 13 },
+                bodyFont: { size: 12 },
+                callbacks: {
+                    label: (context: any) => {
+                        const val = context.raw;
+                        const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
+                        const pct = total > 0 ? ((val / total) * 100).toFixed(1) : '0';
+                        return `${context.label}: ${pct}%`;
+                    },
+                    afterLabel: (context: any) => {
+                        const val = context.raw;
+                        const polizasCount = context.dataset.polizas[context.dataIndex];
+                        const entesCount = context.dataset.entes[context.dataIndex];
+                        return [
+                            `Primas: ${currencyFormatter.format(val)}`,
+                            `Pólizas: ${numberFormatter.format(polizasCount)}`,
+                            `Entes: ${numberFormatter.format(entesCount)}`
+                        ];
+                    }
                 }
             }
         },
@@ -806,7 +839,14 @@ function EvolutionContent() {
                         const totalRamoPrimas = ramoProducts.reduce((s, p) => s + p.primas, 0);
                         const subDonutData = {
                             labels: ramoProducts.map(p => p.producto),
-                            datasets: [{ data: ramoProducts.map(p => p.primas), backgroundColor: DONUT_COLORS.slice(0, ramoProducts.length), borderWidth: 2, borderColor: '#fff' }]
+                            datasets: [{
+                                data: ramoProducts.map(p => p.primas),
+                                polizas: ramoProducts.map(p => p.polizas),
+                                entes: ramoProducts.map(p => p.entes),
+                                backgroundColor: DONUT_COLORS.slice(0, ramoProducts.length),
+                                borderWidth: 2,
+                                borderColor: '#fff'
+                            }]
                         };
                         return (
                             <div key={ramo} className="mb-8 last:mb-0">
@@ -825,6 +865,28 @@ function EvolutionContent() {
                                                         formatter: (val: number, ctx: any) => { const total = ctx.dataset.data.reduce((a: number, b: number) => a + b, 0); return total > 0 ? `${((val / total) * 100).toFixed(1)}%` : '0%'; },
                                                         color: '#fff', font: { weight: 'bold' as const, size: 10 },
                                                         display: (ctx: any) => { const total = ctx.dataset.data.reduce((a: number, b: number) => a + b, 0); return total > 0 && (ctx.dataset.data[ctx.dataIndex] / total) > 0.04; }
+                                                    },
+                                                    tooltip: {
+                                                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                                                        padding: 10,
+                                                        callbacks: {
+                                                            label: (context: any) => {
+                                                                const val = context.raw;
+                                                                const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
+                                                                const pct = total > 0 ? ((val / total) * 100).toFixed(1) : '0';
+                                                                return `${context.label}: ${pct}%`;
+                                                            },
+                                                            afterLabel: (context: any) => {
+                                                                const val = context.raw;
+                                                                const polizasCount = context.dataset.polizas[context.dataIndex];
+                                                                const entesCount = context.dataset.entes[context.dataIndex];
+                                                                return [
+                                                                    `Primas: ${currencyFormatter.format(val)}`,
+                                                                    `Pólizas: ${numberFormatter.format(polizasCount)}`,
+                                                                    `Entes: ${numberFormatter.format(entesCount)}`
+                                                                ];
+                                                            }
+                                                        }
                                                     }
                                                 }
                                             }} />
