@@ -105,6 +105,11 @@ export default function ProductividadPage() {
         return enteBreakdown.filter(e => filters.comercial.includes(e.asesor));
     }, [enteBreakdown, filters.comercial]);
 
+    // Independent data for specific charts to enable BI-style highlighting
+    const filteredAsesoresForChartPolizas = useMemo(() => filteredAsesoresForChart, [filteredAsesoresForChart]);
+    const filteredAsesoresForChartTicket = useMemo(() => filteredAsesoresForChart, [filteredAsesoresForChart]);
+    const filteredEntesForChartPolizas = useMemo(() => filteredEntesForChart, [filteredEntesForChart]);
+
     // 2. Datos para tablas (filtros estrictos)
     const finalAsesoresTableData = useMemo(() => {
         let data = [...asesorBreakdown];
@@ -336,28 +341,64 @@ export default function ProductividadPage() {
             </div>
 
             {!loading && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <BarChart
-                        data={[...filteredAsesoresForChart].sort((a, b) => b.totalPrimas - a.totalPrimas)}
-                        dataKey="totalPrimas"
-                        nameKey="asesor"
-                        label="Producción Total por Asesor"
-                        color="bg-primary/60"
-                        selection={filters.comercial}
-                        onSelect={(val) => toggleInteractiveSelection('comercial', val)}
-                        onClear={() => clearInteractiveSelection('comercial')}
-                    />
-                    <BarChart
-                        data={[...filteredEntesForChart].sort((a, b) => b.primas - a.primas)}
-                        dataKey="primas"
-                        nameKey="ente"
-                        label={filters.comercial.length > 0 ? `Entes vinculado a selección` : "Top Entes por Producción"}
-                        color="bg-slate-400 group-hover:bg-primary/80"
-                        selection={filters.ente}
-                        onSelect={(val) => toggleInteractiveSelection('ente', val)}
-                        onClear={() => clearInteractiveSelection('ente')}
-                    />
-                </div>
+                <>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <BarChart
+                            data={[...filteredAsesoresForChart].sort((a, b) => b.totalPrimas - a.totalPrimas)}
+                            dataKey="totalPrimas"
+                            nameKey="asesor"
+                            label="Producción Total por Asesor"
+                            color="bg-primary/60"
+                            selection={filters.comercial}
+                            onSelect={(val) => toggleInteractiveSelection('comercial', val)}
+                            onClear={() => clearInteractiveSelection('comercial')}
+                        />
+                        <BarChart
+                            data={[...filteredEntesForChart].sort((a, b) => b.primas - a.primas)}
+                            dataKey="primas"
+                            nameKey="ente"
+                            label={filters.comercial.length > 0 ? `Entes vinculado a selección` : "Top Entes por Producción"}
+                            color="bg-slate-400 group-hover:bg-primary/80"
+                            selection={filters.ente}
+                            onSelect={(val) => toggleInteractiveSelection('ente', val)}
+                            onClear={() => clearInteractiveSelection('ente')}
+                        />
+                    </div>
+
+                    {/* Second Row of Charts */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <BarChart
+                            data={[...filteredAsesoresForChartPolizas].sort((a, b) => b.numPolizas - a.numPolizas)}
+                            dataKey="numPolizas"
+                            nameKey="asesor"
+                            label="Nº Pólizas por Asesor"
+                            color="bg-blue-500/60"
+                            selection={filters.comercial}
+                            onSelect={(val) => toggleInteractiveSelection('comercial', val)}
+                            onClear={() => clearInteractiveSelection('comercial')}
+                        />
+                        <BarChart
+                            data={[...filteredEntesForChartPolizas].sort((a, b) => b.polizas - a.polizas)}
+                            dataKey="polizas"
+                            nameKey="ente"
+                            label="Top Entes por Nº Pólizas"
+                            color="bg-indigo-500/60"
+                            selection={filters.ente}
+                            onSelect={(val) => toggleInteractiveSelection('ente', val)}
+                            onClear={() => clearInteractiveSelection('ente')}
+                        />
+                        <BarChart
+                            data={[...filteredAsesoresForChartTicket].sort((a, b) => b.avgPrimas - a.avgPrimas)}
+                            dataKey="avgPrimas"
+                            nameKey="asesor"
+                            label="Ticket Medio por Asesor"
+                            color="bg-emerald-500/60"
+                            selection={filters.comercial}
+                            onSelect={(val) => toggleInteractiveSelection('comercial', val)}
+                            onClear={() => clearInteractiveSelection('comercial')}
+                        />
+                    </div>
+                </>
             )}
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
@@ -476,6 +517,6 @@ export default function ProductividadPage() {
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }

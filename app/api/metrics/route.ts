@@ -35,14 +35,10 @@ export async function GET(request: Request) {
         const asesoresOptions = asesoresList.map(a => a['ASESOR']).filter(Boolean).sort();
 
         // 3. Performance Indexing
-        // Map: Ente Code -> Full Display Name (from registry)
         const codeToNameMap = new Map<string, string>();
-        // Map: Ente Code -> Asesor Name
         const codeToAsesorMap = new Map<string, string>();
-        // Set of valid Ente codes present in our registry
         const validEnteCodes = new Set<string>();
 
-        // Build Index from links
         links.forEach(l => {
             const val = String(l['ENTE']);
             const parts = val.split(' - ');
@@ -53,7 +49,6 @@ export async function GET(request: Request) {
             validEnteCodes.add(code);
         });
 
-        // Helper to get Ente Code from policy (validating against registry)
         const getPolizaEnteCode = (p: any) => {
             const enteComercial = String(p['Ente Comercial'] || '');
             const parts = enteComercial.split(' - ');
@@ -67,6 +62,7 @@ export async function GET(request: Request) {
         // Aggregators for metrics
         let currentPrimas = 0;
         let currentCount = 0;
+        let polizasSinEfecto = 0;
         const breakdownMap = new Map<string, { ente: string, primas: number, polizas: number, asesor: string, anulaciones: number }>();
         const asesoresStats = new Map<string, { asesor: string, numEntes: number, totalPrimas: number, numPolizos: number }>();
         const productStats = new Map<string, { producto: string; primas: number; polizas: number; entes: Set<string> }>();
@@ -74,18 +70,33 @@ export async function GET(request: Request) {
         const companyStats = new Map<string, { company: string, primas: number, polizas: number, entes: Set<string>, asesores: Set<string> }>();
         const ramoStats = new Map<string, { ramo: string; primas: number; polizas: number; entes: Set<string> }>();
         const cancellationReasons = new Map<string, number>();
+        const enteRamosMap = new Map<string, Set<string>>();
+        const survivalStats = new Map<string, { totalMonths: number, count: number }>();
+        const sinEfectoRamoStats = new Map<string, number>();
 
-        // Pre-fill asesores from the registry to ensure they all appear in base lists if needed
+        const parseAnyDate = (val: any) => {
+            if (!val) return null;
+            if (typeof val === 'number') return new Date((val - 25569) * 86400 * 1000);
+            const parts = String(val).split('/');
+            if (parts.length === 3) {
+                const day = parseInt(parts[0]);
+                const month = parseInt(parts[1]);
+                const year = parseInt(parts[2]);
+                if (!isNaN(day) && !isNaN(month) && !isNaN(year)) return new Date(year, month - 1, day);
+            }
+            const d = new Date(val);
+            return isNaN(d.getTime()) ? null : d;
+        };
+
+        asesoresStats.set('Sin Asesor', { asesor: 'Sin Asesor', numEntes: 0, totalPrimas: 0, numPolizos: 0 });
         asesoresOptions.forEach(a => asesoresStats.set(a, { asesor: a, numEntes: 0, totalPrimas: 0, numPolizos: 0 }));
+
         links.forEach(l => {
-            const asesor = String(l['ASESOR']);
+            const asesor = String(l['ASESOR'] || 'Sin Asesor');
             const pEnteName = String(l['ENTE']);
             const pEnteParts = pEnteName.split(' - ');
             const code = pEnteParts.length > 1 ? pEnteParts[pEnteParts.length - 1].trim() : pEnteName.trim();
-
             if (asesoresStats.has(asesor)) asesoresStats.get(asesor)!.numEntes += 1;
-
-            // Pre-fill breakdownMap with all linked entes that match filters
             const matchAsesor = comerciales.length === 0 || comerciales.includes(asesor);
             const matchEnte = entesFilter.length === 0 || entesFilter.includes(pEnteName);
             if (matchAsesor && matchEnte) {
@@ -95,7 +106,6 @@ export async function GET(request: Request) {
             }
         });
 
-        // Sets for Dynamic Filter Options (Cross-Filtering)
         const dynAnios = new Set<string>();
         const dynMeses = new Set<string>();
         const dynEstados = new Set<string>();
@@ -104,12 +114,11 @@ export async function GET(request: Request) {
         const dynRamos = new Set<string>();
         const dynProductos = new Set<string>();
 
-        // Main Loop: Single pass for stats and cross-filtering options
         polizas.forEach(p => {
             const pAnio = String(p['AÑO_PROD'] || '');
             const pMes = String(p['MES_Prod'] || '');
             const pEstado = String(p['Estado'] || '');
-            const producto = String(p['Producto'] || 'Otros'); // Need product for ramo check
+            const producto = String(p['Producto'] || 'Otros');
             const ramoName = getRamo(producto);
             const code = getPolizaEnteCode(p);
 
@@ -126,116 +135,126 @@ export async function GET(request: Request) {
             const matchRamo = ramosFilter.length === 0 || ramosFilter.includes(ramoName);
             const matchProducto = productosFilter.length === 0 || productosFilter.includes(producto);
 
-            // Cross-Filtering logic: Update options for each filter independently
-            if (matchMes && matchEstado && matchAsesor && matchEnte && matchRamo && matchProducto) {
-                if (pAnio) dynAnios.add(pAnio);
-            }
-            if (matchAnio && matchEstado && matchAsesor && matchEnte && matchRamo && matchProducto) {
-                if (pMes) dynMeses.add(pMes);
-            }
-            if (matchAnio && matchMes && matchAsesor && matchEnte && matchRamo && matchProducto) {
-                if (pEstado) dynEstados.add(pEstado);
-            }
-            if (matchAnio && matchMes && matchEstado && matchEnte && matchRamo && matchProducto) {
-                if (pAsesor) dynAsesores.add(pAsesor);
-            }
-            if (matchAnio && matchMes && matchEstado && matchAsesor && matchRamo && matchProducto) {
-                if (pEnteName) dynEntes.add(pEnteName);
-            }
-            if (matchAnio && matchMes && matchEstado && matchAsesor && matchEnte && matchProducto) {
-                if (ramoName) dynRamos.add(ramoName);
-            }
-            if (matchAnio && matchMes && matchEstado && matchAsesor && matchEnte && matchRamo) {
-                if (producto) dynProductos.add(producto);
-            }
+            if (matchMes && matchEstado && matchAsesor && matchEnte && matchRamo && matchProducto) if (pAnio) dynAnios.add(pAnio);
+            if (matchAnio && matchEstado && matchAsesor && matchEnte && matchRamo && matchProducto) if (pMes) dynMeses.add(pMes);
+            if (matchAnio && matchMes && matchAsesor && matchEnte && matchRamo && matchProducto) if (pEstado) dynEstados.add(pEstado);
+            if (matchAnio && matchMes && matchEstado && matchEnte && matchRamo && matchProducto) if (pAsesor) dynAsesores.add(pAsesor);
+            if (matchAnio && matchMes && matchEstado && matchAsesor && matchRamo && matchProducto) if (pEnteName) dynEntes.add(pEnteName);
+            if (matchAnio && matchMes && matchEstado && matchAsesor && matchEnte && matchProducto) if (ramoName) dynRamos.add(ramoName);
+            if (matchAnio && matchMes && matchEstado && matchAsesor && matchEnte && matchRamo) if (producto) dynProductos.add(producto);
 
-            // Metrics application: Must match ALL filters
             if (!matchAnio || !matchMes || !matchEstado || !matchAsesor || !matchEnte || !matchRamo || !matchProducto) return;
-
-            // GLOBAL FILTER: Double check against validEnteCodes (registered entities)
             if (!validEnteCodes.has(code)) return;
 
             const pStr = String(p['P.Produccion'] || '0').replace(',', '.');
             const primas = parseFloat(pStr) || 0;
             const company = String(p['Abrev.Cía'] || 'Desconocida').trim();
             const fAnulacion = p['F.Anulación'];
+            const fEfecto = p['F.Efecto'];
             const motAnulacion = String(p['Mot.Anulación'] || '').trim();
+
+            const dateEfecto = parseAnyDate(fEfecto);
+            const dateAnula = parseAnyDate(fAnulacion);
+            if (dateEfecto && dateAnula && dateAnula <= dateEfecto) {
+                polizasSinEfecto++;
+                sinEfectoRamoStats.set(ramoName, (sinEfectoRamoStats.get(ramoName) || 0) + 1);
+            }
 
             currentPrimas += primas;
             currentCount += 1;
 
-            if (!breakdownMap.has(code)) {
-                breakdownMap.set(code, { ente: pEnteName, primas: 0, polizas: 0, asesor: pAsesor, anulaciones: 0 });
-            }
+            if (!breakdownMap.has(code)) breakdownMap.set(code, { ente: pEnteName, primas: 0, polizas: 0, asesor: pAsesor, anulaciones: 0 });
             const b = breakdownMap.get(code)!;
             b.primas += primas;
             b.polizas += 1;
-            if (fAnulacion) b.anulaciones += 1;
+            if (fAnulacion || pEstado.toUpperCase().includes('ANULA')) b.anulaciones += 1;
 
-            if (fAnulacion && motAnulacion) {
+            if ((fAnulacion || pEstado.toUpperCase().includes('ANULA')) && motAnulacion) {
                 cancellationReasons.set(motAnulacion, (cancellationReasons.get(motAnulacion) || 0) + 1);
             }
 
-            const a = asesoresStats.get(pAsesor);
-            if (a) {
-                a.totalPrimas += primas;
-                a.numPolizos += 1;
+            if (fAnulacion && pAnio && pMes) {
+                try {
+                    const startYear = parseInt(pAnio);
+                    const startMonth = parseInt(pMes);
+                    const dateEnd = parseAnyDate(fAnulacion);
+                    if (dateEnd && !isNaN(dateEnd.getTime())) {
+                        const endYear = dateEnd.getFullYear();
+                        const endMonth = dateEnd.getMonth() + 1;
+                        const diffMonths = (endYear - startYear) * 12 + (endMonth - startMonth);
+                        if (diffMonths >= 0) {
+                            if (!survivalStats.has(ramoName)) survivalStats.set(ramoName, { totalMonths: 0, count: 0 });
+                            const ss = survivalStats.get(ramoName)!;
+                            ss.totalMonths += diffMonths;
+                            ss.count += 1;
+                        }
+                    }
+                } catch (e) { }
             }
+
+            const a = asesoresStats.get(pAsesor);
+            if (a) { a.totalPrimas += primas; a.numPolizos += 1; }
 
             if (!productStats.has(producto)) productStats.set(producto, { producto, primas: 0, polizas: 0, entes: new Set() });
             const ps = productStats.get(producto)!;
-            ps.primas += primas;
-            ps.polizas += 1;
-            ps.entes.add(code);
+            ps.primas += primas; ps.polizas += 1; ps.entes.add(code);
 
-            // Ramo (depth 1) aggregation
             if (!ramoStats.has(ramoName)) ramoStats.set(ramoName, { ramo: ramoName, primas: 0, polizas: 0, entes: new Set() });
             const rs = ramoStats.get(ramoName)!;
-            rs.primas += primas;
-            rs.polizas += 1;
-            rs.entes.add(code);
+            rs.primas += primas; rs.polizas += 1; rs.entes.add(code);
 
             if (!estadoStats.has(pEstado)) estadoStats.set(pEstado, { estado: pEstado, primas: 0, polizas: 0 });
             const es = estadoStats.get(pEstado)!;
-            es.primas += primas;
-            es.polizas += 1;
+            es.primas += primas; es.polizas += 1;
 
             if (!companyStats.has(company)) companyStats.set(company, { company, primas: 0, polizas: 0, entes: new Set(), asesores: new Set() });
             const cs = companyStats.get(company)!;
-            cs.primas += primas;
-            cs.polizas += 1;
-            cs.entes.add(code);
+            cs.primas += primas; cs.polizas += 1; cs.entes.add(code);
             if (pAsesor !== 'Sin Asesor') cs.asesores.add(pAsesor);
+
+            if (!enteRamosMap.has(code)) enteRamosMap.set(code, new Set());
+            enteRamosMap.get(code)!.add(ramoName);
         });
 
-        // Trend calculation
-        let prevPrimas = 0;
-        let prevCount = 0;
-        let calculateTrend = false;
+        const crossSellingCounts = { 1: 0, 2: 0, '3+': 0 };
+        let totalEntesWithPolizas = 0, totalRamosCoverage = 0;
+        enteRamosMap.forEach((ramos) => {
+            totalEntesWithPolizas++;
+            const count = ramos.size;
+            totalRamosCoverage += count;
+            if (count === 1) crossSellingCounts[1]++; else if (count === 2) crossSellingCounts[2]++; else crossSellingCounts['3+']++;
+        });
+        const crossSellRatio = totalEntesWithPolizas > 0 ? totalRamosCoverage / totalEntesWithPolizas : 0;
+
+        const entesSortedByPrimas = Array.from(breakdownMap.values()).sort((a, b) => b.primas - a.primas);
+        let cumulativePrimas = 0;
+        const paretoData = entesSortedByPrimas.map((e, idx) => {
+            cumulativePrimas += e.primas;
+            return { ente: e.ente, primas: e.primas, cumulativePct: currentPrimas > 0 ? (cumulativePrimas / currentPrimas) * 100 : 0, index: idx + 1 };
+        });
+
+        let totalAnuladas = 0;
+        breakdownMap.forEach(b => totalAnuladas += b.anulaciones);
+        const churnRate = currentCount > 0 ? (totalAnuladas / currentCount) * 100 : 0;
+
+        let prevPrimas = 0, prevCount = 0, calculateTrend = false;
         if (anios.length === 1 && meses.length === 1) {
             calculateTrend = true;
-            const curY = parseInt(anios[0]);
-            const curM = parseInt(meses[0]);
-            let prevY = curY;
-            let prevM = curM - 1;
+            const curY = parseInt(anios[0]), curM = parseInt(meses[0]);
+            let prevY = curY, prevM = curM - 1;
             if (prevM === 0) { prevM = 12; prevY -= 1; }
-
             polizas.forEach(p => {
-                const code = getPolizaEnteCode(p);
-                if (!code) return;
-
-                const pAsesor = codeToAsesorMap.get(code) || 'Sin Asesor';
-                const pEnteName = codeToNameMap.get(code) || code;
-
-                if (String(p['AÑO_PROD']) !== String(prevY)) return;
-                if (String(p['MES_Prod']) !== String(prevM)) return;
-                if (estados.length > 0 && !estados.includes(String(p['Estado']))) return;
-                if (comerciales.length > 0 && !comerciales.includes(pAsesor)) return;
-                if (entesFilter.length > 0 && !entesFilter.includes(pEnteName)) return;
-
-                const pStr = String(p['P.Produccion'] || '0').replace(',', '.');
-                prevPrimas += (parseFloat(pStr) || 0);
-                prevCount += 1;
+                if (String(p['AÑO_PROD']) === String(prevY) && String(p['MES_Prod']) === String(prevM)) {
+                    const code = getPolizaEnteCode(p);
+                    if (!code || !validEnteCodes.has(code)) return;
+                    const pAsesor = codeToAsesorMap.get(code) || 'Sin Asesor';
+                    const pEnteName = codeToNameMap.get(code) || code;
+                    if (estados.length > 0 && !estados.includes(String(p['Estado']))) return;
+                    if (comerciales.length > 0 && !comerciales.includes(pAsesor)) return;
+                    if (entesFilter.length > 0 && !entesFilter.includes(pEnteName)) return;
+                    prevPrimas += (parseFloat(String(p['P.Produccion'] || '0').replace(',', '.')) || 0);
+                    prevCount += 1;
+                }
             });
         }
 
@@ -250,7 +269,18 @@ export async function GET(request: Request) {
                 numPolizas: currentCount,
                 count: currentCount,
                 primasTrend: calculateTrend ? calculatePercentage(currentPrimas, prevPrimas) : 0,
-                polizasTrend: calculateTrend ? calculatePercentage(currentCount, prevCount) : 0
+                polizasTrend: calculateTrend ? calculatePercentage(currentCount, prevCount) : 0,
+                churnRate,
+                crossSellRatio,
+                polizasSinEfecto
+            },
+            advanced: {
+                crossSellingDistribution: crossSellingCounts,
+                paretoData: paretoData.slice(0, 50),
+                survivalByRamo: Array.from(survivalStats.entries()).map(([ramo, stats]) => ({
+                    ramo, avgMonths: stats.count > 0 ? stats.totalMonths / stats.count : 0
+                })).sort((a, b) => b.avgMonths - a.avgMonths),
+                sinEfectoByRamo: Array.from(sinEfectoRamoStats.entries()).map(([ramo, count]) => ({ ramo, count })).sort((a, b) => b.count - a.count)
             },
             filters: {
                 anios: Array.from(dynAnios).sort(),
@@ -261,38 +291,14 @@ export async function GET(request: Request) {
                 ramos: Array.from(dynRamos).sort(),
                 productos: Array.from(dynProductos).sort()
             },
-            breakdown: Array.from(breakdownMap.values()).map(b => ({
-                ...b,
-                ticketMedio: b.polizas > 0 ? b.primas / b.polizas : 0
-            })).sort((a, b) => b.primas - a.primas),
-            asesoresBreakdown: Array.from(asesoresStats.values()).map(a => ({
-                asesor: a.asesor,
-                numEntes: a.numEntes,
-                totalPrimas: a.totalPrimas,
-                numPolizas: a.numPolizos,
-                avgPrimas: a.numEntes > 0 ? a.totalPrimas / a.numEntes : 0
-            })).sort((a, b) => b.totalPrimas - a.totalPrimas),
-            companiasBreakdown: Array.from(companyStats.values()).map(c => ({
-                company: c.company,
-                primas: c.primas,
-                polizas: c.polizas,
-                numEntes: c.entes.size,
-                numAsesores: c.asesores.size,
-                ticketMedio: c.polizas > 0 ? c.primas / c.polizas : 0
-            })).sort((a, b) => b.primas - a.primas),
-            productosBreakdown: Array.from(productStats.values()).map(p => ({
-                ...p,
-                entes: p.entes.size,
-                ticketMedio: p.polizas > 0 ? p.primas / p.polizas : 0
-            })).sort((a, b) => b.primas - a.primas),
-            ramosBreakdown: Array.from(ramoStats.values()).map(r => ({
-                ...r,
-                entes: r.entes.size
-            })).sort((a, b) => b.primas - a.primas),
+            breakdown: Array.from(breakdownMap.values()).map(b => ({ ...b, ticketMedio: b.polizas > 0 ? b.primas / b.polizas : 0 })).sort((a, b) => b.primas - a.primas),
+            asesoresBreakdown: Array.from(asesoresStats.values()).map(a => ({ asesor: a.asesor, numEntes: a.numEntes, totalPrimas: a.totalPrimas, numPolizas: a.numPolizos, avgPrimas: a.numPolizos > 0 ? a.totalPrimas / a.numPolizos : 0 })).sort((a, b) => b.totalPrimas - a.totalPrimas),
+            companiasBreakdown: Array.from(companyStats.values()).map(c => ({ company: c.company, primas: c.primas, polizas: c.polizas, numEntes: c.entes.size, numAsesores: c.asesores.size, ticketMedio: c.polizas > 0 ? c.primas / c.polizas : 0 })).sort((a, b) => b.primas - a.primas),
+            productosBreakdown: Array.from(productStats.values()).map(p => ({ ...p, entes: p.entes.size, ticketMedio: p.polizas > 0 ? p.primas / p.polizas : 0 })).sort((a, b) => b.primas - a.primas),
+            ramosBreakdown: Array.from(ramoStats.values()).map(r => ({ ...r, entes: r.entes.size })),
             estadosBreakdown: Array.from(estadoStats.values()).sort((a, b) => b.polizas - a.polizas),
             cancellationReasons: Array.from(cancellationReasons.entries()).map(([reason, count]) => ({ reason, count })).sort((a, b) => b.count - a.count)
         });
-
     } catch (error) {
         console.error(error);
         return NextResponse.json({ error: 'Failed to calculate metrics' }, { status: 500 });

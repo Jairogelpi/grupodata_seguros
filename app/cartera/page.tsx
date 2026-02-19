@@ -1,16 +1,16 @@
 "use client";
 
 import { useEffect, useState, useMemo } from 'react';
-import { PieChart as PieIcon, FileText, LayoutList, ArrowUpDown, ArrowUp, ArrowDown, FileDown, Printer, BarChart2, TrendingUp, Info, Package, ShieldCheck, Zap, AlertCircle } from 'lucide-react';
+import { PieChart as PieIcon, FileText, LayoutList, ArrowUpDown, ArrowUp, ArrowDown, FileDown, Printer, BarChart2, TrendingUp, Info, Package, ShieldCheck, Zap, AlertCircle, XCircle } from 'lucide-react';
 import MultiSelect from '@/components/MultiSelect';
 import PrintFilterSummary from '@/components/PrintFilterSummary';
 import * as XLSX from 'xlsx';
-import { Doughnut } from 'react-chartjs-2';
-import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title } from 'chart.js';
+import { Doughnut, Bar, Chart } from 'react-chartjs-2';
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title } from 'chart.js';
 import { getRamo } from '@/lib/ramos';
 
 // Register ChartJS elements
-ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title);
 
 // Formatter for currency
 const currencyFormatter = new Intl.NumberFormat('es-ES', {
@@ -50,8 +50,10 @@ type SortKey = 'producto' | 'primas' | 'polizas' | 'ramo' | 'ticketMedio';
 export default function CarteraPage() {
     const [productosBreakdown, setProductosBreakdown] = useState<ProductBreakdownItem[]>([]);
     const [ramosBreakdown, setRamosBreakdown] = useState<RamoBreakdownItem[]>([]);
+    const [estadosBreakdown, setEstadosBreakdown] = useState<any[]>([]);
     const [cancellationReasons, setCancellationReasons] = useState<{ reason: string; count: number }[]>([]);
     const [metrics, setMetrics] = useState<any>(null);
+    const [advancedMetrics, setAdvancedMetrics] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [filterOptions, setFilterOptions] = useState<FilterOptions>({
         anios: [],
@@ -104,8 +106,10 @@ export default function CarteraPage() {
 
             setProductosBreakdown(prodsWithRamos);
             setRamosBreakdown(data.ramosBreakdown || []);
+            setEstadosBreakdown(data.estadosBreakdown || []);
             setCancellationReasons(data.cancellationReasons || []);
             setMetrics(data.metrics);
+            setAdvancedMetrics(data.advanced);
         } catch (error) {
             console.error(error);
         } finally {
@@ -286,6 +290,137 @@ export default function CarteraPage() {
         };
     };
 
+    const generateParetoData = () => {
+        if (!advancedMetrics?.paretoData) return { labels: [], datasets: [] };
+        const data = advancedMetrics.paretoData;
+        return {
+            labels: data.map((d: any) => d.ente),
+            datasets: [
+                {
+                    type: 'line' as const,
+                    label: '% Acumulado',
+                    data: data.map((d: any) => d.cumulativePct),
+                    borderColor: '#f59e0b',
+                    backgroundColor: '#fbbf24',
+                    yAxisID: 'y1',
+                    pointRadius: 2,
+                    borderWidth: 2,
+                    tension: 0.1,
+                },
+                {
+                    type: 'bar' as const,
+                    label: 'Primas (€)',
+                    data: data.map((d: any) => d.primas),
+                    backgroundColor: 'rgba(79, 70, 229, 0.4)',
+                    borderColor: 'rgb(79, 70, 229)',
+                    borderWidth: 1,
+                    yAxisID: 'y',
+                }
+            ]
+        };
+    };
+
+    const paretoOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { position: 'bottom' as const, labels: { boxWidth: 10, font: { size: 10 } } },
+            tooltip: {
+                callbacks: {
+                    label: (context: any) => {
+                        const val = context.raw;
+                        if (context.datasetIndex === 0) return `Acumulado: ${val.toFixed(1)}%`;
+                        return `Primas: ${currencyFormatter.format(val)}`;
+                    }
+                }
+            }
+        },
+        scales: {
+            y: { title: { display: true, text: 'Primas (€)' }, ticks: { font: { size: 10 } } },
+            y1: { position: 'right' as const, title: { display: true, text: '% Acumulado' }, min: 0, max: 100, grid: { drawOnChartArea: false }, ticks: { font: { size: 10 } } },
+            x: { display: false }
+        }
+    };
+
+    const crossSellData = {
+        labels: ['1 Ramo', '2 Ramos', '3+ Ramos'],
+        datasets: [{
+            label: 'Nº Entes',
+            data: advancedMetrics?.crossSellingDistribution ? [
+                advancedMetrics.crossSellingDistribution[1],
+                advancedMetrics.crossSellingDistribution[2],
+                advancedMetrics.crossSellingDistribution['3+']
+            ] : [0, 0, 0],
+            backgroundColor: ['#818cf8', '#6366f1', '#4f46e5'],
+            borderRadius: 8,
+        }]
+    };
+
+    const survivalData = {
+        labels: advancedMetrics?.survivalByRamo?.map((r: any) => r.ramo) || [],
+        datasets: [{
+            label: 'Meses Vida Media',
+            data: advancedMetrics?.survivalByRamo?.map((r: any) => r.avgMonths) || [],
+            backgroundColor: 'rgba(239, 68, 68, 0.6)',
+            borderColor: 'rgb(239, 68, 68)',
+            borderWidth: 1,
+            borderRadius: 8,
+        }]
+    };
+
+    const sinEfectoChartData = {
+        labels: advancedMetrics?.sinEfectoByRamo?.map((r: any) => r.ramo) || [],
+        datasets: [{
+            label: 'Pólizas Sin Efecto',
+            data: advancedMetrics?.sinEfectoByRamo?.map((r: any) => r.count) || [],
+            backgroundColor: 'rgba(148, 163, 184, 0.6)',
+            borderColor: 'rgb(100, 116, 139)',
+            borderWidth: 1,
+            borderRadius: 6,
+        }]
+    };
+
+    const statusHealthData = {
+        labels: ramosBreakdown.map(r => r.ramo).slice(0, 8), // Just for context, but user wants status
+    };
+
+    // Correcting statusHealthData - user wants status (Vigor, Pendiente, etc) weighted by Primas
+    const generateStatusHealthData = () => {
+        const sorted = [...estadosBreakdown].sort((a, b) => b.primas - a.primas);
+        return {
+            labels: sorted.map(s => s.estado),
+            datasets: [{
+                label: 'Volumen de Primas (€)',
+                data: sorted.map(s => s.primas),
+                backgroundColor: sorted.map(s => {
+                    const e = s.estado.toLowerCase();
+                    if (e.includes('vigor')) return 'rgba(16, 185, 129, 0.6)';
+                    if (e.includes('anula') || e.includes('baja')) return 'rgba(239, 68, 68, 0.6)';
+                    if (e.includes('pendien')) return 'rgba(245, 158, 11, 0.6)';
+                    return 'rgba(100, 116, 139, 0.6)';
+                }),
+                borderRadius: 4,
+            }]
+        };
+    };
+
+    const statusHealthOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                callbacks: {
+                    label: (context: any) => `Primas: ${currencyFormatter.format(context.raw)}`
+                }
+            }
+        },
+        scales: {
+            x: { grid: { display: false }, ticks: { font: { size: 9 } } },
+            y: { ticks: { font: { size: 9 } } }
+        }
+    };
+
     const donutOptions = {
         responsive: true,
         maintainAspectRatio: false,
@@ -402,47 +537,66 @@ export default function CarteraPage() {
                 </div>
             </div>
 
-            {/* Top Cancellation Reasons Widget */}
-            {cancellationReasons.length > 0 && (
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 no-print">
-                    <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-4">
-                        <AlertCircle className="w-5 h-5 text-red-500" />
-                        Top Motivos de Anulación
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                        {cancellationReasons.slice(0, 5).map((reason, idx) => (
-                            <div key={idx} className="bg-slate-50 border border-slate-100 p-3 rounded-lg flex flex-col">
-                                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">#{idx + 1}</span>
-                                <span className="text-sm font-bold text-slate-800 truncate" title={reason.reason}>{reason.reason || 'Sin Motivo'}</span>
-                                <span className="text-xs text-slate-500 font-medium mt-1">{reason.count} anulaciones</span>
-                            </div>
-                        ))}
+            {/* KPIs */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div className="flex justify-between items-start">
+                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Primas en Cartera</h3>
+                        <div className="p-2 bg-indigo-50 rounded-lg"><ShieldCheck className="w-4 h-4 text-indigo-500" /></div>
+                    </div>
+                    <div className="mt-4">
+                        <span className="text-2xl font-black text-slate-800 tracking-tight">{metrics ? currencyFormatter.format(metrics.primasNP) : '0,00 €'}</span>
                     </div>
                 </div>
-            )}
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div className="flex justify-between items-start">
+                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Pólizas Activas</h3>
+                        <div className="p-2 bg-emerald-50 rounded-lg"><Package className="w-4 h-4 text-emerald-500" /></div>
+                    </div>
+                    <div className="mt-4">
+                        <span className="text-2xl font-black text-slate-800 tracking-tight">{metrics ? numberFormatter.format(metrics.numPolizas) : '0'}</span>
+                    </div>
+                </div>
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div className="flex justify-between items-start">
+                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Tasa Abandono</h3>
+                        <div className="p-2 bg-red-50 rounded-lg"><AlertCircle className="w-4 h-4 text-red-500" /></div>
+                    </div>
+                    <div className="mt-4 flex items-baseline gap-2">
+                        <span className="text-2xl font-black text-red-600 tracking-tight">{metrics ? metrics.churnRate.toFixed(1) : '0.0'}%</span>
+                    </div>
+                </div>
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div className="flex justify-between items-start">
+                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Venta Cruzada</h3>
+                        <div className="p-2 bg-purple-50 rounded-lg"><TrendingUp className="w-4 h-4 text-purple-500" /></div>
+                    </div>
+                    <div className="mt-4 flex items-baseline gap-2">
+                        <span className="text-2xl font-black text-purple-600 tracking-tight">{metrics ? metrics.crossSellRatio.toFixed(2) : '0.00'}</span>
+                    </div>
+                </div>
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div className="flex justify-between items-start">
+                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Sin Efecto</h3>
+                        <div className="p-2 bg-slate-50 rounded-lg"><XCircle className="w-4 h-4 text-slate-400" /></div>
+                    </div>
+                    <div className="mt-4 flex items-baseline gap-2">
+                        <span className="text-2xl font-black text-slate-600 tracking-tight">{metrics ? metrics.polizasSinEfecto : '0'}</span>
+                        <span className="text-[10px] text-slate-400 font-bold uppercase">Anuladas</span>
+                    </div>
+                </div>
+            </div>
 
-            {/* Main Distribution Chart & Inline Table */}
+            {/* Main Distribution */}
             <div className="bg-white p-8 print:p-6 rounded-2xl shadow-sm border border-slate-200 break-inside-avoid">
                 <div className="flex items-center justify-between mb-8">
                     <h2 className="text-xl font-bold text-slate-800 flex items-center gap-3 tracking-tight">
-                        <div className="p-2 bg-purple-50 rounded-lg">
-                            <PieIcon className="w-5 h-5 text-purple-500" />
-                        </div>
+                        <div className="p-2 bg-purple-50 rounded-lg"><PieIcon className="w-5 h-5 text-purple-500" /></div>
                         Mix de Productos por Ramo
                     </h2>
                     <div className="flex items-center bg-slate-100/80 p-1 rounded-xl border border-slate-100 no-print">
-                        <button
-                            onClick={() => setMixDepth('ramo')}
-                            className={`px-5 py-1.5 rounded-lg text-xs font-bold transition-all duration-300 ${mixDepth === 'ramo' ? 'bg-white text-primary shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
-                        >
-                            Ramos
-                        </button>
-                        <button
-                            onClick={() => setMixDepth('producto')}
-                            className={`px-5 py-1.5 rounded-lg text-xs font-bold transition-all duration-300 ${mixDepth === 'producto' ? 'bg-white text-primary shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
-                        >
-                            Productos
-                        </button>
+                        <button onClick={() => setMixDepth('ramo')} className={`px-5 py-1.5 rounded-lg text-xs font-bold transition-all duration-300 ${mixDepth === 'ramo' ? 'bg-white text-primary shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-700'}`}>Ramos</button>
+                        <button onClick={() => setMixDepth('producto')} className={`px-5 py-1.5 rounded-lg text-xs font-bold transition-all duration-300 ${mixDepth === 'producto' ? 'bg-white text-primary shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-700'}`}>Productos</button>
                     </div>
                 </div>
 
@@ -461,41 +615,25 @@ export default function CarteraPage() {
                                 <tr className="border-b border-slate-100">
                                     <th className="p-3 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">{mixDepth === 'ramo' ? 'Ramo' : 'Producto'}</th>
                                     <th className="p-3 text-right text-[10px] font-bold text-slate-400 uppercase tracking-wider">Primas</th>
-                                    <th className="p-3 text-right text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pólizas</th>
                                     <th className="p-3 text-right text-[10px] font-bold text-slate-400 uppercase tracking-wider">Peso</th>
-                                    <th className="p-3 pr-6 text-right text-[10px] font-bold text-slate-400 uppercase tracking-wider no-print">Acción</th>
+                                    <th className="p-3 pr-6 text-right no-print">Acción</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-50">
-                                {activeMixData.sort((a, b) => b.primas - a.primas).slice(0, 10).map((p, i) => {
+                                {activeMixData.sort((a, b) => b.primas - a.primas).slice(0, 8).map((p, i) => {
                                     const totalPrimas = activeMixData.reduce((s, x) => s + x.primas, 0);
                                     const pct = totalPrimas > 0 ? ((p.primas / totalPrimas) * 100).toFixed(1) : '0';
                                     const isSelected = mixDepth === 'ramo' ? filters.ramo.includes(p.name) : filters.producto.includes(p.name);
                                     return (
-                                        <tr
-                                            key={i}
-                                            onClick={() => toggleFilter(mixDepth, p.name)}
-                                            className={`transition-colors cursor-pointer group/row ${isSelected ? 'bg-indigo-50/50' : 'hover:bg-slate-50'}`}
-                                        >
+                                        <tr key={i} onClick={() => toggleFilter(mixDepth, p.name)} className={`transition-colors cursor-pointer group/row ${isSelected ? 'bg-indigo-50/50' : 'hover:bg-slate-50'}`}>
                                             <td className="p-3 font-semibold text-slate-700 flex items-center gap-3">
-                                                <div className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: DONUT_COLORS[i % DONUT_COLORS.length] }} />
-                                                <span className="truncate max-w-[120px] md:max-w-none uppercase tracking-tight text-xs">{p.name}</span>
+                                                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: DONUT_COLORS[i % DONUT_COLORS.length] }} />
+                                                <span className="truncate uppercase tracking-tight text-xs">{p.name}</span>
                                             </td>
                                             <td className="p-3 text-right font-extrabold text-primary font-mono text-xs">{currencyFormatter.format(p.primas)}</td>
-                                            <td className="p-3 text-right font-mono text-slate-500 text-xs">{numberFormatter.format(p.polizas)}</td>
                                             <td className="p-3 text-right font-bold text-slate-400 text-xs">{pct}%</td>
                                             <td className="p-3 pr-6 text-right no-print">
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation(); // Prevent row click
-                                                        const url = `/polizas/listado?${getFilterParams(p.name)}`;
-                                                        window.location.href = url;
-                                                    }}
-                                                    className="p-1.5 text-primary hover:text-white hover:bg-primary transition-all rounded-lg border border-slate-200 group-hover/row:border-primary/50 shadow-sm"
-                                                    title="Ver listado de pólizas"
-                                                >
-                                                    <TrendingUp className="w-3.5 h-3.5" />
-                                                </button>
+                                                <button onClick={(e) => { e.stopPropagation(); window.location.href = `/polizas/listado?${getFilterParams(p.name)}`; }} className="p-1.5 text-primary hover:text-white hover:bg-primary transition-all rounded-lg border border-slate-200 shadow-sm"><TrendingUp className="w-3.5 h-3.5" /></button>
                                             </td>
                                         </tr>
                                     );
@@ -506,134 +644,79 @@ export default function CarteraPage() {
                 </div>
             </div>
 
-            {/* Detailed Table */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                <div className="px-8 py-5 border-b border-slate-200 bg-slate-50/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 text-slate-800">
-                    <h3 className="text-lg font-extrabold flex items-center gap-3 tracking-tight">
-                        <div className="p-2 bg-indigo-50 rounded-lg text-indigo-600">
-                            <Package className="w-5 h-5" />
-                        </div>
-                        Desglose Detallado por Producto
-                    </h3>
-
-                    {/* Table Filters - Excel Style (Dynamic) */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 w-full">
-                        <MultiSelect
-                            label="Comercial"
-                            options={filterOptions.asesores}
-                            selected={filters.comercial}
-                            onChange={(val) => handleFilterChange('comercial', val)}
-                        />
-                        <MultiSelect
-                            label="Ente"
-                            options={filterOptions.entes}
-                            selected={filters.ente}
-                            onChange={(val) => handleFilterChange('ente', val)}
-                        />
-                        <MultiSelect
-                            label="Año"
-                            options={filterOptions.anios}
-                            selected={filters.anio}
-                            onChange={(val) => handleFilterChange('anio', val)}
-                        />
-                        <MultiSelect
-                            label="Mes"
-                            options={filterOptions.meses}
-                            selected={filters.mes}
-                            onChange={(val) => handleFilterChange('mes', val)}
-                        />
-                        <MultiSelect
-                            label="Estado"
-                            options={filterOptions.estados}
-                            selected={filters.estado}
-                            onChange={(val) => handleFilterChange('estado', val)}
-                        />
+            {/* Strategic Analysis Section */}
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 no-print">
+                <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+                    <h2 className="text-xl font-bold text-slate-800 flex items-center gap-3 tracking-tight mb-6">
+                        <div className="p-2 bg-amber-50 rounded-lg"><Zap className="w-5 h-5 text-amber-500" /></div>
+                        Concentración Pareto (80/20)
+                    </h2>
+                    <div className="h-[300px]">
+                        {advancedMetrics?.paretoData ? <Chart type="bar" data={generateParetoData()} options={paretoOptions as any} /> : <div className="h-full w-full bg-slate-50 animate-pulse rounded-2xl" />}
                     </div>
                 </div>
 
-                {/* Sub-header with Ramo/Producto filters */}
-                <div className="px-8 py-4 border-b border-slate-100 bg-white flex flex-col md:flex-row gap-4 items-center justify-between">
-                    <div className="flex flex-wrap gap-4 w-full md:w-auto">
-                        <div className="w-full md:w-64">
-                            <MultiSelect
-                                label="Filtrar Ramo"
-                                options={filterOptions.ramos}
-                                selected={filters.ramo}
-                                onChange={(val) => handleFilterChange('ramo', val)}
-                            />
-                        </div>
-                        <div className="w-full md:w-64">
-                            <MultiSelect
-                                label="Filtrar Producto"
-                                options={filterOptions.productos}
-                                selected={filters.producto}
-                                onChange={(val) => handleFilterChange('producto', val)}
-                            />
+                <div className="grid grid-cols-1 gap-8">
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                        <h2 className="text-lg font-bold text-slate-800 flex items-center gap-3 tracking-tight mb-4"><LayoutList className="w-4 h-4 text-indigo-500" /> Venta Cruzada</h2>
+                        <div className="h-[100px]">
+                            {advancedMetrics ? <Bar data={crossSellData} options={{ responsive: true, maintainAspectRatio: false, indexAxis: 'y' as const, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { grid: { display: false }, ticks: { font: { size: 9 } } } } }} /> : <div className="h-full w-full bg-slate-50 animate-pulse rounded-2xl" />}
                         </div>
                     </div>
-                    {/* Badge showing filter status */}
-                    {(filters.ramo.length > 0 || filters.producto.length > 0 || filters.comercial.length > 0 || filters.ente.length > 0 || filters.anio.length > 0 || filters.mes.length > 0 || filters.estado.length > 0) && (
-                        <div className="text-xs font-semibold text-slate-400 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100 flex items-center gap-2">
-                            <Zap className="w-3 h-3 text-amber-500" />
-                            Filtros Activos
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-3"><TrendingUp className="w-4 h-4 text-red-500" /> Vida Media</h3>
+                            <div className="h-[100px]"><Bar data={survivalData} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { ticks: { font: { size: 8 } } } } }} /></div>
                         </div>
-                    )}
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-3"><ShieldCheck className="w-4 h-4 text-emerald-500" /> Salud por Estado</h3>
+                            <div className="h-[100px]"><Bar data={generateStatusHealthData()} options={statusHealthOptions as any} /></div>
+                        </div>
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-3"><XCircle className="w-4 h-4 text-slate-500" /> Por Ramo (Sin Efecto)</h3>
+                            <div className="h-[100px]"><Bar data={sinEfectoChartData} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { ticks: { font: { size: 8 }, precision: 0 } } } }} /></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Detailed Table */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden no-print">
+                <div className="px-8 py-5 border-b border-slate-200 bg-slate-50/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 text-slate-800">
+                    <h3 className="text-lg font-extrabold flex items-center gap-3 tracking-tight">
+                        <div className="p-2 bg-indigo-50 rounded-lg text-indigo-600"><Package className="w-5 h-5" /></div>
+                        Desglose Detallado
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 w-full">
+                        <MultiSelect label="Comercial" options={filterOptions.asesores} selected={filters.comercial} onChange={(val) => handleFilterChange('comercial', val)} />
+                        <MultiSelect label="Ente" options={filterOptions.entes} selected={filters.ente} onChange={(val) => handleFilterChange('ente', val)} />
+                        <MultiSelect label="Año" options={filterOptions.anios} selected={filters.anio} onChange={(val) => handleFilterChange('anio', val)} />
+                        <MultiSelect label="Mes" options={filterOptions.meses} selected={filters.mes} onChange={(val) => handleFilterChange('mes', val)} />
+                        <MultiSelect label="Estado" options={filterOptions.estados} selected={filters.estado} onChange={(val) => handleFilterChange('estado', val)} />
+                    </div>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-slate-100">
                         <thead className="bg-slate-50/30">
                             <tr>
-                                <th onClick={() => handleSort('ramo')} className="px-8 py-4 text-left text-[11px] font-black text-slate-400 uppercase tracking-[0.1em] cursor-pointer hover:text-primary transition-colors">
-                                    <span className="flex items-center">Ramo <SortIcon col="ramo" /></span>
-                                </th>
-                                <th onClick={() => handleSort('producto')} className="px-8 py-4 text-left text-[11px] font-black text-slate-400 uppercase tracking-[0.1em] cursor-pointer hover:text-primary transition-colors">
-                                    <span className="flex items-center">Producto <SortIcon col="producto" /></span>
-                                </th>
-                                <th onClick={() => handleSort('polizas')} className="px-8 py-4 text-right text-[11px] font-black text-slate-400 uppercase tracking-[0.1em] cursor-pointer hover:text-primary transition-colors">
-                                    <span className="flex items-center justify-end">Pólizas <SortIcon col="polizas" /></span>
-                                </th>
-                                <th onClick={() => handleSort('primas')} className="px-8 py-4 text-right text-[11px] font-black text-slate-400 uppercase tracking-[0.1em] cursor-pointer hover:text-primary transition-colors">
-                                    <span className="flex items-center justify-end">Primas (€) <SortIcon col="primas" /></span>
-                                </th>
-                                <th onClick={() => handleSort('ticketMedio')} className="px-8 py-4 text-right text-[11px] font-black text-slate-400 uppercase tracking-[0.1em] cursor-pointer hover:text-primary transition-colors">
-                                    <span className="flex items-center justify-end">Prima Media (€) <SortIcon col="ticketMedio" /></span>
-                                </th>
-                                <th className="px-8 py-4 text-right text-[11px] font-black text-slate-400 uppercase tracking-[0.1em]">Peso</th>
-                                <th className="px-8 py-4 text-right text-[11px] font-black text-slate-400 uppercase tracking-[0.1em] no-print">Acción</th>
+                                <th onClick={() => handleSort('ramo')} className="px-8 py-4 text-left text-[11px] font-black text-slate-400 uppercase tracking-widest cursor-pointer hover:text-primary transition-colors">Ramo <SortIcon col="ramo" /></th>
+                                <th onClick={() => handleSort('producto')} className="px-8 py-4 text-left text-[11px] font-black text-slate-400 uppercase tracking-widest cursor-pointer hover:text-primary transition-colors">Producto <SortIcon col="producto" /></th>
+                                <th onClick={() => handleSort('polizas')} className="px-8 py-4 text-right text-[11px] font-black text-slate-400 uppercase tracking-widest cursor-pointer hover:text-primary transition-colors">Pólizas <SortIcon col="polizas" /></th>
+                                <th onClick={() => handleSort('primas')} className="px-8 py-4 text-right text-[11px] font-black text-slate-400 uppercase tracking-widest cursor-pointer hover:text-primary transition-colors">Primas (€) <SortIcon col="primas" /></th>
+                                <th className="px-8 py-4 text-right text-[11px] font-black text-slate-400 uppercase tracking-widest">Peso</th>
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-slate-50">
                             {sortedData.map((item, idx) => {
                                 const totalPrimas = productosBreakdown.reduce((sum, d) => sum + d.primas, 0);
                                 const pct = totalPrimas > 0 ? ((item.primas / totalPrimas) * 100).toFixed(1) : '0';
-                                const isSelected = filters.producto.includes(item.producto);
                                 return (
-                                    <tr
-                                        key={idx}
-                                        onClick={() => toggleFilter('producto', item.producto)}
-                                        className={`transition-colors cursor-pointer group/row ${isSelected ? 'bg-indigo-50/50' : 'hover:bg-slate-50'}`}
-                                    >
-                                        <td className="px-8 py-5 whitespace-nowrap text-[10px] font-black text-slate-400 uppercase tracking-widest group-hover:text-primary transition-colors">{item.ramo}</td>
-                                        <td className="px-8 py-5 whitespace-nowrap text-sm font-bold text-slate-800">{item.producto}</td>
-                                        <td className="px-8 py-5 whitespace-nowrap text-sm text-slate-500 text-right font-mono">{numberFormatter.format(item.polizas)}</td>
-                                        <td className="px-8 py-5 whitespace-nowrap text-sm text-primary text-right font-black font-mono tracking-tight">{currencyFormatter.format(item.primas)}</td>
-                                        <td className="px-8 py-5 whitespace-nowrap text-sm text-indigo-600 text-right font-bold font-mono bg-indigo-50/30">{currencyFormatter.format(item.ticketMedio || 0)}</td>
-                                        <td className="px-8 py-5 whitespace-nowrap text-[11px] text-slate-400 text-right font-bold bg-slate-50/20">
-                                            {pct}%
-                                        </td>
-                                        <td className="px-8 py-5 whitespace-nowrap text-right no-print">
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    const url = `/polizas/listado?${getFilterParams(item.producto)}`;
-                                                    window.location.href = url;
-                                                }}
-                                                className="p-2 text-slate-400 hover:text-white hover:bg-primary transition-all rounded-lg border border-transparent hover:border-primary shadow-sm"
-                                                title="Ver listado de pólizas"
-                                            >
-                                                <TrendingUp className="w-4 h-4" />
-                                            </button>
-                                        </td>
+                                    <tr key={idx} onClick={() => toggleFilter('producto', item.producto)} className="hover:bg-slate-50 cursor-pointer transition-colors font-medium">
+                                        <td className="px-8 py-4 text-[10px] uppercase text-slate-400 font-bold">{item.ramo}</td>
+                                        <td className="px-8 py-4 text-xs font-bold text-slate-700">{item.producto}</td>
+                                        <td className="px-8 py-4 text-xs text-right text-slate-500 font-mono">{numberFormatter.format(item.polizas)}</td>
+                                        <td className="px-8 py-4 text-xs text-right text-primary font-black font-mono">{currencyFormatter.format(item.primas)}</td>
+                                        <td className="px-8 py-4 text-[10px] text-right text-slate-400 font-bold">{pct}%</td>
                                     </tr>
                                 );
                             })}
