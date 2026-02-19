@@ -138,6 +138,9 @@ export async function GET(request: Request) {
             // Metrics application: Must match ALL filters
             if (!matchAnio || !matchMes || !matchEstado || !matchAsesor || !matchEnte) return;
 
+            // GLOBAL FILTER: Double check against validEnteCodes (registered entities)
+            if (!validEnteCodes.has(code)) return;
+
             const pStr = String(p['P.Produccion'] || '0').replace(',', '.');
             const primas = parseFloat(pStr) || 0;
             const producto = String(p['Producto'] || 'Otros');

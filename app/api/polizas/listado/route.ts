@@ -60,9 +60,13 @@ export async function GET(request: Request) {
 
         // 3. Filter Policies
         const filteredPolizas = polizas.filter(p => {
-            // Filter by Ente
+            const pEnte = getPolizaEnteName(p);
+
+            // GLOBAL FILTER: Ente must be registered in the 'links' list
+            if (!pEnte || !validEnteNames.has(pEnte)) return false;
+
+            // Filter by Ente (Specific parameter if provided)
             if (enteName) {
-                const pEnte = getPolizaEnteName(p);
                 if (pEnte !== enteName) return false;
             }
 

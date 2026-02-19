@@ -3,7 +3,8 @@
  * Uses the hybrid storage layer for persistence.
  */
 
-import { readData, appendData } from './storage';
+import { readData, appendData, writeData } from './storage';
+import * as XLSX from 'xlsx';
 
 export interface LinkRecord {
     ASESOR: string;
@@ -24,6 +25,20 @@ export async function getLinks(): Promise<LinkRecord[]> {
 
 export async function addLink(link: LinkRecord): Promise<LinkRecord[]> {
     return appendData('entes_registrados_asesor.xlsx', link);
+}
+
+export async function removeLink(asesor: string, enteFormatted: string): Promise<void> {
+    const links = await getLinks();
+    const filteredLinks = links.filter(l =>
+        !(String(l['ASESOR']) === asesor && String(l['ENTE']) === enteFormatted)
+    );
+
+    const ws = XLSX.utils.json_to_sheet(filteredLinks);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Hoja1');
+    const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
+
+    await writeData('entes_registrados_asesor.xlsx', Buffer.from(excelBuffer));
 }
 
 // Entes Registry

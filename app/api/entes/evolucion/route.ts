@@ -97,7 +97,11 @@ export async function GET(request: Request) {
 
         polizas.forEach(p => {
             const name = getPolizaEnteName(p);
-            if (!name || name.toUpperCase() !== enteName.toUpperCase()) return;
+
+            // GLOBAL FILTER: Ente must be registered
+            if (!name || !validEnteNames.has(name)) return false;
+
+            if (name.toUpperCase() !== enteName.toUpperCase()) return;
 
             const anio = parseInt(p['AÑO_PROD']);
             const mes = parseInt(p['MES_Prod']);
