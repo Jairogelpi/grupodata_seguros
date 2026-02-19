@@ -699,47 +699,55 @@ export default function CarteraPage() {
 
                                 return (
                                     <>
-                                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                            {/* Status Box */}
-                                            <div className={`p-6 rounded-[32px] border-l-[6px] shadow-sm ${isRisky ? 'bg-red-50/50 border-red-500' : isResilient ? 'bg-emerald-50/50 border-emerald-500' : 'bg-blue-50/50 border-blue-500'}`}>
-                                                <div className="flex justify-between items-start mb-4">
-                                                    <h4 className={`text-xs font-black uppercase tracking-widest ${isRisky ? 'text-red-700' : isResilient ? 'text-emerald-700' : 'text-blue-700'}`}>
-                                                        {isRisky ? 'Riesgo Alto de Concentración' : isResilient ? 'Cartera Resiliente y Atomizada' : 'Distribución Equilibrada'}
-                                                    </h4>
-                                                </div>
-                                                <p className="text-xs text-slate-600 leading-relaxed font-semibold">
-                                                    El **80% de tus ingresos** depende de **{vips} de tus {totalEntes} clientes**.
-                                                    {isRisky ? ' Esto indica una dependencia crítica de pocos entes.' : ' Esta es una estructura muy sana con bajo riesgo de fuga masiva.'}
-                                                </p>
-                                            </div>
-
-                                            {/* Jump Probabilities Box */}
-                                            <div className="bg-indigo-50/30 p-6 rounded-[32px] border border-indigo-100/50">
-                                                <h4 className="text-xs font-black text-indigo-700 uppercase tracking-widest mb-4">Eficiencia de Salto Ramos</h4>
-                                                <div className="grid grid-cols-2 gap-4">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                            {/* 1. Jump Probabilities Box (Fixed) */}
+                                            <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm flex flex-col relative overflow-hidden group">
+                                                <div className="absolute top-0 left-0 w-1.5 h-full bg-slate-800" />
+                                                <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 pl-3">Eficiencia de Conversión</h4>
+                                                <div className="flex-1 flex flex-col justify-center gap-4 pl-3">
                                                     <div>
-                                                        <div className="text-[10px] font-bold text-slate-500 uppercase mb-1">1 → 2 Ramos</div>
-                                                        <div className="text-xl font-black text-slate-900">{advancedMetrics.jumpProbabilities?.['1to2'].toFixed(1)}%</div>
+                                                        <div className="flex justify-between items-baseline mb-1">
+                                                            <span className="text-[10px] font-bold text-slate-400 uppercase">1 → 2 Ramos</span>
+                                                            <span className="text-xs font-black text-slate-800">{advancedMetrics.jumpProbabilities?.['1to2'].toFixed(1)}%</span>
+                                                        </div>
+                                                        <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                            <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${advancedMetrics.jumpProbabilities?.['1to2']}%` }} />
+                                                        </div>
                                                     </div>
                                                     <div>
-                                                        <div className="text-[10px] font-bold text-slate-500 uppercase mb-1">2 → 3+ Ramos</div>
-                                                        <div className="text-xl font-black text-slate-900">{advancedMetrics.jumpProbabilities?.['2to3'].toFixed(1)}%</div>
+                                                        <div className="flex justify-between items-baseline mb-1">
+                                                            <span className="text-[10px] font-bold text-slate-400 uppercase">2 → 3+ Ramos</span>
+                                                            <span className="text-xs font-black text-slate-800">{advancedMetrics.jumpProbabilities?.['2to3'].toFixed(1)}%</span>
+                                                        </div>
+                                                        <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                            <div className="h-full bg-purple-500 rounded-full" style={{ width: `${advancedMetrics.jumpProbabilities?.['2to3']}%` }} />
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
 
-                                            {/* Strategy Argumentation */}
-                                            <div className="bg-amber-50/30 p-6 rounded-[32px] border border-amber-100/50 lg:col-span-1">
-                                                <h4 className="text-xs font-black text-amber-700 uppercase tracking-widest mb-4">Estrategia Justificada</h4>
-                                                <p className="text-xs text-slate-700 leading-relaxed font-medium">
-                                                    Priorizamos atacar a los **{totalPlus1} clientes** que tienen **solo 1 ramo**.
-                                                    {advancedMetrics.topNBA ? (
-                                                        <span> {advancedMetrics.topNBA.description} con una confianza del **{advancedMetrics.topNBA.confidence}%**.</span>
-                                                    ) : (
-                                                        ' Utiliza campañas de Venta Cruzada para diversificar.'
-                                                    )}
-                                                </p>
-                                            </div>
+                                            {/* 2. Dynamic Strategies from Backend */}
+                                            {advancedMetrics.marketingStrategies?.map((strategy: any, idx: number) => (
+                                                <div key={idx} className={`p-6 rounded-[32px] border border-slate-100 shadow-sm bg-white relative overflow-hidden group hover:shadow-md transition-all`}>
+                                                    <div className={`absolute top-0 left-0 w-1.5 h-full bg-${strategy.color}-500`} />
+                                                    <div className="flex flex-col h-full pl-3">
+                                                        <div className="flex justify-between items-start mb-3">
+                                                            <h4 className={`text-[9px] font-black uppercase tracking-widest text-${strategy.color}-600 bg-${strategy.color}-50 px-2 py-1 rounded-md`}>
+                                                                {strategy.title}
+                                                            </h4>
+                                                            {strategy.type === 'CROSS_SELL' && <Zap className={`w-4 h-4 text-${strategy.color}-500`} />}
+                                                            {strategy.type === 'RETENTION' && <AlertCircle className={`w-4 h-4 text-${strategy.color}-500`} />}
+                                                            {strategy.type === 'EXPANSION' && <TrendingUp className={`w-4 h-4 text-${strategy.color}-500`} />}
+                                                            {strategy.type === 'CONCENTRATION' && <ShieldCheck className={`w-4 h-4 text-${strategy.color}-500`} />}
+                                                        </div>
+                                                        <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                                                            {strategy.description.split('**').map((part: string, i: number) =>
+                                                                i % 2 === 1 ? <strong key={i} className={`text-${strategy.color}-700`}>{part}</strong> : part
+                                                            )}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </div>
 
                                         {/* Full Width Chart Area */}

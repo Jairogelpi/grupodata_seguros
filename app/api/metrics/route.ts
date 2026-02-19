@@ -262,32 +262,120 @@ export async function GET(request: Request) {
             }
         });
 
-        // Find Top Pair for NBA Argument (more professional with Confidence)
-        const entries = Array.from(pairFreq.entries()).sort((a, b) => b[1] - a[1]);
-        let topNBA = null;
+        // STRATEGIC INSIGHTS ENGINE
+        // Generate dynamic, context-aware strategies based on current filtered data
+        const marketingStrategies = [];
 
+        // 1. Retention Strategy (Priority if Churn is high)
+        if (currentCount > 0) {
+            let totalAnuladas = 0;
+            breakdownMap.forEach(b => totalAnuladas += b.anulaciones);
+            const churnRateCalc = (totalAnuladas / currentCount) * 100;
+
+            if (churnRateCalc > 15) { // High Churn Threshold
+                const topReasonEntry = Array.from(cancellationReasons.entries()).sort((a, b) => b[1] - a[1])[0];
+                const topReason = topReasonEntry ? topReasonEntry[0] : 'Desconocido';
+                marketingStrategies.push({
+                    type: 'RETENTION',
+                    title: 'Alerta de Fuga Crítica',
+                    color: 'red',
+                    description: `El abandono del **${churnRateCalc.toFixed(1)}%** es alarmante. La causa principal es **"${topReason}"**. Activa un plan de retención urgente para clientes en riesgo.`
+                });
+            } else if (churnRateCalc > 5) { // Moderate Churn
+                marketingStrategies.push({
+                    type: 'RETENTION',
+                    title: 'Fidelización Preventiva',
+                    color: 'amber',
+                    description: `El **${churnRateCalc.toFixed(1)}%** de tus pólizas se han cancelado. Contacta a los clientes que han anulado recientemente para entender sus motivos y recuperar parte de la cartera.`
+                });
+            }
+        }
+
+        // 2. Cross-Sell Strategy (The NBA - Next Best Action)
+        const entries = Array.from(pairFreq.entries()).sort((a, b) => b[1] - a[1]);
         if (entries.length > 0) {
             const [pair, count] = entries[0];
             const [ramoA, ramoB] = pair.split(' + ');
-
-            // Confidence = P(B|A) = count(A+B) / count(A)
             const supportA = ramoStats.get(ramoA)?.entes.size || 1;
             const supportB = ramoStats.get(ramoB)?.entes.size || 1;
-
-            // We take the direction with higher confidence
             const confAtoB = (count / supportA) * 100;
             const confBtoA = (count / supportB) * 100;
-
             const bestConf = Math.max(confAtoB, confBtoA);
             const source = confAtoB >= confBtoA ? ramoA : ramoB;
             const target = confAtoB >= confBtoA ? ramoB : ramoA;
 
-            topNBA = {
-                pair,
-                count,
-                confidence: bestConf.toFixed(1),
-                description: `El binomio ${pair} es tu éxito nº1. La estadística dice que si un cliente tiene ${source}, hay un ${bestConf.toFixed(1)}% de probabilidad de captarlo para ${target}.`
-            };
+            marketingStrategies.push({
+                type: 'CROSS_SELL',
+                title: 'Oportunidad de Venta Cruzada',
+                color: 'indigo',
+                description: `Tus clientes de **${source}** tienen una alta probabilidad (**${bestConf.toFixed(1)}%**) de contratar **${target}**. Lanza una campaña dirigida a este segmento específico.`
+            });
+        }
+
+        // 3. Expansion Strategy (Mono-product Users)
+        const totalPlus1 = crossSellingCounts[1] + crossSellingCounts[2] + crossSellingCounts['3+'];
+        const totalPlus2 = crossSellingCounts[2] + crossSellingCounts['3+'];
+        const totalPlus3 = crossSellingCounts['3+'];
+
+        const pctMono = totalPlus1 > 0 ? (crossSellingCounts[1] / totalPlus1) * 100 : 0;
+
+        if (pctMono > 60) {
+            marketingStrategies.push({
+                type: 'EXPANSION',
+                title: 'Potencial de Expansión Masiva',
+                color: 'purple',
+                description: `El **${pctMono.toFixed(1)}%** de tus clientes tiene un solo producto. Es una base enorme sin explotar. Ofréceles un segundo producto con descuento por vinculación.`
+            });
+        } else if (pctMono < 40) {
+            marketingStrategies.push({
+                type: 'EXPANSION',
+                title: 'Cartera Muy Vinculada',
+                color: 'emerald',
+                description: `Excelente trabajo: la mayoría de tus clientes tienen múltiples productos. Enfócate ahora en aumentar el ticket medio con productos premium (Up-selling).`
+            });
+        } else {
+            // Generic fallback if neither extreme
+            marketingStrategies.push({
+                type: 'EXPANSION',
+                title: 'Desarrollo de Cliente',
+                color: 'blue',
+                description: `Tienes **${crossSellingCounts[1]} clientes** con un solo contrato. Convertir solo al 10% de ellos duplicaría significativamente tu rentabilidad por cliente.`
+            });
+        }
+
+        // Ensure we have at least 3 items, maybe duplicate generic ones if needed, or add a Pareto one
+        if (marketingStrategies.length < 3) {
+            // Add Pareto Insight
+            const entesSorted = Array.from(breakdownMap.values()).sort((a, b) => b.primas - a.primas);
+            const top20Count = Math.ceil(entesSorted.length * 0.2);
+            const top20Primas = entesSorted.slice(0, top20Count).reduce((s, c) => s + c.primas, 0);
+            const paretoPct = currentPrimas > 0 ? (top20Primas / currentPrimas) * 100 : 0;
+
+            if (paretoPct > 75) {
+                marketingStrategies.push({
+                    type: 'CONCENTRATION',
+                    title: 'Protección de VIPs',
+                    color: 'amber',
+                    description: `Riesgo de concentración: el 20% de tus clientes genera el **${paretoPct.toFixed(1)}%** de tus ingresos. Asegura su lealtad con un servicio exclusivo.`
+                });
+            } else {
+                marketingStrategies.push({
+                    type: 'CONCENTRATION',
+                    title: 'Cartera Atomizada',
+                    color: 'blue',
+                    description: `Tu cartera está bien distribuida (${paretoPct.toFixed(1)}% en Top 20). Esto reduce riesgos. Puedes permitirte ser más agresivo en captación de nuevos nichos.`
+                });
+            }
+        }
+
+        // 4. Fill if still missing (Fallback)
+        if (marketingStrategies.length < 3) {
+            marketingStrategies.push({
+                type: 'GENERAL',
+                title: 'Revisión de Cartera',
+                color: 'slate',
+                description: 'Revisa periódicamente las pólizas sin efecto y contacta a los clientes para reactivación o nueva contratación.'
+            });
         }
 
         const crossSellRatio = totalEntesWithPolizas > 0 ? totalRamosCoverage / totalEntesWithPolizas : 0;
@@ -322,11 +410,7 @@ export async function GET(request: Request) {
             return ((curr - prev) / prev) * 100;
         };
 
-        // Jump Probabilities (Funnel)
-        const totalPlus1 = crossSellingCounts[1] + crossSellingCounts[2] + crossSellingCounts['3+'];
-        const totalPlus2 = crossSellingCounts[2] + crossSellingCounts['3+'];
-        const totalPlus3 = crossSellingCounts['3+'];
-
+        // Jump Probabilities (Funnel) - Already calculated above for strategies
         const jumpProbabilities = {
             '1to2': totalPlus1 > 0 ? (totalPlus2 / totalPlus1) * 100 : 0,
             '2to3': totalPlus2 > 0 ? (totalPlus3 / totalPlus2) * 100 : 0
@@ -342,7 +426,7 @@ export async function GET(request: Request) {
         // Advanced metrics update
         const advanced = {
             totalEntes: paretoData.length,
-            topNBA,
+            marketingStrategies,
             jumpProbabilities,
             crossSellingDistribution: crossSellingCounts,
             paretoData: paretoData,
