@@ -292,25 +292,27 @@ export default function CarteraPage() {
 
     const generateParetoData = () => {
         if (!advancedMetrics?.paretoData) return { labels: [], datasets: [] };
-        const data = advancedMetrics.paretoData;
+        // Limit to Top 15 for LEGIBILITY in chart, but use full data for calculations
+        const chartData = advancedMetrics.paretoData.slice(0, 15);
+
         return {
-            labels: data.map((d: any) => d.ente),
+            labels: chartData.map((d: any) => d.ente),
             datasets: [
                 {
                     type: 'line' as const,
                     label: '% Acumulado',
-                    data: data.map((d: any) => d.cumulativePct),
+                    data: chartData.map((d: any) => d.cumulativePct),
                     borderColor: '#f59e0b',
                     backgroundColor: '#fbbf24',
                     yAxisID: 'y1',
-                    pointRadius: 2,
+                    pointRadius: 3,
                     borderWidth: 2,
                     tension: 0.1,
                 },
                 {
                     type: 'bar' as const,
                     label: 'Primas (€)',
-                    data: data.map((d: any) => d.primas),
+                    data: chartData.map((d: any) => d.primas),
                     backgroundColor: 'rgba(79, 70, 229, 0.4)',
                     borderColor: 'rgb(79, 70, 229)',
                     borderWidth: 1,
@@ -323,9 +325,16 @@ export default function CarteraPage() {
     const paretoOptions = {
         responsive: true,
         maintainAspectRatio: false,
+        layout: {
+            padding: { left: 10, right: 10, top: 0, bottom: 0 }
+        },
         plugins: {
-            legend: { position: 'bottom' as const, labels: { boxWidth: 10, font: { size: 10 } } },
+            legend: { position: 'bottom' as const, labels: { boxWidth: 10, font: { size: 10, weight: 'bold' as const } } },
             tooltip: {
+                backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                padding: 12,
+                titleFont: { size: 13 },
+                bodyFont: { size: 12 },
                 callbacks: {
                     label: (context: any) => {
                         const val = context.raw;
@@ -336,9 +345,26 @@ export default function CarteraPage() {
             }
         },
         scales: {
-            y: { title: { display: true, text: 'Primas (€)' }, ticks: { font: { size: 10 } } },
-            y1: { position: 'right' as const, title: { display: true, text: '% Acumulado' }, min: 0, max: 100, grid: { drawOnChartArea: false }, ticks: { font: { size: 10 } } },
-            x: { display: false }
+            y: {
+                display: false // We use labels on Y axis (names) but hide the numeric title
+            },
+            y1: {
+                position: 'right' as const,
+                display: false // Clean look
+            },
+            x: {
+                display: false // Numeric data is on the bars
+            },
+            y_axis_labels: {
+                display: true,
+                position: 'left' as const,
+                grid: { display: false },
+                ticks: {
+                    autoSkip: false,
+                    font: { size: 10, weight: 'bold' as const },
+                    color: '#475569'
+                }
+            }
         }
     };
 
@@ -649,147 +675,131 @@ export default function CarteraPage() {
                 </div>
             </div>
 
-            {/* Strategic Analysis Section */}
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 no-print">
-                {/* Concentration & Pareto Analysis */}
-                <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
-                    <div className="flex items-center justify-between mb-8">
-                        <h2 className="text-xl font-bold text-slate-800 flex items-center gap-3 tracking-tight">
-                            <div className="p-2 bg-amber-50 rounded-lg"><Zap className="w-5 h-5 text-amber-500" /></div>
-                            Análisis de Concentración (Pareto)
-                        </h2>
+            {/* Strategic Analysis & Pareto Section - Rebuilt for Horizontal Dominance */}
+            <div className="space-y-8 no-print">
+                <div className="bg-white p-10 rounded-[40px] shadow-sm border border-slate-200">
+                    <div className="flex items-center justify-between mb-10">
+                        <div>
+                            <h2 className="text-2xl font-black text-slate-800 flex items-center gap-4 tracking-tighter">
+                                <div className="p-3 bg-amber-50 rounded-2xl text-amber-500 shadow-sm"><Zap className="w-6 h-6" /></div>
+                                Análisis de Concentración Estratégica
+                            </h2>
+                            <p className="text-sm text-slate-500 font-medium mt-1">Identificación de activos críticos y potencial de expansión del Long Tail</p>
+                        </div>
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-                        {/* Dynamic Insights - Left Side */}
-                        <div className="lg:col-span-2 space-y-6">
-                            {advancedMetrics?.paretoData ? (
-                                (() => {
-                                    const data = advancedMetrics.paretoData;
-                                    const totalEntes = advancedMetrics.totalEntes || 0;
-                                    const criticalIdx = data.findIndex((d: any) => d.cumulativePct >= 80);
-                                    const vips = criticalIdx !== -1 ? criticalIdx + 1 : 0;
-                                    const concentrationPct = totalEntes > 0 ? (vips / totalEntes) * 100 : 0;
+                    <div className="flex flex-col gap-10">
+                        {/* Top: Insights Row */}
+                        {advancedMetrics?.paretoData ? (
+                            (() => {
+                                const data = advancedMetrics.paretoData;
+                                const totalEntes = advancedMetrics.totalEntes || 0;
+                                const criticalIdx = data.findIndex((d: any) => d.cumulativePct >= 80);
+                                const vips = criticalIdx !== -1 ? criticalIdx + 1 : 0;
+                                const concentrationPct = totalEntes > 0 ? (vips / totalEntes) * 100 : 0;
+                                const totalPlus1 = advancedMetrics.crossSellingDistribution?.[1] || 0;
 
-                                    const isRisky = concentrationPct > 0 && concentrationPct < 15;
-                                    const isResilient = concentrationPct > 25;
+                                const isRisky = concentrationPct > 0 && concentrationPct < 15;
+                                const isResilient = concentrationPct > 25;
 
-                                    return (
-                                        <div className="space-y-6 animate-in fade-in slide-in-from-left duration-700">
-                                            <div className={`p-4 rounded-2xl border-l-4 shadow-sm ${isRisky ? 'bg-red-50 border-red-500' : isResilient ? 'bg-emerald-50 border-emerald-500' : 'bg-blue-50 border-blue-500'}`}>
-                                                <h4 className={`text-xs font-black uppercase tracking-wider ${isRisky ? 'text-red-700' : isResilient ? 'text-emerald-700' : 'text-blue-700'}`}>
-                                                    {isRisky ? 'Riesgo Alto de Concentración' : isResilient ? 'Cartera Resiliente y Atomizada' : 'Distribución Equilibrada'}
-                                                </h4>
-                                                <p className="text-[11px] text-slate-600 mt-2 leading-relaxed font-medium">
-                                                    {vips} de tus clientes generan el 80% de tus ingresos.
-                                                    {isRisky ? ' Tu facturación depende de un grupo muy reducido; fidelizarlos es crítico.' : ' Tienes un modelo robusto donde la pérdida de un ente no compromete el total.'}
+                                return (
+                                    <>
+                                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                            {/* Status Box */}
+                                            <div className={`p-6 rounded-[32px] border-l-[6px] shadow-sm ${isRisky ? 'bg-red-50/50 border-red-500' : isResilient ? 'bg-emerald-50/50 border-emerald-500' : 'bg-blue-50/50 border-blue-500'}`}>
+                                                <div className="flex justify-between items-start mb-4">
+                                                    <h4 className={`text-xs font-black uppercase tracking-widest ${isRisky ? 'text-red-700' : isResilient ? 'text-emerald-700' : 'text-blue-700'}`}>
+                                                        {isRisky ? 'Riesgo Alto de Concentración' : isResilient ? 'Cartera Resiliente y Atomizada' : 'Distribución Equilibrada'}
+                                                    </h4>
+                                                </div>
+                                                <p className="text-xs text-slate-600 leading-relaxed font-semibold">
+                                                    El **80% de tus ingresos** depende de **{vips} de tus {totalEntes} clientes**.
+                                                    {isRisky ? ' Esto indica una dependencia crítica de pocos entes.' : ' Esta es una estructura muy sana con bajo riesgo de fuga masiva.'}
                                                 </p>
                                             </div>
 
-                                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex gap-4">
-                                                <div className="p-2 bg-indigo-50 rounded-xl h-min"><Zap className="w-4 h-4 text-primary" /></div>
-                                                <div>
-                                                    <h4 className="text-xs font-bold text-slate-800 uppercase flex items-center gap-2">
-                                                        Estrategia "Larga Cola"
-                                                    </h4>
-                                                    <p className="text-[11px] text-slate-500 mt-2 leading-relaxed">
-                                                        Hay **{(totalEntes - vips)} clientes** con potencial de cruce.
-                                                        {advancedMetrics.topNBA ? (
-                                                            <span> {advancedMetrics.topNBA.description}</span>
-                                                        ) : (
-                                                            ' Utiliza campañas de Venta Cruzada para diversificar y aumentar su valor.'
-                                                        )}
-                                                    </p>
+                                            {/* Jump Probabilities Box */}
+                                            <div className="bg-indigo-50/30 p-6 rounded-[32px] border border-indigo-100/50">
+                                                <h4 className="text-xs font-black text-indigo-700 uppercase tracking-widest mb-4">Eficiencia de Salto Ramos</h4>
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div>
+                                                        <div className="text-[10px] font-bold text-slate-500 uppercase mb-1">1 → 2 Ramos</div>
+                                                        <div className="text-xl font-black text-slate-900">{advancedMetrics.jumpProbabilities?.['1to2'].toFixed(1)}%</div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-[10px] font-bold text-slate-500 uppercase mb-1">2 → 3+ Ramos</div>
+                                                        <div className="text-xl font-black text-slate-900">{advancedMetrics.jumpProbabilities?.['2to3'].toFixed(1)}%</div>
+                                                    </div>
                                                 </div>
                                             </div>
 
-                                            {/* Conversion Funnel / Jump Probabilities */}
-                                            {advancedMetrics.jumpProbabilities && (
-                                                <div className="pt-2">
-                                                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                                        Funnel de Conversión Real
-                                                        <div className="h-px bg-slate-100 flex-1"></div>
-                                                    </h4>
-                                                    <div className="grid grid-cols-2 gap-4">
-                                                        <div className="bg-emerald-50/50 p-3 rounded-xl border border-emerald-100/50">
-                                                            <div className="text-[10px] font-bold text-emerald-600 uppercase mb-1">Salto 1 → 2 Ramos</div>
-                                                            <div className="flex items-baseline gap-2">
-                                                                <span className="text-xl font-black text-emerald-700">{advancedMetrics.jumpProbabilities['1to2'].toFixed(1)}%</span>
-                                                                <TrendingUp className="w-3 h-3 text-emerald-500" />
-                                                            </div>
-                                                        </div>
-                                                        <div className="bg-blue-50/50 p-3 rounded-xl border border-blue-100/50">
-                                                            <div className="text-[10px] font-bold text-blue-600 uppercase mb-1">Salto 2 → 3+ Ramos</div>
-                                                            <div className="flex items-baseline gap-2">
-                                                                <span className="text-xl font-black text-blue-700">{advancedMetrics.jumpProbabilities['2to3'].toFixed(1)}%</span>
-                                                                <TrendingUp className="w-3 h-3 text-blue-500" />
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            )}
+                                            {/* Strategy Argumentation */}
+                                            <div className="bg-amber-50/30 p-6 rounded-[32px] border border-amber-100/50 lg:col-span-1">
+                                                <h4 className="text-xs font-black text-amber-700 uppercase tracking-widest mb-4">Estrategia Justificada</h4>
+                                                <p className="text-xs text-slate-700 leading-relaxed font-medium">
+                                                    Priorizamos atacar a los **{totalPlus1} clientes** que tienen **solo 1 ramo**.
+                                                    {advancedMetrics.topNBA ? (
+                                                        <span> {advancedMetrics.topNBA.description} con una confianza del **{advancedMetrics.topNBA.confidence}%**.</span>
+                                                    ) : (
+                                                        ' Utiliza campañas de Venta Cruzada para diversificar.'
+                                                    )}
+                                                </p>
+                                            </div>
                                         </div>
-                                    );
-                                })()
-                            ) : (
-                                <div className="space-y-4">
-                                    <div className="h-24 bg-slate-50 animate-pulse rounded-2xl" />
-                                    <div className="h-24 bg-slate-50 animate-pulse rounded-2xl" />
-                                </div>
-                            )}
-                        </div>
 
-                        {/* Chart - Right Side (Horizontal & Minimalist) */}
-                        <div className="lg:col-span-3 h-[280px]">
-                            {advancedMetrics?.paretoData ? (
-                                <Chart
-                                    type="bar"
-                                    data={generateParetoData()}
-                                    options={{
-                                        ...paretoOptions,
-                                        indexAxis: 'y',
-                                        // Remove numbers from axes as requested
-                                        scales: {
-                                            x: { display: false },
-                                            y: {
-                                                display: true,
-                                                grid: { display: false },
-                                                ticks: {
-                                                    font: { size: 9, weight: 'bold' },
-                                                    color: '#94a3b8'
-                                                }
-                                            },
-                                            y1: { display: false }
-                                        }
-                                    } as any}
-                                />
-                            ) : (
-                                <div className="h-full w-full bg-slate-50 animate-pulse rounded-2xl" />
-                            )}
-                        </div>
+                                        {/* Full Width Chart Area */}
+                                        <div className="mt-4">
+                                            <div className="flex justify-between items-center mb-6">
+                                                <h4 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-3">
+                                                    Curva de Pareto: Top 15 Activos Críticos
+                                                    <div className="h-px bg-slate-100 w-40"></div>
+                                                </h4>
+                                                <div className="flex gap-4">
+                                                    <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-indigo-400 opacity-40"></div><span className="text-[10px] font-bold text-slate-400">Primas (€)</span></div>
+                                                    <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-amber-500"></div><span className="text-[10px] font-bold text-slate-400">% Acumulado</span></div>
+                                                </div>
+                                            </div>
+
+                                            <div className="h-[450px] w-full">
+                                                <Chart
+                                                    type="bar"
+                                                    data={generateParetoData()}
+                                                    options={{
+                                                        ...paretoOptions,
+                                                        indexAxis: 'y',
+                                                    } as any}
+                                                />
+                                            </div>
+                                        </div>
+                                    </>
+                                );
+                            })()
+                        ) : (
+                            <div className="h-[400px] w-full bg-slate-50 animate-pulse rounded-[40px]" />
+                        )}
                     </div>
                 </div>
+            </div>
 
-                <div className="grid grid-cols-1 gap-8">
-                    <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
-                        <h2 className="text-lg font-bold text-slate-800 flex items-center gap-3 tracking-tight mb-4"><LayoutList className="w-4 h-4 text-indigo-500" /> Venta Cruzada</h2>
-                        <div className="h-[100px]">
-                            {advancedMetrics ? <Bar data={crossSellData} options={{ responsive: true, maintainAspectRatio: false, indexAxis: 'y' as const, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { grid: { display: false }, ticks: { font: { size: 9 } } } } }} /> : <div className="h-full w-full bg-slate-50 animate-pulse rounded-2xl" />}
-                        </div>
+            <div className="grid grid-cols-1 gap-8">
+                <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+                    <h2 className="text-lg font-bold text-slate-800 flex items-center gap-3 tracking-tight mb-4"><LayoutList className="w-4 h-4 text-indigo-500" /> Venta Cruzada</h2>
+                    <div className="h-[100px]">
+                        {advancedMetrics ? <Bar data={crossSellData} options={{ responsive: true, maintainAspectRatio: false, indexAxis: 'y' as const, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { grid: { display: false }, ticks: { font: { size: 9 } } } } }} /> : <div className="h-full w-full bg-slate-50 animate-pulse rounded-2xl" />}
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-3"><TrendingUp className="w-4 h-4 text-red-500" /> Vida Media</h3>
-                            <div className="h-[100px]"><Bar data={survivalData} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { ticks: { font: { size: 8 } } } } }} /></div>
-                        </div>
-                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-3"><ShieldCheck className="w-4 h-4 text-emerald-500" /> Salud por Estado</h3>
-                            <div className="h-[100px]"><Bar data={generateStatusHealthData()} options={statusHealthOptions as any} /></div>
-                        </div>
-                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-3"><XCircle className="w-4 h-4 text-slate-500" /> Por Ramo (Sin Efecto)</h3>
-                            <div className="h-[100px]"><Bar data={sinEfectoChartData} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { ticks: { font: { size: 8 }, precision: 0 } } } }} /></div>
-                        </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                        <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-3"><TrendingUp className="w-4 h-4 text-red-500" /> Vida Media</h3>
+                        <div className="h-[100px]"><Bar data={survivalData} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { ticks: { font: { size: 8 } } } } }} /></div>
+                    </div>
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                        <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-3"><ShieldCheck className="w-4 h-4 text-emerald-500" /> Salud por Estado</h3>
+                        <div className="h-[100px]"><Bar data={generateStatusHealthData()} options={statusHealthOptions as any} /></div>
+                    </div>
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                        <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-3"><XCircle className="w-4 h-4 text-slate-500" /> Por Ramo (Sin Efecto)</h3>
+                        <div className="h-[100px]"><Bar data={sinEfectoChartData} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { ticks: { font: { size: 8 }, precision: 0 } } } }} /></div>
                     </div>
                 </div>
             </div>
@@ -884,6 +894,6 @@ export default function CarteraPage() {
                     </table>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }
