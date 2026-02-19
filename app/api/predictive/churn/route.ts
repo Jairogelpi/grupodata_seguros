@@ -7,12 +7,15 @@ export const dynamic = 'force-dynamic';
 const parseAnyDate = (val: any) => {
     if (!val) return null;
     if (typeof val === 'number') return new Date((val - 25569) * 86400 * 1000);
-    const parts = String(val).split('/');
+    const parts = String(val).split(/[/-]/);
     if (parts.length === 3) {
         const day = parseInt(parts[0]);
         const month = parseInt(parts[1]);
         const year = parseInt(parts[2]);
-        return new Date(year, month - 1, day);
+        if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+            // Handle 2-digit years if necessary, but assume 4-digit for now
+            return new Date(year, month - 1, day);
+        }
     }
     const d = new Date(val);
     return isNaN(d.getTime()) ? null : d;
@@ -27,7 +30,8 @@ export async function GET(request: Request) {
         polizas.forEach(p => {
             const num = String(p['Póliza'] || 'S/N');
             const estado = String(p['Estado'] || '').toLowerCase();
-            const isCancelled = estado.includes('anul') || estado.includes('baja') || estado.includes('canc');
+            // Use 'anula' instead of 'anul' to avoid matching 'Anual' (payment frequency)
+            const isCancelled = estado.includes('anula') || estado.includes('baja') || estado.includes('cancela');
 
             if (!uniquePolizasMap.has(num)) {
                 uniquePolizasMap.set(num, p);
@@ -41,7 +45,7 @@ export async function GET(request: Request) {
 
         const cancelled = uniquePolizas.filter(p => {
             const estado = String(p['Estado'] || '').toLowerCase();
-            return estado.includes('anul') || estado.includes('baja') || estado.includes('canc');
+            return estado.includes('anula') || estado.includes('baja') || estado.includes('cancela');
         });
 
         const active = uniquePolizas.filter(p => {
@@ -75,7 +79,8 @@ export async function GET(request: Request) {
             const ramo = getRamo(String(p['Producto'] || ''));
             const cia = String(p['Compañía'] || 'Otros');
             const estado = String(p['Estado'] || '').toLowerCase();
-            const isCancelled = estado.includes('anula') || estado.includes('baja');
+            // CRITICAL: Must use the exact same filter as 'cancelled' above
+            const isCancelled = estado.includes('anula') || estado.includes('baja') || estado.includes('cancela');
 
             // Seniority logic (months between Effekt and current or Cancel date)
             const dateEfecto = parseAnyDate(p['F.Efecto']);
@@ -158,7 +163,7 @@ export async function GET(request: Request) {
 
         // 4. Return Top Risks
         const sortedRisk = riskList
-            .filter(r => r.score > 0.05) // Top relevant risks
+            .filter(r => r.score > 0.01) // More inclusive threshold
             .sort((a, b) => b.score - a.score);
 
         return NextResponse.json({

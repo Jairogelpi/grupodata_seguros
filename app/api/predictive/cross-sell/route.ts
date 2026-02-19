@@ -128,7 +128,7 @@ export async function GET(request: Request) {
             const d = N - (a + b + c); // Neither
 
             const chiSquare = (N * Math.pow(a * d - b * c, 2)) / ((a + b) * (c + d) * (a + c) * (b + d));
-            const isSignificant = chiSquare > 3.84; // p < 0.05 threshold
+            const isSignificant = chiSquare > 2.71; // Lowered to p < 0.10 for small business datasets
 
             if (lift > 1.2 && confidence > 0.05 && isSignificant) {
                 // Find target customers: Have Ramo A, never had Ramo B
