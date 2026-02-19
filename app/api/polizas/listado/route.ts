@@ -59,6 +59,8 @@ export async function GET(request: Request) {
         };
 
         // 3. Filter Policies
+        console.log(`[API:Listado] Total polizas from file: ${polizas.length}`);
+
         const filteredPolizas = polizas.filter(p => {
             const pEnte = getPolizaEnteName(p);
 
@@ -115,7 +117,11 @@ export async function GET(request: Request) {
 
 
             return true;
-        }).map(p => {
+        })
+
+        console.log(`[API:Listado] Policies after filters: ${filteredPolizas.length}`);
+
+        const mappedPolizas = filteredPolizas.map(p => {
             const fAltaStr = p['F. Alta'] || p['F.Efecto'] || '';
             const fAnulaStr = p['F.Anulación'] || '';
             const estado = p['Estado'] || '';
@@ -123,14 +129,14 @@ export async function GET(request: Request) {
 
             if (fAltaStr) {
                 try {
-                    const [dE, mE, yE] = fAltaStr.split('/').map(Number);
+                    const [dE, mE, yE] = String(fAltaStr).split('/').map(Number);
                     const dateStart = new Date(yE, mE - 1, dE);
 
                     if (!isNaN(dateStart.getTime())) {
                         let dateEnd = new Date(); // Default for active
 
                         if (fAnulaStr) {
-                            const [dA, mA, yA] = fAnulaStr.split('/').map(Number);
+                            const [dA, mA, yA] = String(fAnulaStr).split('/').map(Number);
                             dateEnd = new Date(yA, mA - 1, dA);
                         }
 
@@ -160,13 +166,15 @@ export async function GET(request: Request) {
             };
         });
 
+        console.log(`[API:Listado] Final mapped policies: ${mappedPolizas.length}`);
+
         return NextResponse.json({
-            count: filteredPolizas.length,
-            polizas: filteredPolizas
+            count: mappedPolizas.length,
+            polizas: mappedPolizas
         });
 
     } catch (error) {
         console.error(error);
-        return NextResponse.json({ error: 'Failed to fetch policy list' }, { status: 500 });
+        return NextResponse.json({ error: 'Failed to fetch policy list', details: error instanceof Error ? error.message : String(error) }, { status: 500 });
     }
 }

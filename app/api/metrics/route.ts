@@ -20,6 +20,8 @@ export async function GET(request: Request) {
         const meses = parseParam(searchParams.get('mes'));
         const estados = parseParam(searchParams.get('estado'));
         const entesFilter = parseParam(searchParams.get('ente'));
+        const ramosFilter = parseParam(searchParams.get('ramo'));
+        const productosFilter = parseParam(searchParams.get('producto'));
 
         // 1. Read Data (All sources use hybrid storage: disk in dev, Blob in prod)
         const [polizas, links, asesoresList, entesData] = await Promise.all([
@@ -67,10 +69,10 @@ export async function GET(request: Request) {
         let currentCount = 0;
         const breakdownMap = new Map<string, { ente: string, primas: number, polizas: number, asesor: string, anulaciones: number }>();
         const asesoresStats = new Map<string, { asesor: string, numEntes: number, totalPrimas: number, numPolizos: number }>();
-        const productStats = new Map<string, { producto: string, primas: number, polizas: number }>();
-        const estadoStats = new Map<string, { estado: string, primas: number, polizas: number }>();
+        const productStats = new Map<string, { producto: string; primas: number; polizas: number; entes: Set<string> }>();
+        const estadoStats = new Map<string, { estado: string; primas: number; polizas: number }>();
         const companyStats = new Map<string, { company: string, primas: number, polizas: number, entes: Set<string>, asesores: Set<string> }>();
-        const ramoStats = new Map<string, { ramo: string, primas: number, polizas: number }>();
+        const ramoStats = new Map<string, { ramo: string; primas: number; polizas: number; entes: Set<string> }>();
         const cancellationReasons = new Map<string, number>();
 
         // Pre-fill asesores from the registry to ensure they all appear in base lists if needed
@@ -105,6 +107,8 @@ export async function GET(request: Request) {
             const pAnio = String(p['AÑO_PROD'] || '');
             const pMes = String(p['MES_Prod'] || '');
             const pEstado = String(p['Estado'] || '');
+            const producto = String(p['Producto'] || 'Otros'); // Need product for ramo check
+            const ramoName = getRamo(producto);
             const code = getPolizaEnteCode(p);
 
             if (!code) return;
@@ -117,33 +121,34 @@ export async function GET(request: Request) {
             const matchEstado = estados.length === 0 || estados.includes(pEstado);
             const matchAsesor = comerciales.length === 0 || comerciales.includes(pAsesor);
             const matchEnte = entesFilter.length === 0 || entesFilter.includes(pEnteName);
+            const matchRamo = ramosFilter.length === 0 || ramosFilter.includes(ramoName);
+            const matchProducto = productosFilter.length === 0 || productosFilter.includes(producto);
 
             // Cross-Filtering logic: Update options for each filter independently
-            if (matchMes && matchEstado && matchAsesor && matchEnte) {
+            if (matchMes && matchEstado && matchAsesor && matchEnte && matchRamo && matchProducto) {
                 if (pAnio) dynAnios.add(pAnio);
             }
-            if (matchAnio && matchEstado && matchAsesor && matchEnte) {
+            if (matchAnio && matchEstado && matchAsesor && matchEnte && matchRamo && matchProducto) {
                 if (pMes) dynMeses.add(pMes);
             }
-            if (matchAnio && matchMes && matchAsesor && matchEnte) {
+            if (matchAnio && matchMes && matchAsesor && matchEnte && matchRamo && matchProducto) {
                 if (pEstado) dynEstados.add(pEstado);
             }
-            if (matchAnio && matchMes && matchEstado && matchEnte) {
+            if (matchAnio && matchMes && matchEstado && matchEnte && matchRamo && matchProducto) {
                 if (pAsesor) dynAsesores.add(pAsesor);
             }
-            if (matchAnio && matchMes && matchEstado && matchAsesor) {
+            if (matchAnio && matchMes && matchEstado && matchAsesor && matchRamo && matchProducto) {
                 if (pEnteName) dynEntes.add(pEnteName);
             }
 
             // Metrics application: Must match ALL filters
-            if (!matchAnio || !matchMes || !matchEstado || !matchAsesor || !matchEnte) return;
+            if (!matchAnio || !matchMes || !matchEstado || !matchAsesor || !matchEnte || !matchRamo || !matchProducto) return;
 
             // GLOBAL FILTER: Double check against validEnteCodes (registered entities)
             if (!validEnteCodes.has(code)) return;
 
             const pStr = String(p['P.Produccion'] || '0').replace(',', '.');
             const primas = parseFloat(pStr) || 0;
-            const producto = String(p['Producto'] || 'Otros');
             const company = String(p['Abrev.Cía'] || 'Desconocida').trim();
             const fAnulacion = p['F.Anulación'];
             const motAnulacion = String(p['Mot.Anulación'] || '').trim();
@@ -169,17 +174,18 @@ export async function GET(request: Request) {
                 a.numPolizos += 1;
             }
 
-            if (!productStats.has(producto)) productStats.set(producto, { producto, primas: 0, polizas: 0 });
+            if (!productStats.has(producto)) productStats.set(producto, { producto, primas: 0, polizas: 0, entes: new Set() });
             const ps = productStats.get(producto)!;
             ps.primas += primas;
             ps.polizas += 1;
+            ps.entes.add(code);
 
             // Ramo (depth 1) aggregation
-            const ramoName = getRamo(producto);
-            if (!ramoStats.has(ramoName)) ramoStats.set(ramoName, { ramo: ramoName, primas: 0, polizas: 0 });
+            if (!ramoStats.has(ramoName)) ramoStats.set(ramoName, { ramo: ramoName, primas: 0, polizas: 0, entes: new Set() });
             const rs = ramoStats.get(ramoName)!;
             rs.primas += primas;
             rs.polizas += 1;
+            rs.entes.add(code);
 
             if (!estadoStats.has(pEstado)) estadoStats.set(pEstado, { estado: pEstado, primas: 0, polizas: 0 });
             const es = estadoStats.get(pEstado)!;
@@ -264,8 +270,15 @@ export async function GET(request: Request) {
                 numAsesores: c.asesores.size,
                 ticketMedio: c.polizas > 0 ? c.primas / c.polizas : 0
             })).sort((a, b) => b.primas - a.primas),
-            productosBreakdown: Array.from(productStats.values()).sort((a, b) => b.primas - a.primas),
-            ramosBreakdown: Array.from(ramoStats.values()).sort((a, b) => b.primas - a.primas),
+            productosBreakdown: Array.from(productStats.values()).map(p => ({
+                ...p,
+                entes: p.entes.size,
+                ticketMedio: p.polizas > 0 ? p.primas / p.polizas : 0
+            })).sort((a, b) => b.primas - a.primas),
+            ramosBreakdown: Array.from(ramoStats.values()).map(r => ({
+                ...r,
+                entes: r.entes.size
+            })).sort((a, b) => b.primas - a.primas),
             estadosBreakdown: Array.from(estadoStats.values()).sort((a, b) => b.polizas - a.polizas),
             cancellationReasons: Array.from(cancellationReasons.entries()).map(([reason, count]) => ({ reason, count })).sort((a, b) => b.count - a.count)
         });

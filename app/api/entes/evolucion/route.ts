@@ -92,8 +92,8 @@ export async function GET(request: Request) {
         }
 
         const monthlyStats = new Map<string, MonthlyBucket>();
-        const productMix = new Map<string, { primas: number; polizas: number }>();
-        const ramosMix = new Map<string, { primas: number; polizas: number }>();
+        const productMix = new Map<string, { primas: number; polizas: number; entes: Set<string> }>();
+        const ramosMix = new Map<string, { primas: number; polizas: number; entes: Set<string> }>();
 
         polizas.forEach(p => {
             const name = getPolizaEnteName(p);
@@ -178,19 +178,27 @@ export async function GET(request: Request) {
             // Product/Ramo mix aggregation
             const ramo = producto;
             if (!productMix.has(ramo)) {
-                productMix.set(ramo, { primas: 0, polizas: 0 });
+                productMix.set(ramo, { primas: 0, polizas: 0, entes: new Set() });
             }
             const pm = productMix.get(ramo)!;
             pm.primas += primas;
             pm.polizas += 1;
+            // Use original Ente code/name from policy for distinct counting within this Ente Group
+            const originalEnte = getPolizaEnteName(p) || enteName;
+            // Wait, getPolizaEnteName returns the GROUP name if mapped. 
+            // We want the RAW code to count distinct sub-entities if any.
+            // Let's use p['Ente Comercial'] as the raw identifier for counting "how many entes"
+            const rawEnte = String(p['Ente Comercial'] || '');
+            pm.entes.add(rawEnte);
 
             const ramoName = getRamo(producto);
             if (!ramosMix.has(ramoName)) {
-                ramosMix.set(ramoName, { primas: 0, polizas: 0 });
+                ramosMix.set(ramoName, { primas: 0, polizas: 0, entes: new Set() });
             }
             const rm = ramosMix.get(ramoName)!;
             rm.primas += primas;
             rm.polizas += 1;
+            rm.entes.add(rawEnte);
         });
 
         // 4. Sort and return
@@ -207,7 +215,12 @@ export async function GET(request: Request) {
 
         // Product mix sorted by primas desc
         const productMixArray = Array.from(productMix.entries())
-            .map(([producto, data]) => ({ producto, ...data }))
+            .map(([producto, data]) => ({
+                producto,
+                primas: data.primas,
+                polizas: data.polizas,
+                entes: data.entes.size
+            }))
             .sort((a, b) => b.primas - a.primas);
 
         // 5. Global Stats (Flow in period)
@@ -261,7 +274,12 @@ export async function GET(request: Request) {
         }
 
         const ramosMixArray = Array.from(ramosMix.entries())
-            .map(([ramo, data]) => ({ ramo, ...data }))
+            .map(([ramo, data]) => ({
+                ramo,
+                primas: data.primas,
+                polizas: data.polizas,
+                entes: data.entes.size
+            }))
             .sort((a, b) => b.primas - a.primas);
 
         return NextResponse.json({
