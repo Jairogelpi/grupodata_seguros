@@ -28,10 +28,9 @@ export async function GET(request: Request) {
         // 1. Unique-ify policies by Number to avoid population inflation
         const uniquePolizasMap = new Map<string, any>();
         polizas.forEach(p => {
-            const num = String(p['Póliza'] || 'S/N');
+            const num = String(p['NºPóliza'] || 'S/N');
             const estado = String(p['Estado'] || '').toLowerCase();
-            // Use 'anula' instead of 'anul' to avoid matching 'Anual' (payment frequency)
-            const isCancelled = estado.includes('anula') || estado.includes('baja') || estado.includes('cancela');
+            const isCancelled = estado.includes('anula') || estado.includes('baja');
 
             if (!uniquePolizasMap.has(num)) {
                 uniquePolizasMap.set(num, p);
@@ -45,16 +44,16 @@ export async function GET(request: Request) {
 
         const cancelled = uniquePolizas.filter(p => {
             const estado = String(p['Estado'] || '').toLowerCase();
-            return estado.includes('anula') || estado.includes('baja') || estado.includes('cancela');
+            return estado.includes('anula') || estado.includes('baja');
         });
 
         const active = uniquePolizas.filter(p => {
             const estado = String(p['Estado'] || '').toLowerCase();
             // Active is basically anything that isn't cancelled and isn't a future/test record
-            return estado.includes('vigor') || estado.includes('pendien') || estado.includes('cartera') || estado.includes('cobro');
+            return estado.includes('vigor') || estado.includes('pendien') || estado.includes('cartera') || estado.includes('cobro') || estado.includes('suspension');
         });
 
-        if (cancelled.length === 0 || active.length === 0) {
+        if (uniquePolizas.length === 0 || active.length === 0) {
             // Return dummy stats instead of empty to avoid UI "Not Working" feeling if data is scarce
             return NextResponse.json({
                 riskList: [],
@@ -77,10 +76,10 @@ export async function GET(request: Request) {
 
         uniquePolizas.forEach(p => {
             const ramo = getRamo(String(p['Producto'] || ''));
-            const cia = String(p['Compañía'] || 'Otros');
+            const cia = String(p['Abrev.Cía'] || p['Compañía'] || 'Otros');
             const estado = String(p['Estado'] || '').toLowerCase();
             // CRITICAL: Must use the exact same filter as 'cancelled' above
-            const isCancelled = estado.includes('anula') || estado.includes('baja') || estado.includes('cancela');
+            const isCancelled = estado.includes('anula') || estado.includes('baja');
 
             // Seniority logic (months between Effekt and current or Cancel date)
             const dateEfecto = parseAnyDate(p['F.Efecto']);
@@ -115,14 +114,14 @@ export async function GET(request: Request) {
 
         const getFactorRisk = (map: Map<string, any>, key: string) => {
             const s = map.get(key);
-            if (!s || s.total < 10) return 1.0; // Neutral if not enough data
+            if (!s || s.total < 5) return 1.0; // Neutral if not enough data
             const catChurn = s.cancelled / s.total;
-            return catChurn / avgChurn; // Probability relative to mean
+            return catChurn / (avgChurn || 0.01); // Probability relative to mean
         };
 
         const riskList = active.map(p => {
             const ramo = getRamo(String(p['Producto'] || ''));
-            const cia = String(p['Compañía'] || 'Otros');
+            const cia = String(p['Abrev.Cía'] || p['Compañía'] || 'Otros');
             const dateEfecto = parseAnyDate(p['F.Efecto']);
             const now = new Date();
             let seniorityRange = 'Desconocido';
@@ -147,7 +146,7 @@ export async function GET(request: Request) {
             const probability = Math.min(0.99, avgChurn * rawScore);
 
             return {
-                poliza: String(p['Póliza'] || 'S/N'),
+                poliza: String(p['NºPóliza'] || 'S/N'),
                 ente: String(p['Ente Comercial'] || 'Cliente Desconocido'),
                 ramo,
                 cia,
