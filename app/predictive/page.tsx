@@ -110,12 +110,12 @@ export default function PredictivePage() {
                                 <Package className="w-4 h-4 text-primary" />
                             </div>
                             <div className="mt-4">
-                                <span className="text-2xl font-black text-slate-800 tracking-tight">{(stats?.totalTransactions || 0).toLocaleString()} <span className="text-slate-400 text-lg font-bold">Clientes</span></span>
+                                <span className="text-2xl font-black text-slate-800 tracking-tight">{(stats?.totalTransactions || 0).toLocaleString()} <span className="text-slate-400 text-lg font-bold">Entes</span></span>
                             </div>
                         </div>
                         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                             <div className="flex justify-between items-start">
-                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Acierto Medio</h3>
+                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest cursor-help" title="Probabilidad promedio de éxito estadístico basada en comportamientos reales verificados en tu propia cartera.">Acierto Medio</h3>
                                 <Target className="w-4 h-4 text-blue-500" />
                             </div>
                             <div className="mt-4 flex items-baseline gap-2">
@@ -127,7 +127,7 @@ export default function PredictivePage() {
                         </div>
                         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                             <div className="flex justify-between items-start">
-                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Patrones Detectados</h3>
+                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest cursor-help" title="Reglas matemáticas de comportamiento encontradas en tus datos con significancia estadística certificada (Test Chi-Cuadrado).">Patrones Detectados</h3>
                                 <ArrowRight className="w-4 h-4 text-emerald-500" />
                             </div>
                             <div className="mt-4">
@@ -169,7 +169,7 @@ export default function PredictivePage() {
                                                                 {rule.antecedent.map(a => (
                                                                     <div key={a} className="flex flex-col">
                                                                         <span className="px-3 py-1 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-700 shadow-sm">{a}</span>
-                                                                        <span className="text-[9px] text-slate-400 mt-1 font-medium">{rule.totalA} clientes con este perfil</span>
+                                                                        <span className="text-[9px] text-slate-400 mt-1 font-medium">{rule.totalA} entes con este perfil</span>
                                                                     </div>
                                                                 ))}
                                                             </div>
@@ -207,7 +207,7 @@ export default function PredictivePage() {
                                                         <div className="mt-6 pt-4 border-t border-slate-100">
                                                             <div className="text-[10px] font-black text-slate-400 uppercase mb-3 tracking-widest flex items-center gap-2">
                                                                 <Target className="w-3 h-3 text-primary" />
-                                                                Candidatos ideales (Clientes que cumplen el perfil pero no tienen {rule.consequent})
+                                                                Candidatos ideales (Entes que cumplen el perfil pero no tienen {rule.consequent})
                                                             </div>
                                                             <div className="flex flex-wrap gap-2">
                                                                 {rule.targets.map(target => (
@@ -215,7 +215,6 @@ export default function PredictivePage() {
                                                                         {target}
                                                                     </span>
                                                                 ))}
-                                                                <span className="text-[10px] font-bold px-3 py-1 bg-slate-50 text-slate-400 rounded-full">... y más</span>
                                                             </div>
                                                         </div>
                                                     )}
@@ -274,7 +273,7 @@ export default function PredictivePage() {
                                     </div>
                                     <div>
                                         <h5 className="font-bold text-slate-800">Próximos Pasos</h5>
-                                        <p className="text-xs text-slate-500 mt-2 px-4 leading-relaxed">Pronto podrás aplicar estas predicciones directamente en la ficha del cliente para recibir recomendaciones en tiempo real.</p>
+                                        <p className="text-xs text-slate-500 mt-2 px-4 leading-relaxed">Pronto podrás aplicar estas predicciones directamente en la ficha del ente para recibir recomendaciones en tiempo real.</p>
                                     </div>
                                 </div>
                             </div>
@@ -302,7 +301,10 @@ export default function PredictivePage() {
                             </div>
                             <div className="mt-4 flex items-baseline gap-2">
                                 <span className="text-2xl font-black text-amber-600 tracking-tight">{churnStats?.atHighRisk || 0}</span>
-                                <span className="text-xs font-bold text-amber-500/70 bg-amber-50 px-2 py-0.5 rounded-full">Score {'>'} 2x Media</span>
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] font-bold text-amber-500/70 bg-amber-50 px-2 py-0.5 rounded-full">{(churnStats?.highRiskPct || 0).toFixed(1)}% de Cartera</span>
+                                    <span className="text-[8px] font-bold text-slate-400 uppercase mt-0.5 ml-1">Score {'>'} 1.5x Media</span>
+                                </div>
                             </div>
                         </div>
                         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
@@ -325,7 +327,7 @@ export default function PredictivePage() {
                                         <AlertTriangle className="w-5 h-5 text-red-500" />
                                         Plan de Rescate (Pólizas en Peligro)
                                     </h3>
-                                    <div className="text-[10px] font-bold text-red-500 uppercase bg-white px-3 py-1 rounded-full border border-red-100 tracking-widest italic">Acción Inmediata Requerida</div>
+                                    <div className="text-[10px] font-bold text-red-500 uppercase bg-white px-3 py-1 rounded-full border border-red-100 tracking-widest italic">Acción Requerida: Prioridad Máxima</div>
                                 </div>
 
                                 {loading ? (
@@ -391,11 +393,11 @@ export default function PredictivePage() {
                                     Justificación del Riesgo
                                 </h4>
                                 <div className="space-y-6">
-                                    <p className="text-xs text-red-100/70 leading-relaxed italic">Este scoring se basa en la **correlación histórica de bajas**. No es una opinión; es estadística aplicada a tu historial de cancelaciones.</p>
+                                    <p className="text-xs text-red-100/70 leading-relaxed italic">Este scoring se basa en la **correlación histórica de bajas**. No es una opinión; es estadística real aplicada a tu historial de cancelaciones.</p>
                                     <div className="space-y-4">
                                         <div className="flex gap-4">
                                             <div className="w-8 h-8 bg-red-800 rounded-lg flex items-center justify-center shrink-0 border border-red-700 font-black">1</div>
-                                            <p className="text-xs text-red-100 mt-1">Analizamos la **siniestralidad por Cía y Ramo**: Detectamos qué productos tienen "fuga" natural.</p>
+                                            <p className="text-xs text-red-100 mt-1">Analizamos la **siniestralidad por Cía y Ramo**: Detectamos qué productos tienen "fuga" natural y aplicamos el peso al Ente.</p>
                                         </div>
                                         <div className="flex gap-4">
                                             <div className="w-8 h-8 bg-red-800 rounded-lg flex items-center justify-center shrink-0 border border-red-700 font-black">2</div>

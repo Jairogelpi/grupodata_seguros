@@ -150,7 +150,7 @@ export async function GET(request: Request) {
                     pVal: isSignificant ? '< 0.05' : '> 0.05',
                     count: observedAB,
                     totalA: countA,
-                    targets: targetEntes.slice(0, 5) // Sample targets for immediate value
+                    targets: targetEntes // Show all targets as requested
                 });
             }
         });

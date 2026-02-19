@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { readData } from '@/lib/storage';
 import { getRamo } from '@/lib/ramos';
+import { getLinks } from '@/lib/registry';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +24,32 @@ const parseAnyDate = (val: any) => {
 
 export async function GET(request: Request) {
     try {
-        const polizas = await readData('listado_polizas.xlsx');
+        const [polizasRaw, links] = await Promise.all([
+            readData('listado_polizas.xlsx'),
+            getLinks()
+        ]);
+
+        // 0. Index Registry for Ente Filtering (Consistent with metrics/route.ts)
+        const validEnteCodes = new Set<string>();
+        links.forEach(l => {
+            const val = String(l['ENTE']);
+            const parts = val.split(' - ');
+            const code = parts.length > 1 ? parts[parts.length - 1].trim() : val.trim();
+            validEnteCodes.add(code);
+        });
+
+        const getPolizaEnteCode = (p: any) => {
+            const enteComercial = String(p['Ente Comercial'] || '');
+            const parts = enteComercial.split(' - ');
+            const codeFromEnte = parts.length > 1 ? parts[parts.length - 1].trim() : enteComercial.trim();
+            const codeDirect = String(p['Código'] || '');
+            if (validEnteCodes.has(codeFromEnte)) return codeFromEnte;
+            if (validEnteCodes.has(codeDirect)) return codeDirect;
+            return null;
+        };
+
+        // Filter policies to only include those linked to a valid Ente
+        const polizas = polizasRaw.filter(p => getPolizaEnteCode(p) !== null);
 
         // 1. Unique-ify policies by Number to avoid population inflation
         const uniquePolizasMap = new Map<string, any>();
@@ -69,7 +95,8 @@ export async function GET(request: Request) {
         const stats = {
             ramo: new Map<string, { total: number, cancelled: number }>(),
             compania: new Map<string, { total: number, cancelled: number }>(),
-            seniority: new Map<string, { total: number, cancelled: number }>()
+            seniority: new Map<string, { total: number, cancelled: number }>(),
+            pago: new Map<string, { total: number, cancelled: number }>()
         };
 
         const totalPop = uniquePolizas.length;
@@ -96,10 +123,13 @@ export async function GET(request: Request) {
                 else seniorityRange = '> 5 años';
             }
 
+            const pago = String(p['Forma de Pago'] || 'Anual');
+
             [
                 { map: stats.ramo, key: ramo },
                 { map: stats.compania, key: cia },
-                { map: stats.seniority, key: seniorityRange }
+                { map: stats.seniority, key: seniorityRange },
+                { map: stats.pago, key: pago }
             ].forEach(s => {
                 if (!s.map.has(s.key)) s.map.set(s.key, { total: 0, cancelled: 0 });
                 const current = s.map.get(s.key)!;
@@ -108,61 +138,104 @@ export async function GET(request: Request) {
             });
         });
 
-        // 3. Score Active Policies
-        // Factor Weight = (Cancelled in Category / Total in Category) / (Total Cancelled / Total Population)
+        // 3. Score Active Policies with Ultimate "Reality" Logic
+        const entePolicyCount = new Map<string, number>();
+        const enteHasCanceledBefore = new Set<string>();
+
+        // Build behavioral profile for each Ente
+        active.forEach(p => {
+            const code = String(p['Ente Comercial'] || '');
+            entePolicyCount.set(code, (entePolicyCount.get(code) || 0) + 1);
+        });
+        cancelled.forEach(p => {
+            const code = String(p['Ente Comercial'] || '');
+            if (code) enteHasCanceledBefore.add(code);
+        });
+
         const avgChurn = cancelled.length / totalPop;
 
         const getFactorRisk = (map: Map<string, any>, key: string) => {
             const s = map.get(key);
-            if (!s || s.total < 5) return 1.0; // Neutral if not enough data
+            if (!s || s.total < 3) return 1.0;
             const catChurn = s.cancelled / s.total;
-            return catChurn / (avgChurn || 0.01); // Probability relative to mean
+            return catChurn / (avgChurn || 0.01);
         };
 
         const riskList = active.map(p => {
+            const code = String(p['Ente Comercial'] || '');
             const ramo = getRamo(String(p['Producto'] || ''));
             const cia = String(p['Abrev.Cía'] || p['Compañía'] || 'Otros');
+            const prima = parseFloat(String(p['Primas'] || '0').replace(',', '.'));
+
             const dateEfecto = parseAnyDate(p['F.Efecto']);
             const now = new Date();
             let seniorityRange = 'Desconocido';
+            let isNearRenewal = false;
 
             if (dateEfecto) {
-                const months = (now.getTime() - dateEfecto.getTime()) / (1000 * 60 * 60 * 24 * 30.44);
-                if (months < 12) seniorityRange = '< 1 año';
-                else if (months < 24) seniorityRange = '1-2 años';
-                else if (months < 60) seniorityRange = '2-5 años';
+                // Seniority
+                const monthsTotal = (now.getTime() - dateEfecto.getTime()) / (1000 * 60 * 60 * 24 * 30.44);
+                if (monthsTotal < 12) seniorityRange = '< 1 año';
+                else if (monthsTotal < 24) seniorityRange = '1-2 años';
+                else if (monthsTotal < 60) seniorityRange = '2-5 años';
                 else seniorityRange = '> 5 años';
+
+                // Renewal Window (Days until anniversary)
+                const nextRenewal = new Date(now.getFullYear(), dateEfecto.getMonth(), dateEfecto.getDate());
+                if (nextRenewal < now) nextRenewal.setFullYear(now.getFullYear() + 1);
+                const daysToRenewal = (nextRenewal.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+                if (daysToRenewal <= 45) isNearRenewal = true; // Critical window: 45 days before renewal
             }
 
             const riskRamo = getFactorRisk(stats.ramo, ramo);
             const riskCia = getFactorRisk(stats.compania, cia);
             const riskSeniority = getFactorRisk(stats.seniority, seniorityRange);
+            const riskPago = getFactorRisk(stats.pago, String(p['Forma de Pago'] || 'Anual'));
+
+            // BEHAVIORAL: Contagion (If they canceled one, they might cancel all)
+            const contagionRisk = enteHasCanceledBefore.has(code) ? 1.45 : 0.9;
+
+            // TEMPORAL: Renewal Window
+            const renewalPressure = isNearRenewal ? 1.4 : 1.0;
+
+            // LOYALTY: Multi-policy
+            const count = entePolicyCount.get(code) || 1;
+            const loyaltyBonus = count > 3 ? 0.6 : (count > 1 ? 0.8 : 1.35);
+
+            // ECONOMIC: Premium Sensitivity
+            const ramoData = stats.ramo.get(ramo);
+            const avgRamoPrima = ramoData ? (active.filter(ap => getRamo(String(ap['Producto'])) === ramo).reduce((s, ap) => s + parseFloat(String(ap['Primas']).replace(',', '.')), 0) / (ramoData.total || 1)) : 100;
+            const premiumPressure = prima > (avgRamoPrima * 1.6) ? 1.4 : 1.0;
 
             // Aggregate Score
-            const rawScore = (riskRamo * riskCia * riskSeniority);
-
-            // Normalize to a 0-1 probability scale (Approximate)
-            // If rawScore = 1, prob = avgChurn
+            const rawScore = (riskRamo * riskCia * riskSeniority * riskPago * contagionRisk * renewalPressure * loyaltyBonus * premiumPressure);
             const probability = Math.min(0.99, avgChurn * rawScore);
+
+            const factors = [
+                { name: 'Ramo', impact: riskRamo },
+                { name: 'Compañía', impact: riskCia },
+                { name: 'Antigüedad', impact: riskSeniority },
+                { name: 'F. Pago', impact: riskPago },
+                { name: 'Contagio', impact: contagionRisk },
+                { name: 'Renovación', impact: renewalPressure },
+                { name: 'Mono-ente', impact: loyaltyBonus > 1 ? loyaltyBonus : 0 },
+                { name: 'Ticket Alto', impact: premiumPressure > 1 ? premiumPressure : 0 }
+            ].filter(f => f.impact > 1.05).sort((a, b) => b.impact - a.impact).slice(0, 3);
 
             return {
                 poliza: String(p['NºPóliza'] || 'S/N'),
-                ente: String(p['Ente Comercial'] || 'Cliente Desconocido'),
+                ente: code || 'Ente Desconocido',
                 ramo,
                 cia,
                 seniority: seniorityRange,
                 score: probability,
-                factors: [
-                    { name: 'Ramo', impact: riskRamo },
-                    { name: 'Compañía', impact: riskCia },
-                    { name: 'Antigüedad', impact: riskSeniority }
-                ].sort((a, b) => b.impact - a.impact)
+                factors: factors
             };
         });
 
         // 4. Return Top Risks
         const sortedRisk = riskList
-            .filter(r => r.score > 0.01) // More inclusive threshold
+            .filter(r => r.score > 0.005)
             .sort((a, b) => b.score - a.score);
 
         return NextResponse.json({
@@ -170,7 +243,8 @@ export async function GET(request: Request) {
             stats: {
                 avgChurn,
                 totalActive: active.length,
-                atHighRisk: sortedRisk.filter(r => r.score > avgChurn * 2).length
+                atHighRisk: sortedRisk.filter(r => r.score > avgChurn * 1.5).length, // Adjusted to 1.5x for more realism
+                highRiskPct: (sortedRisk.filter(r => r.score > avgChurn * 1.5).length / active.length) * 100
             }
         });
 
