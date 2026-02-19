@@ -279,14 +279,14 @@ export async function GET(request: Request) {
                     type: 'RETENTION',
                     title: 'Alerta de Fuga Crítica',
                     color: 'red',
-                    description: `El abandono del **${churnRateCalc.toFixed(1)}%** es alarmante. La causa principal es **"${topReason}"**. Activa un plan de retención urgente para clientes en riesgo.`
+                    description: `El abandono del **${churnRateCalc.toFixed(1)}%** es alarmante. La causa principal es **"${topReason}"**. Activa un plan de retención urgente para entes en riesgo.`
                 });
             } else if (churnRateCalc > 5) { // Moderate Churn
                 marketingStrategies.push({
                     type: 'RETENTION',
                     title: 'Fidelización Preventiva',
                     color: 'amber',
-                    description: `El **${churnRateCalc.toFixed(1)}%** de tus pólizas se han cancelado. Contacta a los clientes que han anulado recientemente para entender sus motivos y recuperar parte de la cartera.`
+                    description: `El **${churnRateCalc.toFixed(1)}%** de tus pólizas se han cancelado. Contacta a los entes que han anulado recientemente para entender sus motivos y recuperar parte de la cartera.`
                 });
             }
         }
@@ -308,7 +308,7 @@ export async function GET(request: Request) {
                 type: 'CROSS_SELL',
                 title: 'Oportunidad de Venta Cruzada',
                 color: 'indigo',
-                description: `Tus clientes de **${source}** tienen una alta probabilidad (**${bestConf.toFixed(1)}%**) de contratar **${target}**. Lanza una campaña dirigida a este segmento específico.`
+                description: `Tus entes de **${source}** tienen una alta probabilidad (**${bestConf.toFixed(1)}%**) de contratar **${target}**. Lanza una campaña dirigida a este segmento específico.`
             });
         }
 
@@ -324,7 +324,7 @@ export async function GET(request: Request) {
                 type: 'EXPANSION',
                 title: 'Potencial de Expansión Masiva',
                 color: 'purple',
-                description: `El **${pctMono.toFixed(1)}%** de tus clientes tiene un solo producto. Es una base enorme sin explotar. Ofréceles un segundo producto con descuento por vinculación.`
+                description: `El **${pctMono.toFixed(1)}%** de tus entes tiene un solo producto. Es una base enorme sin explotar. Ofréceles un segundo producto con descuento por vinculación.`
             });
         } else {
             // Generic fallback if not extreme mono-product
@@ -332,7 +332,7 @@ export async function GET(request: Request) {
                 type: 'EXPANSION',
                 title: 'Desarrollo de Cliente',
                 color: 'blue',
-                description: `Tienes **${crossSellingCounts[1]} clientes** con un solo contrato. Convertir solo al 10% de ellos duplicaría significativamente tu rentabilidad por cliente.`
+                description: `Tienes **${crossSellingCounts[1]} entes** con un solo contrato. Convertir solo al 10% de ellos duplicaría significativamente tu rentabilidad por ente.`
             });
         }
 
@@ -349,7 +349,7 @@ export async function GET(request: Request) {
                     type: 'CONCENTRATION',
                     title: 'Protección de VIPs',
                     color: 'amber',
-                    description: `Riesgo de concentración: el 20% de tus clientes genera el **${paretoPct.toFixed(1)}%** de tus ingresos. Asegura su lealtad con un servicio exclusivo.`
+                    description: `Riesgo de concentración: el 20% de tus entes genera el **${paretoPct.toFixed(1)}%** de tus ingresos. Asegura su lealtad con un servicio exclusivo.`
                 });
             } else {
                 marketingStrategies.push({
@@ -367,7 +367,7 @@ export async function GET(request: Request) {
                 type: 'GENERAL',
                 title: 'Revisión de Cartera',
                 color: 'slate',
-                description: 'Revisa periódicamente las pólizas sin efecto y contacta a los clientes para reactivación o nueva contratación.'
+                description: 'Revisa periódicamente las pólizas sin efecto y contacta a los entes para reactivación o nueva contratación.'
             });
         }
 
@@ -430,6 +430,7 @@ export async function GET(request: Request) {
         };
 
         // Enrich Ramos Breakdown with Top Clients and their product mix
+        const allNbas: any[] = [];
         const enrichedRamosBreakdown = Array.from(ramoStats.values()).map(r => {
             const clientsInRamo = Array.from(r.entes).map(code => {
                 const b = breakdownMap.get(code);
@@ -468,6 +469,13 @@ export async function GET(request: Request) {
                             confidence: bestConf.toFixed(0),
                             reason: `Patrón en ${bestSupport} clientes`
                         };
+                        allNbas.push({
+                            ente: codeToNameMap.get(code) || code,
+                            currentProduct: currentProd,
+                            targetProduct: bestNext,
+                            confidence: bestConf.toFixed(0),
+                            reason: nba.reason
+                        });
                     }
                 }
 
@@ -520,6 +528,8 @@ export async function GET(request: Request) {
                 topClients: clientsInRamo.slice(0, 5) // The truncated list for the initial UI
             };
         }).sort((a, b) => b.primas - a.primas);
+
+        (advanced as any).topOpportunities = allNbas.sort((a, b) => parseInt(b.confidence) - parseInt(a.confidence));
 
         return NextResponse.json({
             metrics: {

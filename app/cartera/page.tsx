@@ -35,6 +35,9 @@ interface RamoBreakdownItem {
     ramo: string;
     primas: number;
     polizas: number;
+    entes?: number;
+    fullClients?: any[];
+    topClients?: any[];
 }
 
 interface FilterOptions {
@@ -149,7 +152,39 @@ export default function CarteraPage() {
             const index = elements[0].index;
             const label = chart.data.labels[index];
             if (label === 'Otros') return;
-            toggleFilter(mixDepth, label);
+            if (chart.config.type === 'doughnut') {
+                toggleFilter(mixDepth, label);
+            }
+        }
+    };
+
+    const handleStrategyClick = (type: string) => {
+        if (type === 'EXPANSION') {
+            const monoEntesMap = new Map();
+            ramosBreakdown.forEach(ramo => {
+                ramo.fullClients?.forEach(client => {
+                    if (client.products?.length === 1) {
+                        monoEntesMap.set(client.name, client);
+                    }
+                });
+            });
+            setSelectedRamoForList({
+                ramoName: 'Entes con 1 solo contrato (Desarrollo)',
+                clients: Array.from(monoEntesMap.values()).sort((a: any, b: any) => b.primas - a.primas)
+            });
+        } else if (type === 'CONCENTRATION') {
+            const topEntesMap = new Map();
+            const topCount = Math.ceil((advancedMetrics?.paretoData?.length || 0) * 0.2);
+            advancedMetrics?.paretoData?.slice(0, topCount).forEach((p: any) => {
+                for (const ramo of ramosBreakdown) {
+                    const found = ramo.fullClients?.find((c: any) => c.name === p.ente);
+                    if (found) { topEntesMap.set(p.ente, found); break; }
+                }
+            });
+            setSelectedRamoForList({
+                ramoName: 'Top 20% Entes (VIPs)',
+                clients: Array.from(topEntesMap.values()).sort((a: any, b: any) => b.primas - a.primas)
+            });
         }
     };
 
@@ -358,6 +393,7 @@ export default function CarteraPage() {
                 display: true, // Client Names on Bottom
                 grid: { display: false },
                 ticks: {
+                    display: false,
                     autoSkip: false,
                     maxRotation: 45,
                     minRotation: 45,
@@ -742,27 +778,34 @@ export default function CarteraPage() {
                                             </div>
 
                                             {/* 2. Dynamic Strategies from Backend */}
-                                            {advancedMetrics.marketingStrategies?.map((strategy: any, idx: number) => (
-                                                <div key={idx} className={`p-6 rounded-[32px] border border-slate-100 shadow-sm bg-white relative overflow-hidden group hover:shadow-md transition-all`}>
-                                                    <div className={`absolute top-0 left-0 w-1.5 h-full bg-${strategy.color}-500`} />
-                                                    <div className="flex flex-col h-full pl-3">
-                                                        <div className="flex justify-between items-start mb-3">
-                                                            <h4 className={`text-[9px] font-black uppercase tracking-widest text-${strategy.color}-600 bg-${strategy.color}-50 px-2 py-1 rounded-md`}>
-                                                                {strategy.title}
-                                                            </h4>
-                                                            {strategy.type === 'CROSS_SELL' && <Zap className={`w-4 h-4 text-${strategy.color}-500`} />}
-                                                            {strategy.type === 'RETENTION' && <AlertCircle className={`w-4 h-4 text-${strategy.color}-500`} />}
-                                                            {strategy.type === 'EXPANSION' && <TrendingUp className={`w-4 h-4 text-${strategy.color}-500`} />}
-                                                            {strategy.type === 'CONCENTRATION' && <ShieldCheck className={`w-4 h-4 text-${strategy.color}-500`} />}
+                                            {advancedMetrics.marketingStrategies?.map((strategy: any, idx: number) => {
+                                                const isClickable = strategy.type === 'EXPANSION' || strategy.type === 'CONCENTRATION';
+                                                return (
+                                                    <div
+                                                        key={idx}
+                                                        onClick={isClickable ? () => handleStrategyClick(strategy.type) : undefined}
+                                                        className={`p-6 rounded-[32px] border border-slate-100 shadow-sm bg-white relative overflow-hidden group hover:shadow-md transition-all ${isClickable ? 'cursor-pointer hover:border-indigo-300 hover:scale-[1.02]' : ''}`}
+                                                    >
+                                                        <div className={`absolute top-0 left-0 w-1.5 h-full bg-${strategy.color}-500`} />
+                                                        <div className="flex flex-col h-full pl-3">
+                                                            <div className="flex justify-between items-start mb-3">
+                                                                <h4 className={`text-[9px] font-black uppercase tracking-widest text-${strategy.color}-600 bg-${strategy.color}-50 px-2 py-1 rounded-md`}>
+                                                                    {strategy.title}
+                                                                </h4>
+                                                                {strategy.type === 'CROSS_SELL' && <Zap className={`w-4 h-4 text-${strategy.color}-500`} />}
+                                                                {strategy.type === 'RETENTION' && <AlertCircle className={`w-4 h-4 text-${strategy.color}-500`} />}
+                                                                {strategy.type === 'EXPANSION' && <TrendingUp className={`w-4 h-4 text-${strategy.color}-500 ${isClickable ? 'group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform' : ''}`} />}
+                                                                {strategy.type === 'CONCENTRATION' && <ShieldCheck className={`w-4 h-4 text-${strategy.color}-500 ${isClickable ? 'group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform' : ''}`} />}
+                                                            </div>
+                                                            <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                                                                {strategy.description.split('**').map((part: string, i: number) =>
+                                                                    i % 2 === 1 ? <strong key={i} className={`text-${strategy.color}-700`}>{part}</strong> : part
+                                                                )}
+                                                            </p>
                                                         </div>
-                                                        <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                                                            {strategy.description.split('**').map((part: string, i: number) =>
-                                                                i % 2 === 1 ? <strong key={i} className={`text-${strategy.color}-700`}>{part}</strong> : part
-                                                            )}
-                                                        </p>
                                                     </div>
-                                                </div>
-                                            ))}
+                                                )
+                                            })}
                                         </div>
 
                                         {/* Full Width Chart Area */}
@@ -818,6 +861,95 @@ export default function CarteraPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Top NBA Opportunities Section */}
+            {advancedMetrics?.topOpportunities && advancedMetrics.topOpportunities.length > 0 && (
+                <div className="bg-gradient-to-br from-indigo-900 via-indigo-800 to-purple-900 rounded-[40px] shadow-xl border border-indigo-700/50 overflow-hidden no-print relative mb-8">
+                    <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none"></div>
+                    <div className="px-10 py-8 border-b border-indigo-800/50 flex flex-col md:flex-row justify-between items-start md:items-center relative z-10 gap-4">
+                        <div>
+                            <h3 className="text-2xl font-black flex items-center gap-3 tracking-tight text-white mb-2">
+                                <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-md"><Zap className="w-6 h-6 text-amber-400" /></div>
+                                Motor Predictivo: Oportunidades Claras
+                            </h3>
+                            <p className="text-sm font-medium text-indigo-200">Venta cruzada con mayor probabilidad estadística de éxito</p>
+                        </div>
+                        <span className="text-xs font-black text-indigo-300 uppercase tracking-[0.2em] bg-indigo-950/50 px-4 py-2 rounded-xl">{advancedMetrics.topOpportunities.length} Oportunidades Detectadas</span>
+                    </div>
+
+                    <div className="p-10 relative z-10">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                            {advancedMetrics.topOpportunities.slice(0, 12).map((opp: any, idx: number) => {
+                                const openProfile = () => {
+                                    for (const ramo of ramosBreakdown) {
+                                        const found = ramo.fullClients?.find((c: any) => c.name === opp.ente);
+                                        if (found) {
+                                            setSelectedEnteForProfile(found);
+                                            return;
+                                        }
+                                    }
+                                };
+
+                                return (
+                                    <div
+                                        key={idx}
+                                        onClick={openProfile}
+                                        className="bg-white/10 hover:bg-white/15 backdrop-blur-md border border-white/10 rounded-3xl p-6 cursor-pointer transition-all hover:scale-[1.02] hover:shadow-2xl group flex flex-col h-full"
+                                    >
+                                        <div className="flex justify-between items-start mb-4">
+                                            <div className="bg-emerald-500/20 text-emerald-300 text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-widest border border-emerald-500/20">
+                                                {opp.confidence}% Éxito
+                                            </div>
+                                            <div className="p-1.5 bg-white/5 rounded-lg group-hover:bg-indigo-500 transition-colors">
+                                                <TrendingUp className="w-4 h-4 text-white/50 group-hover:text-white" />
+                                            </div>
+                                        </div>
+                                        <h4 className="text-lg font-bold text-white leading-tight mb-6 truncate" title={opp.ente}>{opp.ente}</h4>
+
+                                        <div className="space-y-3 flex-1">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-xl bg-slate-800 flex items-center justify-center border border-slate-700 text-slate-400 flex-shrink-0">
+                                                    <Package className="w-4 h-4" />
+                                                </div>
+                                                <div>
+                                                    <div className="text-[9px] font-bold text-indigo-300 uppercase tracking-wider">Tiene</div>
+                                                    <div className="text-xs font-bold text-slate-200">{opp.currentProduct}</div>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex justify-center -my-3 relative z-10">
+                                                <div className="bg-indigo-600 rounded-full p-1 border-4 border-indigo-900 shadow-lg">
+                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-white"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-xl bg-indigo-500 flex items-center justify-center shadow-inner shadow-white/20 flex-shrink-0">
+                                                    <Zap className="w-4 h-4 text-white drop-shadow-md" />
+                                                </div>
+                                                <div>
+                                                    <div className="text-[9px] font-bold text-amber-300 uppercase tracking-wider">Ofrecer</div>
+                                                    <div className="text-xs font-black text-white truncate max-w-[120px]" title={opp.targetProduct}>{opp.targetProduct}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="mt-5 pt-4 border-t border-white/5 flex items-center gap-2">
+                                            <ShieldCheck className="w-4 h-4 text-indigo-300 flex-shrink-0" />
+                                            <span className="text-[9px] text-indigo-200 font-medium tracking-wide leading-tight line-clamp-2">{opp.reason}</span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        {advancedMetrics.topOpportunities.length > 12 && (
+                            <div className="mt-8 text-center border-t border-white/5 pt-8">
+                                <span className="text-xs font-bold text-indigo-300 bg-white/5 px-4 py-2 rounded-xl border border-white/10 uppercase tracking-widest">+ {advancedMetrics.topOpportunities.length - 12} Oportunidades adicionales encontradas en el sistema global</span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
 
             {/* Clients per Ramo Intelligence Section */}
             <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden no-print">
