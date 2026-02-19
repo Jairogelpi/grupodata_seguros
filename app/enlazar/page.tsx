@@ -70,7 +70,11 @@ export default function EnlazarPage() {
 
             if (res.ok) {
                 setMessage({ type: 'success', text: 'Vínculo creado correctamente' });
-                setFormData(prev => ({ ...prev, enteCode: '' })); // Clear only ente to allow rapid linking
+                setFormData(prev => ({ ...prev, enteCode: '' }));
+                // Refresh list of entes to reflect current state if needed
+                const entesRes = await fetch('/api/entes');
+                const entesData = await entesRes.json();
+                if (Array.isArray(entesData)) setEntes(entesData);
             } else {
                 setMessage({ type: 'error', text: data.error || 'Error al vincular' });
             }

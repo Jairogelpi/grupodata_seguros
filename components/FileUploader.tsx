@@ -6,10 +6,11 @@ import { Upload, Check, AlertCircle, Loader2 } from 'lucide-react';
 interface FileUploaderProps {
     target: 'polizas' | 'entes';
     label: string;
+    onUploadStart?: () => void;
     onUploadSuccess?: () => void;
 }
 
-export default function FileUploader({ target, label, onUploadSuccess }: FileUploaderProps) {
+export default function FileUploader({ target, label, onUploadStart, onUploadSuccess }: FileUploaderProps) {
     const [status, setStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
     const [message, setMessage] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -18,6 +19,7 @@ export default function FileUploader({ target, label, onUploadSuccess }: FileUpl
         const file = e.target.files?.[0];
         if (!file) return;
 
+        if (onUploadStart) onUploadStart();
         setStatus('uploading');
         setMessage('');
 

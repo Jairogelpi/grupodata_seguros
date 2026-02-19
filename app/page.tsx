@@ -226,7 +226,12 @@ export default function Dashboard() {
                         <Printer className="w-4 h-4" />
                         PDF
                     </button>
-                    <FileUploader target="polizas" label="Subir Pólizas" onUploadSuccess={() => window.location.reload()} />
+                    <FileUploader
+                        target="polizas"
+                        label="Subir Pólizas"
+                        onUploadStart={() => setLoading(true)}
+                        onUploadSuccess={() => fetchMetrics()}
+                    />
                 </div>
             </div>
 

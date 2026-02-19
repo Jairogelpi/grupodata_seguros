@@ -14,7 +14,7 @@ const supabase = USE_SUPABASE ? createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 
 // In-memory cache to avoid redundant downloads
 const storageCache: Record<string, { data: any[], timestamp: number }> = {};
-const CACHE_TTL_MS = 30000; // 30 seconds cache
+const CACHE_TTL_MS = 5000; // 5 seconds cache
 
 /**
  * Get the local file path for a given filename
@@ -72,7 +72,8 @@ export async function writeData(filename: string, buffer: Buffer): Promise<void>
             });
 
             if (error) throw new Error(`Supabase upload error: ${error.message}`);
-            delete storageCache[filename];
+            // Invalidate ALL entries to ensure consistency across related data
+            Object.keys(storageCache).forEach(key => delete storageCache[key]);
         } catch (err) {
             console.error(`[Storage] Error writing ${filename} to Supabase:`, err);
             // If it failed and we are in Vercel, we can't write to disk, so we throw

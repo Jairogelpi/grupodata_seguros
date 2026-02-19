@@ -41,6 +41,8 @@ interface FilterOptions {
     estados: string[];
     asesores: string[];
     entes: string[];
+    ramos: string[];
+    productos: string[];
 }
 
 type SortKey = 'producto' | 'primas' | 'polizas' | 'ramo' | 'ticketMedio';
@@ -56,7 +58,9 @@ export default function CarteraPage() {
         meses: [],
         estados: [],
         asesores: [],
-        entes: []
+        entes: [],
+        ramos: [],
+        productos: []
     });
 
     const [filters, setFilters] = useState({
@@ -512,25 +516,68 @@ export default function CarteraPage() {
                         Desglose Detallado por Producto
                     </h3>
 
-                    {/* Table Filters */}
-                    <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
-                        <div className="w-full md:w-48">
+                    {/* Table Filters - Excel Style (Dynamic) */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 w-full">
+                        <MultiSelect
+                            label="Comercial"
+                            options={filterOptions.asesores}
+                            selected={filters.comercial}
+                            onChange={(val) => handleFilterChange('comercial', val)}
+                        />
+                        <MultiSelect
+                            label="Ente"
+                            options={filterOptions.entes}
+                            selected={filters.ente}
+                            onChange={(val) => handleFilterChange('ente', val)}
+                        />
+                        <MultiSelect
+                            label="Año"
+                            options={filterOptions.anios}
+                            selected={filters.anio}
+                            onChange={(val) => handleFilterChange('anio', val)}
+                        />
+                        <MultiSelect
+                            label="Mes"
+                            options={filterOptions.meses}
+                            selected={filters.mes}
+                            onChange={(val) => handleFilterChange('mes', val)}
+                        />
+                        <MultiSelect
+                            label="Estado"
+                            options={filterOptions.estados}
+                            selected={filters.estado}
+                            onChange={(val) => handleFilterChange('estado', val)}
+                        />
+                    </div>
+                </div>
+
+                {/* Sub-header with Ramo/Producto filters */}
+                <div className="px-8 py-4 border-b border-slate-100 bg-white flex flex-col md:flex-row gap-4 items-center justify-between">
+                    <div className="flex flex-wrap gap-4 w-full md:w-auto">
+                        <div className="w-full md:w-64">
                             <MultiSelect
                                 label="Filtrar Ramo"
-                                options={Array.from(new Set(productosBreakdown.map(p => p.ramo || 'Otros').filter(Boolean))).sort()}
+                                options={filterOptions.ramos}
                                 selected={filters.ramo}
                                 onChange={(val) => handleFilterChange('ramo', val)}
                             />
                         </div>
-                        <div className="w-full md:w-48">
+                        <div className="w-full md:w-64">
                             <MultiSelect
                                 label="Filtrar Producto"
-                                options={Array.from(new Set(productosBreakdown.map(p => p.producto).filter(Boolean))).sort()}
+                                options={filterOptions.productos}
                                 selected={filters.producto}
                                 onChange={(val) => handleFilterChange('producto', val)}
                             />
                         </div>
                     </div>
+                    {/* Badge showing filter status */}
+                    {(filters.ramo.length > 0 || filters.producto.length > 0 || filters.comercial.length > 0 || filters.ente.length > 0 || filters.anio.length > 0 || filters.mes.length > 0 || filters.estado.length > 0) && (
+                        <div className="text-xs font-semibold text-slate-400 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100 flex items-center gap-2">
+                            <Zap className="w-3 h-3 text-amber-500" />
+                            Filtros Activos
+                        </div>
+                    )}
                 </div>
                 <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-slate-100">

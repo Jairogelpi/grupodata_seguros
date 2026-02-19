@@ -101,6 +101,8 @@ export async function GET(request: Request) {
         const dynEstados = new Set<string>();
         const dynAsesores = new Set<string>();
         const dynEntes = new Set<string>();
+        const dynRamos = new Set<string>();
+        const dynProductos = new Set<string>();
 
         // Main Loop: Single pass for stats and cross-filtering options
         polizas.forEach(p => {
@@ -139,6 +141,12 @@ export async function GET(request: Request) {
             }
             if (matchAnio && matchMes && matchEstado && matchAsesor && matchRamo && matchProducto) {
                 if (pEnteName) dynEntes.add(pEnteName);
+            }
+            if (matchAnio && matchMes && matchEstado && matchAsesor && matchEnte && matchProducto) {
+                if (ramoName) dynRamos.add(ramoName);
+            }
+            if (matchAnio && matchMes && matchEstado && matchAsesor && matchEnte && matchRamo) {
+                if (producto) dynProductos.add(producto);
             }
 
             // Metrics application: Must match ALL filters
@@ -249,7 +257,9 @@ export async function GET(request: Request) {
                 meses: Array.from(dynMeses).sort((a, b) => parseInt(a) - parseInt(b)),
                 estados: Array.from(dynEstados).sort(),
                 asesores: Array.from(dynAsesores).sort(),
-                entes: Array.from(dynEntes).sort()
+                entes: Array.from(dynEntes).sort(),
+                ramos: Array.from(dynRamos).sort(),
+                productos: Array.from(dynProductos).sort()
             },
             breakdown: Array.from(breakdownMap.values()).map(b => ({
                 ...b,
