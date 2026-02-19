@@ -9,8 +9,10 @@ import { Doughnut, Bar, Chart } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title } from 'chart.js';
 import { getRamo } from '@/lib/ramos';
 
+import ChartDataLabels from 'chartjs-plugin-datalabels';
+
 // Register ChartJS elements
-ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title);
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, ChartDataLabels);
 
 // Formatter for currency
 const currencyFormatter = new Intl.NumberFormat('es-ES', {
