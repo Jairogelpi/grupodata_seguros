@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { PieChart as PieIcon, FileText, LayoutList, ArrowUpDown, ArrowUp, ArrowDown, FileDown, Printer, BarChart2, TrendingUp, Info, Package, ShieldCheck, Zap, AlertCircle } from 'lucide-react';
 import MultiSelect from '@/components/MultiSelect';
 import PrintFilterSummary from '@/components/PrintFilterSummary';
 import * as XLSX from 'xlsx';
-import { Pie } from 'react-chartjs-2';
+import { Doughnut } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title } from 'chart.js';
 import { getRamo } from '@/lib/ramos';
 
@@ -196,62 +196,102 @@ export default function CarteraPage() {
         };
     };
 
-    // Insights Logic
-    const getInsights = () => {
-        if (ramosBreakdown.length === 0) return [];
-        const insights = [];
-        const totalPrimas = ramosBreakdown.reduce((sum, r) => sum + r.primas, 0);
-        const sortedRamos = [...ramosBreakdown].sort((a, b) => b.primas - a.primas);
+    const [mixDepth, setMixDepth] = useState<'ramo' | 'producto'>('ramo');
 
-        // 1. Dominant Ramo
-        if (sortedRamos[0]) {
-            const pct = (sortedRamos[0].primas / totalPrimas * 100).toFixed(1);
-            insights.push({
-                type: 'info',
-                title: `Dominancia de ${sortedRamos[0].ramo}`,
-                text: `El ramo ${sortedRamos[0].ramo} representa el ${pct}% de la cartera total.`,
-                icon: <ShieldCheck className="w-5 h-5 text-blue-500" />
-            });
+    const activeMixData = useMemo(() => {
+        if (mixDepth === 'ramo') {
+            return ramosBreakdown.map(r => ({ name: r.ramo, primas: r.primas, polizas: r.polizas }));
+        }
+        return productosBreakdown.map(p => ({ name: p.producto, primas: p.primas, polizas: p.polizas }));
+    }, [mixDepth, ramosBreakdown, productosBreakdown]);
+
+    const DONUT_COLORS = [
+        '#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+        '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#6366f1',
+        '#14b8a6', '#e11d48'
+    ];
+
+    const generateDonutData = () => {
+        const sorted = [...activeMixData].sort((a, b) => b.primas - a.primas);
+        const top = sorted.slice(0, 10);
+        const rest = sorted.slice(10);
+        const restTotal = rest.reduce((sum, r) => sum + r.primas, 0);
+
+        const labels = top.map(p => p.name);
+        const values = top.map(p => p.primas);
+
+        if (restTotal > 0) {
+            labels.push('Otros');
+            values.push(restTotal);
         }
 
-        // 2. Ticket Medio Opportunity
-        const prodOrderByTicket = [...productosBreakdown].filter(p => p.polizas > 5).sort((a, b) => (a.primas / a.polizas) - (b.primas / b.polizas));
-        if (prodOrderByTicket[0]) {
-            insights.push({
-                type: 'warning',
-                title: 'Optimización de Ticket Medio',
-                text: `${prodOrderByTicket[0].producto} tiene un volumen alto de pólizas pero un ticket medio bajo (${currencyFormatter.format(prodOrderByTicket[0].primas / prodOrderByTicket[0].polizas)}).`,
-                icon: <Zap className="w-5 h-5 text-amber-500" />
-            });
-        }
+        return {
+            labels,
+            datasets: [{
+                data: values,
+                backgroundColor: DONUT_COLORS.slice(0, labels.length),
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        };
+    };
 
-        // 3. Diversificación
-        if (ramosBreakdown.length < 3) {
-            insights.push({
-                type: 'danger',
-                title: 'Riesgo de Concentración',
-                text: 'La cartera está muy concentrada en pocos ramos. Considera diversificar para reducir el riesgo.',
-                icon: <AlertCircle className="w-5 h-5 text-red-500" />
-            });
+    const donutOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom' as const,
+                labels: { boxWidth: 10, font: { size: 9 }, padding: 10 }
+            },
+            tooltip: {
+                callbacks: {
+                    label: (context: any) => {
+                        const val = context.raw;
+                        const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
+                        const pct = total > 0 ? ((val / total) * 100).toFixed(1) : '0';
+                        return `${context.label}: ${currencyFormatter.format(val)} (${pct}%)`;
+                    }
+                }
+            }
         }
+    };
 
-        return insights;
+    const getFilterParams = (item: string) => {
+        const params = new URLSearchParams();
+        if (filters.comercial.length > 0) params.append('comercial', filters.comercial.join(','));
+        if (filters.ente.length > 0) params.append('ente', filters.ente.join(','));
+        if (filters.anio.length > 0) params.append('anio', filters.anio.join(','));
+        if (filters.mes.length > 0) params.append('mes', filters.mes.join(','));
+        if (filters.estado.length > 0) params.append('estado', filters.estado.join(','));
+
+        if (mixDepth === 'ramo') {
+            params.append('ramo', item);
+        } else {
+            params.append('producto', item);
+        }
+        return params.toString();
     };
 
     return (
-        <div className="space-y-8 pb-12">
+        <div className="space-y-8 pb-12 overflow-hidden">
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold text-slate-900">Salud de la Cartera</h1>
-                    <p className="mt-2 text-slate-600">Distribución de producción por Ramo y Producto</p>
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 shadow-sm">
+                        <BarChart2 className="w-6 h-6" />
+                    </div>
+                    <div>
+                        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Salud de la Cartera</h1>
+                        <p className="text-sm text-slate-500 font-medium tracking-wide">Análisis de composición y distribución de riesgos</p>
+                    </div>
                 </div>
                 <div className="flex flex-wrap gap-2 no-print">
-                    <button onClick={handleExportExcel} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors font-medium shadow-sm">
+                    <button onClick={handleExportExcel} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all font-semibold shadow-sm text-sm">
                         <FileDown className="w-4 h-4 text-green-600" />
                         Excel
                     </button>
-                    <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-medium shadow-sm">
+                    <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl hover:bg-primary/90 transition-all font-semibold shadow-sm text-sm">
                         <Printer className="w-4 h-4" />
                         PDF
                     </button>
@@ -261,7 +301,7 @@ export default function CarteraPage() {
             <PrintFilterSummary filters={filters} />
 
             {/* Filters */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 no-print">
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 no-print">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
                     <MultiSelect label="Comercial" options={filterOptions.asesores} selected={filters.comercial} onChange={(val) => handleFilterChange('comercial', val)} />
                     <MultiSelect label="Ente" options={filterOptions.entes} selected={filters.ente} onChange={(val) => handleFilterChange('ente', val)} />
@@ -271,15 +311,15 @@ export default function CarteraPage() {
                 </div>
             </div>
 
-            {/* Capa Superior: Ramo Cards */}
+            {/* Capa Superior: Ramo Cards - Stylized like Evolution page */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 {ramosBreakdown.sort((a, b) => b.primas - a.primas).map((ramo, idx) => (
-                    <div key={idx} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:border-primary/30 transition-all">
+                    <div key={idx} className="bg-slate-50/50 rounded-xl p-4 border border-slate-100 h-full transition-all hover:border-primary/20 hover:shadow-md group/card">
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate">{ramo.ramo}</p>
-                        <p className="text-lg font-bold text-slate-900 mt-1">{currencyFormatter.format(ramo.primas).replace(",00", "")}</p>
-                        <div className="flex justify-between items-center mt-2">
-                            <span className="text-[11px] text-slate-500">{ramo.polizas} pólizas</span>
-                            <span className="text-[11px] font-bold text-primary bg-primary/5 px-1.5 rounded">
+                        <p className="text-xl font-extrabold text-slate-900 mt-1 transition-transform origin-left group-hover/card:scale-105">{currencyFormatter.format(ramo.primas).replace(",00", "")}</p>
+                        <div className="flex justify-between items-center mt-2 pt-2 border-t border-slate-100">
+                            <span className="text-[10px] font-medium text-slate-500">{numberFormatter.format(ramo.polizas)} pólizas</span>
+                            <span className="text-[10px] font-bold text-primary bg-primary/5 px-1.5 py-0.5 rounded">
                                 {((ramo.primas / (ramosBreakdown.reduce((s, r) => s + r.primas, 0) || 1)) * 100).toFixed(0)}%
                             </span>
                         </div>
@@ -287,113 +327,129 @@ export default function CarteraPage() {
                 ))}
             </div>
 
-            {/* Charts & Insights */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Product Pie */}
-                <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-6 flex items-center gap-2">
-                        <PieIcon className="w-4 h-4 text-primary" />
-                        Peso por Producto (Primas)
-                    </h3>
-                    <div className="h-64 flex items-center justify-center">
-                        {!loading && productosBreakdown.length > 0 ? (
-                            <Pie
-                                data={generatePieData(productosBreakdown, 'producto', 'primas')}
-                                options={{
-                                    plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } },
-                                    maintainAspectRatio: false
-                                }}
-                            />
-                        ) : (
-                            <div className="text-slate-300 italic text-sm">Cargando gráfico...</div>
-                        )}
+            {/* Main Distribution Chart & Inline Table */}
+            <div className="bg-white p-8 print:p-6 rounded-2xl shadow-sm border border-slate-200 break-inside-avoid">
+                <div className="flex items-center justify-between mb-8">
+                    <h2 className="text-xl font-bold text-slate-800 flex items-center gap-3 tracking-tight">
+                        <div className="p-2 bg-purple-50 rounded-lg">
+                            <PieIcon className="w-5 h-5 text-purple-500" />
+                        </div>
+                        Mix de Productos por Ramo
+                    </h2>
+                    <div className="flex items-center bg-slate-100/80 p-1 rounded-xl border border-slate-100 no-print">
+                        <button
+                            onClick={() => setMixDepth('ramo')}
+                            className={`px-5 py-1.5 rounded-lg text-xs font-bold transition-all duration-300 ${mixDepth === 'ramo' ? 'bg-white text-primary shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            Ramos
+                        </button>
+                        <button
+                            onClick={() => setMixDepth('producto')}
+                            className={`px-5 py-1.5 rounded-lg text-xs font-bold transition-all duration-300 ${mixDepth === 'producto' ? 'bg-white text-primary shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            Productos
+                        </button>
                     </div>
                 </div>
 
-                {/* Ramo Pie */}
-                <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-6 flex items-center gap-2">
-                        <PieIcon className="w-4 h-4 text-primary" />
-                        Peso por Ramo (Primas)
-                    </h3>
-                    <div className="h-64 flex items-center justify-center">
-                        {!loading && ramosBreakdown.length > 0 ? (
-                            <Pie
-                                data={generatePieData(ramosBreakdown, 'ramo', 'primas')}
-                                options={{
-                                    plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } },
-                                    maintainAspectRatio: false
-                                }}
-                            />
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 print:grid-cols-1">
+                    <div className="h-[350px] relative">
+                        {!loading && activeMixData.length > 0 ? (
+                            <Doughnut data={generateDonutData()} options={donutOptions as any} />
                         ) : (
-                            <div className="text-slate-300 italic text-sm">Cargando gráfico...</div>
+                            <div className="h-full w-full bg-slate-50 animate-pulse rounded-2xl flex items-center justify-center text-slate-400 font-medium">Cargando distribución...</div>
                         )}
+                        {/* Summary in center of doughnut */}
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none hidden md:block" style={{ marginTop: '10px' }}>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Primas</p>
+                            <p className="text-lg font-extrabold text-slate-900">{currencyFormatter.format(activeMixData.reduce((s, d) => s + d.primas, 0)).split(',')[0]}€</p>
+                        </div>
                     </div>
-                </div>
 
-                {/* Insights Panel */}
-                <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 border-dashed">
-                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-6 flex items-center gap-2">
-                        <Zap className="w-4 h-4 text-primary" />
-                        Insights Inteligentes
-                    </h3>
-                    <div className="space-y-4">
-                        {getInsights().map((insight, idx) => (
-                            <div key={idx} className="flex gap-3 bg-white p-3 rounded-lg shadow-sm border-l-4 border-l-primary">
-                                <div className="mt-0.5">{insight.icon}</div>
-                                <div>
-                                    <p className="text-xs font-bold text-slate-900">{insight.title}</p>
-                                    <p className="text-[11px] text-slate-600 mt-1">{insight.text}</p>
-                                </div>
-                            </div>
-                        ))}
-                        {getInsights().length === 0 && (
-                            <div className="text-center py-10">
-                                <Info className="w-10 h-10 text-slate-200 mx-auto mb-2" />
-                                <p className="text-xs text-slate-400">Analizando datos para generar insights...</p>
-                            </div>
-                        )}
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                            <thead>
+                                <tr className="border-b border-slate-100">
+                                    <th className="p-3 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">{mixDepth === 'ramo' ? 'Ramo' : 'Producto'}</th>
+                                    <th className="p-3 text-right text-[10px] font-bold text-slate-400 uppercase tracking-wider">Primas</th>
+                                    <th className="p-3 text-right text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pólizas</th>
+                                    <th className="p-3 text-right text-[10px] font-bold text-slate-400 uppercase tracking-wider">Peso</th>
+                                    <th className="p-3 text-right text-[10px] font-bold text-slate-400 uppercase tracking-wider no-print">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-50">
+                                {activeMixData.sort((a, b) => b.primas - a.primas).slice(0, 10).map((p, i) => {
+                                    const totalPrimas = activeMixData.reduce((s, x) => s + x.primas, 0);
+                                    const pct = totalPrimas > 0 ? ((p.primas / totalPrimas) * 100).toFixed(1) : '0';
+                                    return (
+                                        <tr key={i} className="hover:bg-slate-50 transition-colors group/row">
+                                            <td className="p-3 font-semibold text-slate-700 flex items-center gap-3">
+                                                <div className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: DONUT_COLORS[i % DONUT_COLORS.length] }} />
+                                                <span className="truncate max-w-[120px] md:max-w-none uppercase tracking-tight text-xs">{p.name}</span>
+                                            </td>
+                                            <td className="p-3 text-right font-extrabold text-primary font-mono text-xs">{currencyFormatter.format(p.primas)}</td>
+                                            <td className="p-3 text-right font-mono text-slate-500 text-xs">{numberFormatter.format(p.polizas)}</td>
+                                            <td className="p-3 text-right font-bold text-slate-400 text-xs">{pct}%</td>
+                                            <td className="p-3 text-right no-print">
+                                                <button
+                                                    onClick={() => {
+                                                        const url = `/polizas/listado?${getFilterParams(p.name)}`;
+                                                        window.location.href = url;
+                                                    }}
+                                                    className="p-1.5 text-primary hover:text-white hover:bg-primary transition-all rounded-lg border border-slate-200 group-hover/row:border-primary/50 shadow-sm"
+                                                    title="Ver listado de pólizas"
+                                                >
+                                                    <TrendingUp className="w-3.5 h-3.5" />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
 
             {/* Detailed Table */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center text-slate-800">
-                    <h3 className="text-lg font-semibold flex items-center gap-2">
-                        <Package className="w-5 h-5 text-primary" />
-                        Desglose Detallado
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div className="px-8 py-5 border-b border-slate-200 bg-slate-50/50 flex justify-between items-center text-slate-800">
+                    <h3 className="text-lg font-extrabold flex items-center gap-3 tracking-tight">
+                        <div className="p-2 bg-indigo-50 rounded-lg text-indigo-600">
+                            <Package className="w-5 h-5" />
+                        </div>
+                        Desglose Detallado por Producto
                     </h3>
                 </div>
                 <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-slate-200">
-                        <thead className="bg-slate-50">
+                    <table className="min-w-full divide-y divide-slate-100">
+                        <thead className="bg-slate-50/30">
                             <tr>
-                                <th onClick={() => handleSort('ramo')} className="px-6 py-3 text-left text-[11px] font-bold text-primary uppercase tracking-widest cursor-pointer">
+                                <th onClick={() => handleSort('ramo')} className="px-8 py-4 text-left text-[11px] font-black text-slate-400 uppercase tracking-[0.1em] cursor-pointer hover:text-primary transition-colors">
                                     <span className="flex items-center">Ramo <SortIcon col="ramo" /></span>
                                 </th>
-                                <th onClick={() => handleSort('producto')} className="px-6 py-3 text-left text-[11px] font-bold text-primary uppercase tracking-widest cursor-pointer">
+                                <th onClick={() => handleSort('producto')} className="px-8 py-4 text-left text-[11px] font-black text-slate-400 uppercase tracking-[0.1em] cursor-pointer hover:text-primary transition-colors">
                                     <span className="flex items-center">Producto <SortIcon col="producto" /></span>
                                 </th>
-                                <th onClick={() => handleSort('polizas')} className="px-6 py-3 text-right text-[11px] font-bold text-primary uppercase tracking-widest cursor-pointer">
+                                <th onClick={() => handleSort('polizas')} className="px-8 py-4 text-right text-[11px] font-black text-slate-400 uppercase tracking-[0.1em] cursor-pointer hover:text-primary transition-colors">
                                     <span className="flex items-center justify-end">Pólizas <SortIcon col="polizas" /></span>
                                 </th>
-                                <th onClick={() => handleSort('primas')} className="px-6 py-3 text-right text-[11px] font-bold text-primary uppercase tracking-widest cursor-pointer">
+                                <th onClick={() => handleSort('primas')} className="px-8 py-4 text-right text-[11px] font-black text-slate-400 uppercase tracking-[0.1em] cursor-pointer hover:text-primary transition-colors">
                                     <span className="flex items-center justify-end">Primas (€) <SortIcon col="primas" /></span>
                                 </th>
-                                <th className="px-6 py-3 text-right text-[11px] font-bold text-primary uppercase tracking-widest">Peso</th>
+                                <th className="px-8 py-4 text-right text-[11px] font-black text-slate-400 uppercase tracking-[0.1em]">Peso</th>
                             </tr>
                         </thead>
-                        <tbody className="bg-white divide-y divide-slate-200">
+                        <tbody className="bg-white divide-y divide-slate-50">
                             {sortedData.map((item, idx) => {
                                 const totalPrimas = productosBreakdown.reduce((sum, d) => sum + d.primas, 0);
                                 return (
-                                    <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                                        <td className="px-6 py-4 whitespace-nowrap text-xs font-bold text-slate-500 uppercase tracking-wider">{item.ramo}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900">{item.producto}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 text-right font-mono">{numberFormatter.format(item.polizas)}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-primary text-right font-bold font-mono">{currencyFormatter.format(item.primas)}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400 text-right bg-slate-50/30">
+                                    <tr key={idx} className="hover:bg-slate-50/80 transition-all group">
+                                        <td className="px-8 py-5 whitespace-nowrap text-[10px] font-black text-slate-400 uppercase tracking-widest group-hover:text-primary transition-colors">{item.ramo}</td>
+                                        <td className="px-8 py-5 whitespace-nowrap text-sm font-bold text-slate-800">{item.producto}</td>
+                                        <td className="px-8 py-5 whitespace-nowrap text-sm text-slate-500 text-right font-mono">{numberFormatter.format(item.polizas)}</td>
+                                        <td className="px-8 py-5 whitespace-nowrap text-sm text-primary text-right font-black font-mono tracking-tight">{currencyFormatter.format(item.primas)}</td>
+                                        <td className="px-8 py-5 whitespace-nowrap text-[11px] text-slate-400 text-right font-bold bg-slate-50/20">
                                             {((item.primas / (totalPrimas || 1)) * 100).toFixed(1)}%
                                         </td>
                                     </tr>
