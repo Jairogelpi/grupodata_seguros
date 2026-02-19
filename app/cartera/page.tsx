@@ -1,10 +1,41 @@
 "use client";
 
-import { useEffect, useState } from 'react';
-import { PieChart, FileText, LayoutList, ArrowUpDown, ArrowUp, ArrowDown, FileDown, Printer, BarChart2, TrendingUp, Info, Package } from 'lucide-react';
+import { useEffect, useState, useMemo } from 'react';
+import {
+    PieChart,
+    FileText,
+    LayoutList,
+    ArrowUpDown,
+    ArrowUp,
+    ArrowDown,
+    FileDown,
+    Printer,
+    BarChart2,
+    TrendingUp,
+    Info,
+    Package,
+    ChevronDown,
+    ChevronRight,
+    Users,
+    Building2,
+    ToggleLeft,
+    ToggleRight
+} from 'lucide-react';
+import {
+    Chart as ChartJS,
+    ArcElement,
+    Tooltip,
+    Legend,
+    CategoryScale,
+    LinearScale
+} from 'chart.js';
+import { Doughnut } from 'react-chartjs-2';
+import ChartDataLabels from 'chartjs-plugin-datalabels';
 import MultiSelect from '@/components/MultiSelect';
 import PrintFilterSummary from '@/components/PrintFilterSummary';
 import * as XLSX from 'xlsx';
+
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, ChartDataLabels);
 
 // Formatter for currency
 const currencyFormatter = new Intl.NumberFormat('es-ES', {
@@ -15,10 +46,19 @@ const currencyFormatter = new Intl.NumberFormat('es-ES', {
 // Formatter for numbers
 const numberFormatter = new Intl.NumberFormat('es-ES');
 
-interface ProductBreakdownItem {
-    producto: string;
+interface MetricItem {
     primas: number;
     polizas: number;
+    numEntes: number;
+    numAsesores: number;
+}
+
+interface ProductItem extends MetricItem {
+    producto: string;
+}
+
+interface RamoItem extends MetricItem {
+    ramo: string;
 }
 
 interface FilterOptions {
@@ -29,17 +69,21 @@ interface FilterOptions {
     entes: string[];
 }
 
-type SortKey = 'producto' | 'primas' | 'polizas';
+const DONUT_COLORS = [
+    '#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+    '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#6366f1',
+    '#14b8a6', '#e11d48'
+];
 
 export default function CarteraPage() {
-    const [breakdown, setBreakdown] = useState<ProductBreakdownItem[]>([]);
+    const [ramosBreakdown, setRamosBreakdown] = useState<RamoItem[]>([]);
+    const [productosBreakdown, setProductosBreakdown] = useState<ProductItem[]>([]);
     const [loading, setLoading] = useState(true);
+    const [depth, setDepth] = useState<'ramo' | 'producto'>('ramo');
+    const [expandedRamos, setExpandedRamos] = useState<Set<string>>(new Set());
+
     const [filterOptions, setFilterOptions] = useState<FilterOptions>({
-        anios: [],
-        meses: [],
-        estados: [],
-        asesores: [],
-        entes: []
+        anios: [], meses: [], estados: [], asesores: [], entes: []
     });
 
     const [filters, setFilters] = useState({
@@ -50,7 +94,7 @@ export default function CarteraPage() {
         estado: [] as string[]
     });
 
-    const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' }>({
+    const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({
         key: 'primas',
         direction: 'desc'
     });
@@ -70,7 +114,8 @@ export default function CarteraPage() {
 
             const data = await res.json();
             setFilterOptions(data.filters);
-            setBreakdown(data.productosBreakdown || []);
+            setRamosBreakdown(data.ramosBreakdown || []);
+            setProductosBreakdown(data.productosBreakdown || []);
         } catch (error) {
             console.error(error);
         } finally {
@@ -86,253 +131,248 @@ export default function CarteraPage() {
         setFilters(prev => ({ ...prev, [key]: selected }));
     };
 
-    const handleSort = (key: SortKey) => {
-        let direction: 'asc' | 'desc' = 'asc';
-        if (sortConfig.key === key && sortConfig.direction === 'asc') {
-            direction = 'desc';
-        }
-        setSortConfig({ key, direction });
+    const toggleRamo = (ramo: string) => {
+        const next = new Set(expandedRamos);
+        if (next.has(ramo)) next.delete(ramo);
+        else next.add(ramo);
+        setExpandedRamos(next);
     };
 
-    const sortedData = [...breakdown].sort((a, b) => {
-        const { key, direction } = sortConfig;
-        if (key === 'producto') {
-            return direction === 'asc' ? a.producto.localeCompare(b.producto) : b.producto.localeCompare(a.producto);
-        }
-        return direction === 'asc' ? a[key] - b[key] : b[key] - a[key];
-    });
+    // Mapping for grouped view
+    const getRamo = (producto: string): string => {
+        const p = producto.toLowerCase();
+        if (p.includes('sanit')) return 'SALUD';
+        if (p.includes('accid')) return 'ACCIDENTES';
+        if (p.includes('agro')) return 'DIVERSOS';
+        if (p.includes('ind.riesgo') || p.includes('riesgo') || p.includes('ahorro') || p.includes('sialp')) return 'VIDA RIESGO';
+        if (p.includes('decesos')) return 'DECESOS';
+        if (producto.includes('<A>')) return 'AUTOS';
+        if (producto.includes('<D>')) return 'DIVERSOS';
+        return 'OTROS';
+    };
 
-    const SortIcon = ({ col }: { col: SortKey }) => {
-        if (sortConfig.key !== col) return <ArrowUpDown className="w-4 h-4 ml-1 opacity-30" />;
-        return sortConfig.direction === 'asc' ? <ArrowUp className="w-4 h-4 ml-1" /> : <ArrowDown className="w-4 h-4 ml-1" />;
+    const donutData = useMemo(() => {
+        const data = depth === 'ramo' ? ramosBreakdown : productosBreakdown;
+        const top = data.slice(0, 10);
+        const rest = data.slice(10);
+        const restPrimas = rest.reduce((sum, item) => sum + item.primas, 0);
+
+        const labels = top.map(item => depth === 'ramo' ? (item as RamoItem).ramo : (item as ProductItem).producto);
+        const values = top.map(item => item.primas);
+
+        if (restPrimas > 0) {
+            labels.push('Otros');
+            values.push(restPrimas);
+        }
+
+        return {
+            labels,
+            datasets: [{
+                data: values,
+                backgroundColor: DONUT_COLORS.slice(0, labels.length),
+                borderWidth: 2,
+                borderColor: '#fff',
+                hoverOffset: 15
+            }]
+        };
+    }, [depth, ramosBreakdown, productosBreakdown]);
+
+    const donutOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'right' as const,
+                labels: {
+                    boxWidth: 12,
+                    font: { size: 11, weight: 'bold' as const },
+                    padding: 15,
+                    color: '#475569'
+                }
+            },
+            datalabels: {
+                formatter: (val: number, ctx: any) => {
+                    const total = ctx.dataset.data.reduce((a: number, b: number) => a + b, 0);
+                    const pct = total > 0 ? ((val / total) * 100).toFixed(1) : '0';
+                    return `${pct}%`;
+                },
+                color: '#fff',
+                font: { weight: 'bold' as const, size: 10 },
+                display: (ctx: any) => {
+                    const total = ctx.dataset.data.reduce((a: number, b: number) => a + b, 0);
+                    return total > 0 && (ctx.dataset.data[ctx.dataIndex] / total) > 0.04;
+                }
+            },
+            tooltip: {
+                callbacks: {
+                    label: (context: any) => {
+                        const val = context.raw;
+                        const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
+                        const pct = ((val / total) * 100).toFixed(1);
+                        return ` ${currencyFormatter.format(val)} (${pct}%)`;
+                    }
+                }
+            }
+        }
     };
 
     const handleExportExcel = () => {
-        // 1. Prepare Filter Summary rows
-        const filterRows = [
-            ['REPORTE DE CARTERA POR PRODUCTO'],
-            ['Filtros Aplicados:', new Date().toLocaleString()],
-            ['Asesor:', filters.comercial.length > 0 ? filters.comercial.join(', ') : 'Todos'],
-            ['Ente:', filters.ente.length > 0 ? filters.ente.join(', ') : 'Todos'],
-            ['Año:', filters.anio.length > 0 ? filters.anio.join(', ') : 'Todos'],
-            ['Mes:', filters.mes.length > 0 ? filters.mes.join(', ') : 'Todos'],
-            ['Estado:', filters.estado.length > 0 ? filters.estado.join(', ') : 'Todos'],
-            [], // Empty row
-        ];
-
-        // 2. Prepare Data
-        const dataToExport = sortedData.map(item => ({
-            'Producto/Ramo': item.producto,
+        const dataToExport = productosBreakdown.map(item => ({
+            'Producto': item.producto,
+            'Ramo': getRamo(item.producto),
             'Nº Pólizas': item.polizas,
-            'Primas Totales (€)': item.primas
+            'Nº Entes': item.numEntes,
+            'Nº Asesores': item.numAsesores,
+            'Total Primas (€)': item.primas
         }));
 
-        // 3. Create Workbook
         const wb = XLSX.utils.book_new();
-        const ws = XLSX.utils.aoa_to_sheet(filterRows);
-        XLSX.utils.sheet_add_json(ws, dataToExport, { origin: filterRows.length });
-
-        // Widths
-        ws['!cols'] = [{ wch: 40 }, { wch: 15 }, { wch: 20 }];
-
-        XLSX.utils.book_append_sheet(wb, ws, "Cartera");
+        const ws = XLSX.utils.json_to_sheet(dataToExport);
+        XLSX.utils.book_append_sheet(wb, ws, "Cartera_Detalle");
         XLSX.writeFile(wb, `Cartera_GrupoData_${new Date().toISOString().split('T')[0]}.xlsx`);
     };
 
-    const handleExportPDF = () => {
-        window.print();
-    };
-
-    const BarChart = ({ data, dataKey, label, color = "bg-primary" }: { data: any[], dataKey: string, label: string, color?: string }) => {
-        const total = data.reduce((sum, d) => sum + d[dataKey], 0);
-        const maxVal = Math.max(...data.map(d => d[dataKey]), 1);
-
-        return (
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-full">
-                <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-6 flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4 text-primary" />
-                    {label}
-                </h4>
-                <div className="space-y-4">
-                    {data.slice(0, 10).map((item, idx) => {
-                        const percentage = ((item[dataKey] / total) * 100).toFixed(1);
-                        return (
-                            <div key={idx} className="space-y-1">
-                                <div className="flex justify-between text-xs font-medium">
-                                    <span className="text-slate-700 truncate max-w-[200px]">{item.producto}</span>
-                                    <span className="text-slate-900 font-bold">
-                                        {dataKey === 'primas'
-                                            ? currencyFormatter.format(item[dataKey]).replace(",00", "")
-                                            : item[dataKey]}
-                                        <span className="ml-1 text-slate-400 font-normal">({percentage}%)</span>
-                                    </span>
-                                </div>
-                                <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                                    <div
-                                        className={`${color} h-full rounded-full transition-all duration-1000 ease-out`}
-                                        style={{ width: `${(item[dataKey] / maxVal) * 100}%` }}
-                                    ></div>
-                                </div>
-                            </div>
-                        );
-                    })}
-                    {data.length === 0 && <div className="text-center py-10 text-slate-400 italic text-sm">No hay datos suficientes</div>}
-                </div>
-            </div>
-        );
-    };
-
     return (
-        <div className="space-y-8">
-            {/* Printable Logo (hidden on screen) */}
-            <div className="hidden print:block mb-6">
-                <img src="/logo.png" alt="Grupo Data Logo" className="h-16 w-auto" />
-            </div>
-
+        <div className="space-y-8 pb-12">
             {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900">Salud de la Cartera</h1>
-                    <p className="mt-2 text-slate-600">Distribución de producción por Ramo y Producto</p>
+                    <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">Salud de la Cartera</h1>
+                    <p className="mt-2 text-slate-500 font-medium">Análisis estratégico de producción por Ramo y Producto</p>
                 </div>
                 <div className="flex flex-wrap gap-2 no-print">
-                    <button
-                        onClick={handleExportExcel}
-                        className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors font-medium shadow-sm"
-                    >
-                        <FileDown className="w-4 h-4 text-green-600" />
-                        Excel
+                    <button onClick={handleExportExcel} className="flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all font-semibold shadow-sm">
+                        <FileDown className="w-4 h-4 text-green-600" /> Excel
                     </button>
-                    <button
-                        onClick={handleExportPDF}
-                        className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-medium shadow-sm"
-                    >
-                        <Printer className="w-4 h-4" />
-                        PDF
+                    <button onClick={() => window.print()} className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-xl hover:bg-primary/90 transition-all font-semibold shadow-sm">
+                        <Printer className="w-4 h-4" /> PDF
                     </button>
                 </div>
             </div>
 
-            {/* Print Only: Filter Summary */}
-            <PrintFilterSummary filters={filters} />
-
             {/* Filters */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 no-print filters-container">
-                <div className="flex items-center gap-2 mb-4 text-slate-800 font-semibold border-b pb-2">
-                    <LayoutList className="w-5 h-5 text-primary" />
+            <div className="bg-white/80 backdrop-blur-sm p-6 rounded-3xl shadow-sm border border-slate-200 no-print">
+                <div className="flex items-center gap-3 mb-6 text-slate-800 font-bold">
+                    <div className="p-2 bg-indigo-50 rounded-xl text-primary"><LayoutList className="w-5 h-5" /></div>
                     <h3>Filtros de Análisis</h3>
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-                    <MultiSelect
-                        label="Comercial"
-                        options={filterOptions.asesores}
-                        selected={filters.comercial}
-                        onChange={(val) => handleFilterChange('comercial', val)}
-                    />
-                    <MultiSelect
-                        label="Ente"
-                        options={filterOptions.entes}
-                        selected={filters.ente}
-                        onChange={(val) => handleFilterChange('ente', val)}
-                    />
-                    <MultiSelect
-                        label="Año"
-                        options={filterOptions.anios}
-                        selected={filters.anio}
-                        onChange={(val) => handleFilterChange('anio', val)}
-                    />
-                    <MultiSelect
-                        label="Mes"
-                        options={filterOptions.meses}
-                        selected={filters.mes}
-                        onChange={(val) => handleFilterChange('mes', val)}
-                    />
-                    <MultiSelect
-                        label="Estado"
-                        options={filterOptions.estados}
-                        selected={filters.estado}
-                        onChange={(val) => handleFilterChange('estado', val)}
-                    />
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
+                    <MultiSelect label="Asesor" options={filterOptions.asesores} selected={filters.comercial} onChange={(val) => handleFilterChange('comercial', val)} />
+                    <MultiSelect label="Ente" options={filterOptions.entes} selected={filters.ente} onChange={(val) => handleFilterChange('ente', val)} />
+                    <MultiSelect label="Año" options={filterOptions.anios} selected={filters.anio} onChange={(val) => handleFilterChange('anio', val)} />
+                    <MultiSelect label="Mes" options={filterOptions.meses} selected={filters.mes} onChange={(val) => handleFilterChange('mes', val)} />
+                    <MultiSelect label="Estado" options={filterOptions.estados} selected={filters.estado} onChange={(val) => handleFilterChange('estado', val)} />
                 </div>
             </div>
 
             {/* Charts Section */}
-            {!loading && breakdown.length > 0 && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <BarChart
-                        data={breakdown.sort((a, b) => b.primas - a.primas)}
-                        dataKey="primas"
-                        label="Distribución por Volumen de Primas (€)"
-                        color="bg-primary"
-                    />
-                    <BarChart
-                        data={breakdown.sort((a, b) => b.polizas - a.polizas)}
-                        dataKey="polizas"
-                        label="Distribución por Número de Pólizas"
-                        color="bg-primary/60"
-                    />
+            {!loading && (ramosBreakdown.length > 0 || productosBreakdown.length > 0) && (
+                <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-purple-50 rounded-xl text-purple-600"><PieChart className="w-6 h-6" /></div>
+                            <h3 className="text-xl font-bold text-slate-800">Distribución de Cartera</h3>
+                        </div>
+                        <div className="flex items-center bg-slate-100 p-1.5 rounded-2xl no-print">
+                            <button
+                                onClick={() => setDepth('ramo')}
+                                className={`px-6 py-2 rounded-xl text-xs font-bold transition-all ${depth === 'ramo' ? 'bg-white text-primary shadow-md' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                                Por Ramos
+                            </button>
+                            <button
+                                onClick={() => setDepth('producto')}
+                                className={`px-6 py-2 rounded-xl text-xs font-bold transition-all ${depth === 'producto' ? 'bg-white text-primary shadow-md' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                                Por Productos
+                            </button>
+                        </div>
+                    </div>
+                    <div className="h-[400px] w-full">
+                        <Doughnut data={donutData} options={donutOptions} />
+                    </div>
                 </div>
             )}
 
-            {/* Detailed Table */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center text-slate-800">
-                    <h3 className="text-lg font-semibold flex items-center gap-2">
-                        <Package className="w-5 h-5 text-primary" />
-                        Desglose por Producto
-                    </h3>
+            {/* Grouped Table View */}
+            <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+                <div className="px-8 py-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-blue-50 rounded-xl text-blue-600"><Package className="w-6 h-6" /></div>
+                        <h3 className="text-xl font-bold text-slate-800">Desglose Detallado</h3>
+                    </div>
+                    <p className="text-sm text-slate-500 font-medium no-print">Haz clic en un ramo para ver sus productos</p>
                 </div>
                 <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-slate-200">
-                        <thead className="bg-slate-50">
-                            <tr>
-                                <th onClick={() => handleSort('producto')} className="px-6 py-3 text-left text-xs font-bold text-primary uppercase tracking-wider cursor-pointer select-none">
-                                    <span className="flex items-center">Producto / Ramo <SortIcon col="producto" /></span>
-                                </th>
-                                <th onClick={() => handleSort('polizas')} className="px-6 py-3 text-right text-xs font-bold text-primary uppercase tracking-wider cursor-pointer select-none">
-                                    <span className="flex items-center justify-end">Nº Pólizas <SortIcon col="polizas" /></span>
-                                </th>
-                                <th onClick={() => handleSort('primas')} className="px-6 py-3 text-right text-xs font-bold text-primary uppercase tracking-wider cursor-pointer select-none">
-                                    <span className="flex items-center justify-end">Total Primas (€) <SortIcon col="primas" /></span>
-                                </th>
-                                <th className="px-6 py-3 text-right text-xs font-bold text-primary uppercase tracking-wider">
-                                    % Peso
-                                </th>
+                    <table className="min-w-full divide-y divide-slate-100">
+                        <thead>
+                            <tr className="bg-slate-50/50">
+                                <th className="px-8 py-4 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-widest px-8">Categoría / Ítem</th>
+                                <th className="px-4 py-4 text-right text-[11px] font-extrabold text-slate-400 uppercase tracking-widest"><div className="flex items-center justify-end gap-1"><Users className="w-3 h-3" /> Entes</div></th>
+                                <th className="px-4 py-4 text-right text-[11px] font-extrabold text-slate-400 uppercase tracking-widest"><div className="flex items-center justify-end gap-1"><Building2 className="w-3 h-3" /> Cometos</div></th>
+                                <th className="px-4 py-4 text-right text-[11px] font-extrabold text-slate-400 uppercase tracking-widest">Pólizas</th>
+                                <th className="px-4 py-4 text-right text-[11px] font-extrabold text-slate-400 uppercase tracking-widest">Primas (€)</th>
+                                <th className="px-8 py-4 text-right text-[11px] font-extrabold text-slate-400 uppercase tracking-widest px-8">Peso %</th>
                             </tr>
                         </thead>
-                        <tbody className="bg-white divide-y divide-slate-200">
+                        <tbody className="divide-y divide-slate-100">
                             {loading ? (
                                 [...Array(5)].map((_, i) => (
-                                    <tr key={i}>
-                                        <td className="px-6 py-4 whitespace-nowrap"><div className="h-4 bg-slate-100 rounded w-64 animate-pulse"></div></td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right"><div className="h-4 bg-slate-100 rounded w-12 ml-auto animate-pulse"></div></td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right"><div className="h-4 bg-slate-100 rounded w-24 ml-auto animate-pulse"></div></td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right"><div className="h-4 bg-slate-100 rounded w-12 ml-auto animate-pulse"></div></td>
-                                    </tr>
+                                    <tr key={i}><td className="px-8 py-6" colSpan={6}><div className="h-5 bg-slate-100 rounded-lg animate-pulse"></div></td></tr>
                                 ))
-                            ) : sortedData.length > 0 ? (
-                                (() => {
-                                    const totalPrimas = sortedData.reduce((sum, d) => sum + d.primas, 0);
-                                    return sortedData.map((item, idx) => (
-                                        <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900">{item.producto}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 text-right font-mono">{numberFormatter.format(item.polizas)}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-primary text-right font-bold font-mono">{currencyFormatter.format(item.primas)}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-right font-medium bg-slate-50/50">
-                                                {((item.primas / (totalPrimas || 1)) * 100).toFixed(1)}%
+                            ) : ramosBreakdown.map((ramo) => {
+                                const totalPrimas = ramosBreakdown.reduce((sum, r) => sum + r.primas, 0);
+                                const isExpanded = expandedRamos.has(ramo.ramo);
+                                const products = productosBreakdown.filter(p => getRamo(p.producto) === ramo.ramo);
+
+                                return (
+                                    <>
+                                        {/* Ramo Row */}
+                                        <tr
+                                            key={ramo.ramo}
+                                            onClick={() => toggleRamo(ramo.ramo)}
+                                            className="group hover:bg-indigo-50/30 cursor-pointer transition-colors bg-white"
+                                        >
+                                            <td className="px-8 py-5">
+                                                <div className="flex items-center gap-3">
+                                                    {isExpanded ? <ChevronDown className="w-4 h-4 text-primary" /> : <ChevronRight className="w-4 h-4 text-slate-400" />}
+                                                    <span className="text-base font-bold text-slate-900">{ramo.ramo}</span>
+                                                    <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-bold">{products.length} productos</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-5 text-right font-bold text-slate-700 text-sm">{numberFormatter.format(ramo.numEntes)}</td>
+                                            <td className="px-4 py-5 text-right font-bold text-slate-700 text-sm">{numberFormatter.format(ramo.numAsesores)}</td>
+                                            <td className="px-4 py-5 text-right font-bold text-slate-700 text-sm">{numberFormatter.format(ramo.polizas)}</td>
+                                            <td className="px-4 py-5 text-right font-bold text-primary text-sm">{currencyFormatter.format(ramo.primas)}</td>
+                                            <td className="px-8 py-5 text-right">
+                                                <div className="inline-flex items-center gap-2 group-hover:scale-110 transition-transform">
+                                                    <span className="text-sm font-bold text-slate-900 px-3 py-1 bg-slate-100 rounded-lg">
+                                                        {((ramo.primas / (totalPrimas || 1)) * 100).toFixed(1)}%
+                                                    </span>
+                                                </div>
                                             </td>
                                         </tr>
-                                    ));
-                                })()
-                            ) : (
-                                <tr>
-                                    <td colSpan={4} className="px-6 py-12 text-center text-slate-500 text-sm">
-                                        <Info className="w-8 h-8 text-slate-200 mx-auto mb-2" />
-                                        No hay datos de productos para los filtros seleccionados
-                                    </td>
-                                </tr>
-                            )}
+
+                                        {/* Product Rows (when expanded) */}
+                                        {isExpanded && products.map((prod) => (
+                                            <tr key={prod.producto} className="bg-slate-50/30 hover:bg-white transition-colors">
+                                                <td className="px-8 py-4 pl-16">
+                                                    <span className="text-sm font-medium text-slate-600 italic">{prod.producto}</span>
+                                                </td>
+                                                <td className="px-4 py-4 text-right text-sm text-slate-500 font-mono">{numberFormatter.format(prod.numEntes)}</td>
+                                                <td className="px-4 py-4 text-right text-sm text-slate-500 font-mono">{numberFormatter.format(prod.numAsesores)}</td>
+                                                <td className="px-4 py-4 text-right text-sm text-slate-500 font-mono">{numberFormatter.format(prod.polizas)}</td>
+                                                <td className="px-4 py-4 text-right text-sm text-slate-800 font-bold font-mono">{currencyFormatter.format(prod.primas)}</td>
+                                                <td className="px-8 py-4 text-right">
+                                                    <span className="text-xs font-semibold text-slate-400">
+                                                        {((prod.primas / (ramo.primas || 1)) * 100).toFixed(1)}% <span className="text-[10px] opacity-60">del ramo</span>
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </>
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>

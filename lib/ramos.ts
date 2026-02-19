@@ -18,10 +18,9 @@ export function getRamo(producto: string): string {
 
     if (p.includes('sanit')) return 'SALUD';
     if (p.includes('accid')) return 'ACCIDENTES';
-    if (p.includes('agro')) return 'AGROSEGURO';
+    if (p.includes('agro')) return 'DIVERSOS'; // Mapped to DIVERSOS
     // Check "ind.riesgo" before "riesgo" to avoid false positives
-    if (p.includes('ind.riesgo') || p.includes('riesgo')) return 'VIDA RIESGO';
-    if (p.includes('ahorro') || p.includes('sialp')) return 'VIDA AHORRO';
+    if (p.includes('ind.riesgo') || p.includes('riesgo') || p.includes('ahorro') || p.includes('sialp')) return 'VIDA RIESGO';
     if (p.includes('decesos')) return 'DECESOS';
     if (producto.includes('<A>')) return 'AUTOS';
     if (producto.includes('<D>')) return 'DIVERSOS';
