@@ -78,9 +78,11 @@ const DONUT_COLORS = [
 export default function CarteraPage() {
     const [ramosBreakdown, setRamosBreakdown] = useState<RamoItem[]>([]);
     const [productosBreakdown, setProductosBreakdown] = useState<ProductItem[]>([]);
+    const [metrics, setMetrics] = useState({ primasNP: 0, numPolizas: 0 });
     const [loading, setLoading] = useState(true);
     const [depth, setDepth] = useState<'ramo' | 'producto'>('ramo');
     const [expandedRamos, setExpandedRamos] = useState<Set<string>>(new Set());
+    const [selectedItem, setSelectedItem] = useState<string | null>(null);
 
     const [filterOptions, setFilterOptions] = useState<FilterOptions>({
         anios: [], meses: [], estados: [], asesores: [], entes: []
@@ -92,11 +94,6 @@ export default function CarteraPage() {
         anio: [] as string[],
         mes: [] as string[],
         estado: [] as string[]
-    });
-
-    const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({
-        key: 'primas',
-        direction: 'desc'
     });
 
     const fetchMetrics = async () => {
@@ -116,6 +113,7 @@ export default function CarteraPage() {
             setFilterOptions(data.filters);
             setRamosBreakdown(data.ramosBreakdown || []);
             setProductosBreakdown(data.productosBreakdown || []);
+            setMetrics(data.metrics);
         } catch (error) {
             console.error(error);
         } finally {
@@ -153,8 +151,9 @@ export default function CarteraPage() {
 
     const donutData = useMemo(() => {
         const data = depth === 'ramo' ? ramosBreakdown : productosBreakdown;
-        const top = data.slice(0, 10);
-        const rest = data.slice(10);
+        const sortedData = [...data].sort((a, b) => b.primas - a.primas);
+        const top = sortedData.slice(0, 10);
+        const rest = sortedData.slice(10);
         const restPrimas = rest.reduce((sum, item) => sum + item.primas, 0);
 
         const labels = top.map(item => depth === 'ramo' ? (item as RamoItem).ramo : (item as ProductItem).producto);
@@ -180,6 +179,23 @@ export default function CarteraPage() {
     const donutOptions = {
         responsive: true,
         maintainAspectRatio: false,
+        onClick: (evt: any, elements: any) => {
+            if (elements.length > 0) {
+                const index = elements[0].index;
+                const label = donutData.labels[index];
+                if (label === 'Otros') {
+                    setSelectedItem(null);
+                } else {
+                    setSelectedItem(label === selectedItem ? null : label);
+                    // If it's a ramo, expand it too
+                    if (depth === 'ramo' && label !== selectedItem) {
+                        setExpandedRamos(new Set([label]));
+                    }
+                }
+            } else {
+                setSelectedItem(null);
+            }
+        },
         plugins: {
             legend: {
                 position: 'right' as const,
@@ -223,7 +239,8 @@ export default function CarteraPage() {
             'Nº Pólizas': item.polizas,
             'Nº Entes': item.numEntes,
             'Nº Asesores': item.numAsesores,
-            'Total Primas (€)': item.primas
+            'Total Primas (€)': item.primas,
+            'Ticket Medio (€)': item.polizas > 0 ? item.primas / item.polizas : 0
         }));
 
         const wb = XLSX.utils.book_new();
@@ -231,6 +248,18 @@ export default function CarteraPage() {
         XLSX.utils.book_append_sheet(wb, ws, "Cartera_Detalle");
         XLSX.writeFile(wb, `Cartera_GrupoData_${new Date().toISOString().split('T')[0]}.xlsx`);
     };
+
+    const KPICard = ({ title, value, icon: Icon, color }: { title: string, value: string, icon: any, color: string }) => (
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 flex items-center gap-4 group hover:shadow-md transition-all">
+            <div className={`p-4 rounded-2xl ${color} bg-opacity-10 group-hover:scale-110 transition-transform`}>
+                <Icon className={`w-6 h-6 ${color.replace('bg-', 'text-')}`} />
+            </div>
+            <div>
+                <p className="text-sm font-bold text-slate-500 uppercase tracking-tight">{title}</p>
+                <p className="text-2xl font-black text-slate-900">{value}</p>
+            </div>
+        </div>
+    );
 
     return (
         <div className="space-y-8 pb-12">
@@ -250,11 +279,31 @@ export default function CarteraPage() {
                 </div>
             </div>
 
+            {/* KPI Section */}
+            {!loading && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <KPICard title="Total Primas" value={currencyFormatter.format(metrics.primasNP)} icon={TrendingUp} color="bg-indigo-600" />
+                    <KPICard title="Nº Pólizas" value={numberFormatter.format(metrics.numPolizas)} icon={FileText} color="bg-emerald-600" />
+                    <KPICard title="Nº Clientes" value={numberFormatter.format(filterOptions.entes.length)} icon={Users} color="bg-amber-600" />
+                    <KPICard title="Ticket Medio" value={currencyFormatter.format(metrics.numPolizas > 0 ? metrics.primasNP / metrics.numPolizas : 0)} icon={ArrowUp} color="bg-rose-600" />
+                </div>
+            )}
+
             {/* Filters */}
             <div className="bg-white/80 backdrop-blur-sm p-6 rounded-3xl shadow-sm border border-slate-200 no-print">
-                <div className="flex items-center gap-3 mb-6 text-slate-800 font-bold">
-                    <div className="p-2 bg-indigo-50 rounded-xl text-primary"><LayoutList className="w-5 h-5" /></div>
-                    <h3>Filtros de Análisis</h3>
+                <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3 text-slate-800 font-bold">
+                        <div className="p-2 bg-indigo-50 rounded-xl text-primary"><LayoutList className="w-5 h-5" /></div>
+                        <h3>Filtros de Análisis</h3>
+                    </div>
+                    {selectedItem && (
+                        <button
+                            onClick={() => setSelectedItem(null)}
+                            className="text-xs font-bold text-primary flex items-center gap-1 hover:underline"
+                        >
+                            Limpiar selección de gráfico: <span className="bg-primary/10 px-2 py-0.5 rounded-lg">{selectedItem}</span>
+                        </button>
+                    )}
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
                     <MultiSelect label="Asesor" options={filterOptions.asesores} selected={filters.comercial} onChange={(val) => handleFilterChange('comercial', val)} />
@@ -269,19 +318,22 @@ export default function CarteraPage() {
             {!loading && (ramosBreakdown.length > 0 || productosBreakdown.length > 0) && (
                 <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-purple-50 rounded-xl text-purple-600"><PieChart className="w-6 h-6" /></div>
-                            <h3 className="text-xl font-bold text-slate-800">Distribución de Cartera</h3>
+                        <div>
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-purple-50 rounded-xl text-purple-600"><PieChart className="w-6 h-6" /></div>
+                                <h3 className="text-xl font-bold text-slate-800">Distribución de Cartera</h3>
+                            </div>
+                            <p className="text-xs text-slate-400 mt-1 ml-11">Haz clic en una sección para filtrar la tabla</p>
                         </div>
                         <div className="flex items-center bg-slate-100 p-1.5 rounded-2xl no-print">
                             <button
-                                onClick={() => setDepth('ramo')}
+                                onClick={() => { setDepth('ramo'); setSelectedItem(null); }}
                                 className={`px-6 py-2 rounded-xl text-xs font-bold transition-all ${depth === 'ramo' ? 'bg-white text-primary shadow-md' : 'text-slate-500 hover:text-slate-700'}`}
                             >
                                 Por Ramos
                             </button>
                             <button
-                                onClick={() => setDepth('producto')}
+                                onClick={() => { setDepth('producto'); setSelectedItem(null); }}
                                 className={`px-6 py-2 rounded-xl text-xs font-bold transition-all ${depth === 'producto' ? 'bg-white text-primary shadow-md' : 'text-slate-500 hover:text-slate-700'}`}
                             >
                                 Por Productos
@@ -301,7 +353,7 @@ export default function CarteraPage() {
                         <div className="p-2 bg-blue-50 rounded-xl text-blue-600"><Package className="w-6 h-6" /></div>
                         <h3 className="text-xl font-bold text-slate-800">Desglose Detallado</h3>
                     </div>
-                    <p className="text-sm text-slate-500 font-medium no-print">Haz clic en un ramo para ver sus productos</p>
+                    {selectedItem && <span className="text-xs font-bold bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full animate-pulse">Filtrado por: {selectedItem}</span>}
                 </div>
                 <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-slate-100">
@@ -309,7 +361,7 @@ export default function CarteraPage() {
                             <tr className="bg-slate-50/50">
                                 <th className="px-8 py-4 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-widest px-8">Categoría / Ítem</th>
                                 <th className="px-4 py-4 text-right text-[11px] font-extrabold text-slate-400 uppercase tracking-widest"><div className="flex items-center justify-end gap-1"><Users className="w-3 h-3" /> Entes</div></th>
-                                <th className="px-4 py-4 text-right text-[11px] font-extrabold text-slate-400 uppercase tracking-widest"><div className="flex items-center justify-end gap-1"><Building2 className="w-3 h-3" /> Cometos</div></th>
+                                <th className="px-4 py-4 text-right text-[11px] font-extrabold text-slate-400 uppercase tracking-widest"><div className="flex items-center justify-end gap-1"><ArrowUpDown className="w-3 h-3" /> Tkt Medio</div></th>
                                 <th className="px-4 py-4 text-right text-[11px] font-extrabold text-slate-400 uppercase tracking-widest">Pólizas</th>
                                 <th className="px-4 py-4 text-right text-[11px] font-extrabold text-slate-400 uppercase tracking-widest">Primas (€)</th>
                                 <th className="px-8 py-4 text-right text-[11px] font-extrabold text-slate-400 uppercase tracking-widest px-8">Peso %</th>
@@ -320,59 +372,63 @@ export default function CarteraPage() {
                                 [...Array(5)].map((_, i) => (
                                     <tr key={i}><td className="px-8 py-6" colSpan={6}><div className="h-5 bg-slate-100 rounded-lg animate-pulse"></div></td></tr>
                                 ))
-                            ) : ramosBreakdown.map((ramo) => {
-                                const totalPrimas = ramosBreakdown.reduce((sum, r) => sum + r.primas, 0);
-                                const isExpanded = expandedRamos.has(ramo.ramo);
-                                const products = productosBreakdown.filter(p => getRamo(p.producto) === ramo.ramo);
+                            ) : ramosBreakdown
+                                .filter(r => !selectedItem || depth !== 'ramo' || r.ramo === selectedItem)
+                                .map((ramo) => {
+                                    const totalPrimas = ramosBreakdown.reduce((sum, r) => sum + r.primas, 0);
+                                    const isExpanded = expandedRamos.has(ramo.ramo) || (selectedItem && depth === 'producto' && getRamo(selectedItem) === ramo.ramo);
+                                    const products = productosBreakdown.filter(p => getRamo(p.producto) === ramo.ramo && (!selectedItem || depth !== 'producto' || p.producto === selectedItem));
 
-                                return (
-                                    <>
-                                        {/* Ramo Row */}
-                                        <tr
-                                            key={ramo.ramo}
-                                            onClick={() => toggleRamo(ramo.ramo)}
-                                            className="group hover:bg-indigo-50/30 cursor-pointer transition-colors bg-white"
-                                        >
-                                            <td className="px-8 py-5">
-                                                <div className="flex items-center gap-3">
-                                                    {isExpanded ? <ChevronDown className="w-4 h-4 text-primary" /> : <ChevronRight className="w-4 h-4 text-slate-400" />}
-                                                    <span className="text-base font-bold text-slate-900">{ramo.ramo}</span>
-                                                    <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-bold">{products.length} productos</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-4 py-5 text-right font-bold text-slate-700 text-sm">{numberFormatter.format(ramo.numEntes)}</td>
-                                            <td className="px-4 py-5 text-right font-bold text-slate-700 text-sm">{numberFormatter.format(ramo.numAsesores)}</td>
-                                            <td className="px-4 py-5 text-right font-bold text-slate-700 text-sm">{numberFormatter.format(ramo.polizas)}</td>
-                                            <td className="px-4 py-5 text-right font-bold text-primary text-sm">{currencyFormatter.format(ramo.primas)}</td>
-                                            <td className="px-8 py-5 text-right">
-                                                <div className="inline-flex items-center gap-2 group-hover:scale-110 transition-transform">
-                                                    <span className="text-sm font-bold text-slate-900 px-3 py-1 bg-slate-100 rounded-lg">
-                                                        {((ramo.primas / (totalPrimas || 1)) * 100).toFixed(1)}%
-                                                    </span>
-                                                </div>
-                                            </td>
-                                        </tr>
+                                    if (selectedItem && depth === 'producto' && products.length === 0) return null;
 
-                                        {/* Product Rows (when expanded) */}
-                                        {isExpanded && products.map((prod) => (
-                                            <tr key={prod.producto} className="bg-slate-50/30 hover:bg-white transition-colors">
-                                                <td className="px-8 py-4 pl-16">
-                                                    <span className="text-sm font-medium text-slate-600 italic">{prod.producto}</span>
+                                    return (
+                                        <>
+                                            {/* Ramo Row */}
+                                            <tr
+                                                key={ramo.ramo}
+                                                onClick={() => toggleRamo(ramo.ramo)}
+                                                className={`group cursor-pointer transition-colors ${selectedItem === ramo.ramo ? 'bg-indigo-50' : 'bg-white hover:bg-slate-50'}`}
+                                            >
+                                                <td className="px-8 py-5">
+                                                    <div className="flex items-center gap-3">
+                                                        {isExpanded ? <ChevronDown className="w-4 h-4 text-primary" /> : <ChevronRight className="w-4 h-4 text-slate-400" />}
+                                                        <span className={`text-base font-bold ${selectedItem === ramo.ramo ? 'text-primary' : 'text-slate-900'}`}>{ramo.ramo}</span>
+                                                        <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-bold">{products.length} productos</span>
+                                                    </div>
                                                 </td>
-                                                <td className="px-4 py-4 text-right text-sm text-slate-500 font-mono">{numberFormatter.format(prod.numEntes)}</td>
-                                                <td className="px-4 py-4 text-right text-sm text-slate-500 font-mono">{numberFormatter.format(prod.numAsesores)}</td>
-                                                <td className="px-4 py-4 text-right text-sm text-slate-500 font-mono">{numberFormatter.format(prod.polizas)}</td>
-                                                <td className="px-4 py-4 text-right text-sm text-slate-800 font-bold font-mono">{currencyFormatter.format(prod.primas)}</td>
-                                                <td className="px-8 py-4 text-right">
-                                                    <span className="text-xs font-semibold text-slate-400">
-                                                        {((prod.primas / (ramo.primas || 1)) * 100).toFixed(1)}% <span className="text-[10px] opacity-60">del ramo</span>
-                                                    </span>
+                                                <td className="px-4 py-5 text-right font-bold text-slate-700 text-sm">{numberFormatter.format(ramo.numEntes)}</td>
+                                                <td className="px-4 py-5 text-right font-bold text-slate-700 text-sm">{currencyFormatter.format(ramo.polizas > 0 ? ramo.primas / ramo.polizas : 0)}</td>
+                                                <td className="px-4 py-5 text-right font-bold text-slate-700 text-sm">{numberFormatter.format(ramo.polizas)}</td>
+                                                <td className="px-4 py-5 text-right font-bold text-primary text-sm">{currencyFormatter.format(ramo.primas)}</td>
+                                                <td className="px-8 py-5 text-right">
+                                                    <div className="inline-flex items-center gap-2">
+                                                        <span className="text-sm font-bold text-slate-900 px-3 py-1 bg-slate-100 rounded-lg">
+                                                            {((ramo.primas / (totalPrimas || 1)) * 100).toFixed(1)}%
+                                                        </span>
+                                                    </div>
                                                 </td>
                                             </tr>
-                                        ))}
-                                    </>
-                                );
-                            })}
+
+                                            {/* Product Rows (when expanded) */}
+                                            {isExpanded && products.map((prod) => (
+                                                <tr key={prod.producto} className={`transition-colors ${selectedItem === prod.producto ? 'bg-indigo-50/50' : 'bg-slate-50/30 hover:bg-white'}`}>
+                                                    <td className="px-8 py-4 pl-16">
+                                                        <span className={`text-sm font-medium ${selectedItem === prod.producto ? 'text-primary font-bold' : 'text-slate-600'} italic`}>{prod.producto}</span>
+                                                    </td>
+                                                    <td className="px-4 py-4 text-right text-sm text-slate-500 font-mono">{numberFormatter.format(prod.numEntes)}</td>
+                                                    <td className="px-4 py-4 text-right text-sm text-slate-500 font-mono">{currencyFormatter.format(prod.polizas > 0 ? prod.primas / prod.polizas : 0)}</td>
+                                                    <td className="px-4 py-4 text-right text-sm text-slate-500 font-mono">{numberFormatter.format(prod.polizas)}</td>
+                                                    <td className="px-4 py-4 text-right text-sm text-slate-800 font-bold font-mono">{currencyFormatter.format(prod.primas)}</td>
+                                                    <td className="px-8 py-4 text-right">
+                                                        <span className="text-xs font-semibold text-slate-400">
+                                                            {((prod.primas / (ramo.primas || 1)) * 100).toFixed(1)}% <span className="text-[10px] opacity-60">del ramo</span>
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </>
+                                    );
+                                })}
                         </tbody>
                     </table>
                 </div>
