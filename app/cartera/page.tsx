@@ -427,7 +427,7 @@ export default function CarteraPage() {
                                     <th className="p-3 text-right text-[10px] font-bold text-slate-400 uppercase tracking-wider">Primas</th>
                                     <th className="p-3 text-right text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pólizas</th>
                                     <th className="p-3 text-right text-[10px] font-bold text-slate-400 uppercase tracking-wider">Peso</th>
-                                    <th className="p-3 text-right text-[10px] font-bold text-slate-400 uppercase tracking-wider no-print">Acción</th>
+                                    <th className="p-3 pr-6 text-right text-[10px] font-bold text-slate-400 uppercase tracking-wider no-print">Acción</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-50">
@@ -448,7 +448,7 @@ export default function CarteraPage() {
                                             <td className="p-3 text-right font-extrabold text-primary font-mono text-xs">{currencyFormatter.format(p.primas)}</td>
                                             <td className="p-3 text-right font-mono text-slate-500 text-xs">{numberFormatter.format(p.polizas)}</td>
                                             <td className="p-3 text-right font-bold text-slate-400 text-xs">{pct}%</td>
-                                            <td className="p-3 text-right no-print">
+                                            <td className="p-3 pr-6 text-right no-print">
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation(); // Prevent row click
@@ -472,13 +472,33 @@ export default function CarteraPage() {
 
             {/* Detailed Table */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                <div className="px-8 py-5 border-b border-slate-200 bg-slate-50/50 flex justify-between items-center text-slate-800">
+                <div className="px-8 py-5 border-b border-slate-200 bg-slate-50/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 text-slate-800">
                     <h3 className="text-lg font-extrabold flex items-center gap-3 tracking-tight">
                         <div className="p-2 bg-indigo-50 rounded-lg text-indigo-600">
                             <Package className="w-5 h-5" />
                         </div>
                         Desglose Detallado por Producto
                     </h3>
+
+                    {/* Table Filters */}
+                    <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
+                        <div className="w-full md:w-48">
+                            <MultiSelect
+                                label="Filtrar Ramo"
+                                options={Array.from(new Set(productosBreakdown.map(p => p.ramo || 'Otros').filter(Boolean))).sort()}
+                                selected={filters.ramo}
+                                onChange={(val) => handleFilterChange('ramo', val)}
+                            />
+                        </div>
+                        <div className="w-full md:w-48">
+                            <MultiSelect
+                                label="Filtrar Producto"
+                                options={Array.from(new Set(productosBreakdown.map(p => p.producto).filter(Boolean))).sort()}
+                                selected={filters.producto}
+                                onChange={(val) => handleFilterChange('producto', val)}
+                            />
+                        </div>
+                    </div>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-slate-100">
@@ -504,8 +524,13 @@ export default function CarteraPage() {
                             {sortedData.map((item, idx) => {
                                 const totalPrimas = productosBreakdown.reduce((sum, d) => sum + d.primas, 0);
                                 const pct = totalPrimas > 0 ? ((item.primas / totalPrimas) * 100).toFixed(1) : '0';
+                                const isSelected = filters.producto.includes(item.producto);
                                 return (
-                                    <tr key={idx} className="hover:bg-slate-50/80 transition-all group">
+                                    <tr
+                                        key={idx}
+                                        onClick={() => toggleFilter('producto', item.producto)}
+                                        className={`transition-colors cursor-pointer group/row ${isSelected ? 'bg-indigo-50/50' : 'hover:bg-slate-50'}`}
+                                    >
                                         <td className="px-8 py-5 whitespace-nowrap text-[10px] font-black text-slate-400 uppercase tracking-widest group-hover:text-primary transition-colors">{item.ramo}</td>
                                         <td className="px-8 py-5 whitespace-nowrap text-sm font-bold text-slate-800">{item.producto}</td>
                                         <td className="px-8 py-5 whitespace-nowrap text-sm text-slate-500 text-right font-mono">{numberFormatter.format(item.polizas)}</td>
@@ -515,7 +540,8 @@ export default function CarteraPage() {
                                         </td>
                                         <td className="px-8 py-5 whitespace-nowrap text-right no-print">
                                             <button
-                                                onClick={() => {
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
                                                     const url = `/polizas/listado?${getFilterParams(item.producto)}`;
                                                     window.location.href = url;
                                                 }}
