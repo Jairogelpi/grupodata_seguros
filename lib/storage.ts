@@ -12,7 +12,11 @@ import path from 'path';
 
 
 const DATA_DIR = 'C:\\Users\\jairo.gelpi\\Desktop\\metricas_carlos\\data';
-const IS_PRODUCTION = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production';
+const IS_VERCEL = process.env.VERCEL === '1';
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const USE_SUPABASE = !!(SUPABASE_URL && SUPABASE_KEY);
+const BUCKET_NAME = 'metrics';
 
 // In-memory cache for production reads (avoid re-downloading on every request)
 const blobCache: Record<string, { data: any[], timestamp: number }> = {};
@@ -31,7 +35,7 @@ function getLocalPath(filename: string): string {
  * - Prod: reads from Vercel Blob with in-memory cache
  */
 export async function readData(filename: string): Promise<any[]> {
-    if (!IS_PRODUCTION) {
+    if (!USE_SUPABASE) {
         return readFromDisk(filename);
     }
     return readFromBlob(filename);
@@ -43,7 +47,7 @@ export async function readData(filename: string): Promise<any[]> {
  * - Prod: uploads to Vercel Blob
  */
 export async function writeData(filename: string, buffer: Buffer): Promise<void> {
-    if (!IS_PRODUCTION) {
+    if (!USE_SUPABASE) {
         const filePath = getLocalPath(filename);
         fs.writeFileSync(filePath, buffer);
         // Invalidate ALL local cache so every file reloads fresh
@@ -101,12 +105,8 @@ function readFromDisk(filename: string): any[] {
 // ============================================================
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const BUCKET_NAME = 'metrics';
-
 // Initialize Supabase only if keys are present (prevents crash in some envs)
-const supabase = (SUPABASE_URL && SUPABASE_KEY)
+const supabase = USE_SUPABASE
     ? createClient(SUPABASE_URL, SUPABASE_KEY)
     : null;
 

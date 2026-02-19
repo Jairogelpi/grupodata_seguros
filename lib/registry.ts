@@ -3,7 +3,8 @@
  * Uses the hybrid storage layer for persistence.
  */
 
-import { readData, appendData } from './storage';
+import * as XLSX from 'xlsx';
+import { readData, appendData, writeData } from './storage';
 
 export interface LinkRecord {
     ASESOR: string;
@@ -32,5 +33,15 @@ export async function getEntes(): Promise<EnteRecord[]> {
 }
 
 export async function addEnte(ente: EnteRecord): Promise<EnteRecord[]> {
-    return appendData('entes.xlsx', ente);
+    // The user explicitly requested that registering entes SHOULD OVERWRITE the file
+    const currentData = [ente];
+
+    // Rebuild the Excel buffer
+    const ws = XLSX.utils.json_to_sheet(currentData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Hoja1');
+    const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
+
+    await writeData('entes.xlsx', Buffer.from(excelBuffer));
+    return currentData;
 }
