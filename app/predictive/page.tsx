@@ -39,6 +39,10 @@ export default function PredictivePage() {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'cross-sell' | 'churn'>('cross-sell');
     const [selectedRiskPoliza, setSelectedRiskPoliza] = useState<ChurnRisk | null>(null);
+    const [selectedRule, setSelectedRule] = useState<Rule | null>(null);
+    const [selectedCandidate, setSelectedCandidate] = useState<string | null>(null);
+    const [candidateProfile, setCandidateProfile] = useState<any>(null);
+    const [loadingCandidate, setLoadingCandidate] = useState(false);
 
     // Filter State
     const [filterOptions, setFilterOptions] = useState<any>({
@@ -121,6 +125,30 @@ export default function PredictivePage() {
         return { label: 'Baja', color: 'text-slate-500' };
     };
 
+    const getRamoIcon = (ramo: string) => {
+        const r = ramo.toUpperCase();
+        if (r.includes('AUTO')) return <Zap className="w-4 h-4 text-blue-500" />;
+        if (r.includes('HOGAR')) return <Target className="w-4 h-4 text-orange-500" />;
+        if (r.includes('SALUD')) return <Sparkles className="w-4 h-4 text-red-500" />;
+        if (r.includes('VIDA')) return <ShieldAlert className="w-4 h-4 text-emerald-500" />;
+        if (r.includes('DECESOS')) return <TrendingUp className="w-4 h-4 text-purple-500" />;
+        return <Package className="w-4 h-4 text-slate-400" />;
+    };
+
+    const fetchCandidateDetail = async (code: string) => {
+        setLoadingCandidate(true);
+        setSelectedCandidate(code);
+        try {
+            const res = await fetch(`/api/predictive/ente-detail?code=${code}`);
+            const data = await res.json();
+            setCandidateProfile(data);
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setLoadingCandidate(false);
+        }
+    };
+
     const getDiagnosis = (poliza: ChurnRisk) => {
         const reasons: string[] = [];
         const actions: string[] = [];
@@ -156,6 +184,24 @@ export default function PredictivePage() {
             reasons.push("Combinación de factores demográficos y estacionales que superan el umbral de riesgo.");
             actions.push("Realizar seguimiento preventivo de satisfacción.");
         }
+
+        return { reasons, actions };
+    };
+
+    const getNBADiagnosis = (rule: Rule) => {
+        const reasons: string[] = [];
+        const actions: string[] = [];
+
+        reasons.push(`Existe una correlación estadística de ${rule.lift.toFixed(1)}x entre clientes que tienen ${rule.antecedent.join(' + ')} y la contratación de ${rule.consequent}.`);
+        reasons.push(`Hemos detectado ${rule.count} casos de éxito reales en tu cartera que validan este patrón de comportamiento.`);
+
+        if (rule.confidence > 0.6) {
+            reasons.push("La confianza del modelo es superior al 60%, lo que indica una ventana de oportunidad de conversión muy alta.");
+        }
+
+        actions.push(`Contactar a los ${rule.targets.length} candidatos identificados para presentar una oferta personalizada de ${rule.consequent}.`);
+        actions.push(`Utilizar el argumento de "clientes con perfil similar" que ya disfrutan de las ventajas de ${rule.consequent}.`);
+        actions.push(`Revisar si los candidatos tienen pólizas de ${rule.consequent} con la competencia para proponer una mejora.`);
 
         return { reasons, actions };
     };
@@ -263,7 +309,11 @@ export default function PredictivePage() {
                                         {rules.length > 0 ? rules.map((rule, idx) => {
                                             const conf = getConfidenceLabel(rule.confidence);
                                             return (
-                                                <div key={idx} className="p-6 hover:bg-slate-50/50 transition-colors group">
+                                                <div
+                                                    key={idx}
+                                                    onClick={() => setSelectedRule(rule)}
+                                                    className="p-6 hover:bg-slate-50/50 transition-colors group cursor-pointer"
+                                                >
                                                     <div className="flex flex-col md:flex-row items-center gap-6">
                                                         {/* Antecedent */}
                                                         <div className="flex-1 text-center md:text-left">
@@ -615,6 +665,177 @@ export default function PredictivePage() {
                                 Entendido, Actuar
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+            {/* Cross-Sell Modal (NBA) */}
+            {selectedRule && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200">
+                        {/* Header */}
+                        <div className="bg-primary p-8 text-white relative">
+                            <button
+                                onClick={() => setSelectedRule(null)}
+                                className="absolute top-6 right-6 w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-all"
+                            >
+                                <ChevronRight className="w-6 h-6 rotate-180" />
+                            </button>
+
+                            <div className="flex items-center gap-2 text-white/80 mb-2">
+                                <Sparkles className="w-5 h-5 text-white" />
+                                <span className="text-[10px] font-black uppercase tracking-[0.2em]">Oportunidad Estratégica NBA</span>
+                            </div>
+                            <h2 className="text-2xl font-black tracking-tight mb-2">Objetivo: {selectedRule.consequent}</h2>
+                            <div className="flex gap-4">
+                                <div className="text-xs font-bold text-white/70">Estado Inicial: <span className="text-white bg-white/20 px-2 py-0.5 rounded ml-1">{selectedRule.antecedent.join(' + ')}</span></div>
+                            </div>
+
+                            <div className="absolute -bottom-6 right-8 bg-white px-6 py-4 rounded-2xl shadow-xl flex flex-col items-center border-4 border-primary">
+                                <span className="text-[10px] font-black text-primary/70 uppercase">Impacto Comercial</span>
+                                <span className="text-3xl font-black text-primary">{selectedRule.lift.toFixed(1)}x</span>
+                            </div>
+                        </div>
+
+                        {/* Content */}
+                        <div className="p-8 pt-12 space-y-8 max-h-[70vh] overflow-y-auto">
+                            {/* Diagnosis Section */}
+                            <section>
+                                <div className="flex items-center gap-2 mb-4">
+                                    <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 shadow-sm border border-blue-100">
+                                        <Info className="w-5 h-5" />
+                                    </div>
+                                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">¿Por qué es una oportunidad?</h3>
+                                </div>
+                                <div className="space-y-3">
+                                    {getNBADiagnosis(selectedRule).reasons.map((reason, idx) => (
+                                        <div key={idx} className="p-4 bg-blue-50/50 rounded-xl border-l-4 border-blue-400 text-sm text-slate-700 leading-relaxed font-medium">
+                                            {reason}
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+
+                            {/* Plan de Acción Section */}
+                            <section>
+                                <div className="flex items-center gap-2 mb-4">
+                                    <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600 shadow-sm border border-emerald-100">
+                                        <Target className="w-5 h-5" />
+                                    </div>
+                                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Plan de Acción Sugerido</h3>
+                                </div>
+                                <div className="space-y-4">
+                                    {getNBADiagnosis(selectedRule).actions.map((action, idx) => (
+                                        <div key={idx} className="flex gap-4 bg-white p-4 rounded-xl border border-slate-100 shadow-sm group hover:border-emerald-200 transition-colors">
+                                            <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex-shrink-0 flex items-center justify-center text-xs font-black italic">
+                                                {idx + 1}
+                                            </div>
+                                            <p className="text-sm text-slate-600 font-bold leading-snug group-hover:text-slate-900 transition-colors">{action}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+
+                            {/* Ideales Section */}
+                            <section>
+                                <div className="flex items-center gap-2 mb-4">
+                                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Candidatos Ideales ({selectedRule.targets.length})</h3>
+                                </div>
+                                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                                    <div className="grid grid-cols-4 md:grid-cols-6 gap-3">
+                                        {selectedRule.targets.map(target => (
+                                            <button
+                                                key={target}
+                                                onClick={() => fetchCandidateDetail(target)}
+                                                className="text-center p-2 bg-white border border-slate-200 rounded-lg text-[10px] font-black text-slate-600 shadow-sm hover:border-primary hover:text-primary hover:shadow-md transition-all active:scale-95"
+                                            >
+                                                {target}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </section>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-6 bg-slate-50 border-t border-slate-200 flex justify-end">
+                            <button
+                                onClick={() => setSelectedRule(null)}
+                                className="px-8 py-3 bg-primary text-white rounded-xl font-bold text-sm hover:scale-105 transition-all shadow-lg shadow-primary/20 active:scale-95"
+                            >
+                                Entendido, Lanzar Campaña
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Candidate Profile Modal */}
+            {selectedCandidate && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md animate-in fade-in duration-300">
+                    <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-300">
+                        {loadingCandidate ? (
+                            <div className="p-20 text-center space-y-4">
+                                <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+                                <p className="text-slate-500 font-bold animate-pulse">Consultando Cartera Real...</p>
+                            </div>
+                        ) : candidateProfile && (
+                            <>
+                                <div className="p-8 text-center relative bg-gradient-to-b from-slate-50 to-white">
+                                    <button
+                                        onClick={() => setSelectedCandidate(null)}
+                                        className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 transition-colors"
+                                    >
+                                        <ChevronRight className="w-6 h-6 rotate-180" />
+                                    </button>
+
+                                    <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-primary/20">
+                                        <Package className="w-10 h-10 text-primary" />
+                                    </div>
+                                    <h2 className="text-xl font-black text-slate-800 tracking-tight">{candidateProfile.name}</h2>
+                                    <div className="flex items-center justify-center gap-2 mt-1">
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100 px-2 py-0.5 rounded">ID: {candidateProfile.code}</span>
+                                        <span className="text-[10px] font-bold text-primary/70 uppercase tracking-widest bg-primary/5 px-2 py-0.5 rounded">{candidateProfile.asesor}</span>
+                                    </div>
+                                </div>
+
+                                <div className="px-8 pb-8 space-y-6">
+                                    <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100">
+                                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 text-center">Cartera Vigente ({candidateProfile.totalActivePolicies})</h3>
+                                        <div className="flex flex-wrap justify-center gap-3">
+                                            {candidateProfile.activeRamos.map((ramo: string) => (
+                                                <div key={ramo} className="flex flex-col items-center gap-1.5 p-3 bg-white rounded-2xl border border-slate-200 shadow-sm min-w-[70px]">
+                                                    {getRamoIcon(ramo)}
+                                                    <span className="text-[9px] font-black text-slate-600 uppercase text-center leading-tight">{ramo}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="p-6 bg-primary/5 rounded-3xl border-2 border-dashed border-primary/20 relative overflow-hidden">
+                                        <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full -mr-12 -mt-12"></div>
+                                        <h3 className="text-[10px] font-black text-primary/70 uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
+                                            <Sparkles className="w-3 h-3" />
+                                            Oportunidad Detectada
+                                        </h3>
+                                        <p className="text-sm text-slate-800 font-black leading-relaxed">
+                                            Este cliente ya confía en ti para <span className="text-primary">{candidateProfile.activeRamos.join(' y ')}</span>.
+                                            El motor IA sugiere que es el momento ideal para ofrecerle <span className="underline decoration-primary decoration-2 underline-offset-4">{selectedRule?.consequent}</span>.
+                                        </p>
+                                        <div className="mt-4 flex items-center gap-2">
+                                            <div className="px-3 py-1 bg-primary text-white text-[10px] font-black rounded-lg">MATCH ALTO</div>
+                                            <span className="text-[10px] font-bold text-slate-500 italic">Basado en comportamiento de pares</span>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        onClick={() => setSelectedCandidate(null)}
+                                        className="w-full py-4 bg-primary text-white rounded-2xl font-black text-sm shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all active:scale-95"
+                                    >
+                                        Generar Propuesta para {selectedRule?.consequent}
+                                    </button>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
             )}
