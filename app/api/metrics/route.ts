@@ -444,11 +444,46 @@ export async function GET(request: Request) {
                     .filter(ps => ps.entes.has(code))
                     .map(ps => ps.producto);
 
+                let nba = null;
+                // Only calculate NBA for mono-product or simple clients to keep it clean
+                if (productsArray.length === 1) {
+                    const currentProd = productsArray[0];
+                    let bestNext = '';
+                    let bestConf = 0;
+                    let bestSupport = 0;
+
+                    // Search for best pair starting with currentProd
+                    Array.from(pairFreq.entries()).forEach(([pair, count]) => {
+                        if (pair.includes(currentProd)) {
+                            const [pA, pB] = pair.split(' + ');
+                            const target = pA === currentProd ? pB : pA;
+                            // Calculate confidence: P(Target|Current) = Count(Current+Target) / Count(Current)
+                            const supportCurrent = productStats.get(currentProd)?.entes.size || 1;
+                            const confidence = (count / supportCurrent) * 100;
+
+                            if (confidence > bestConf) {
+                                bestConf = confidence;
+                                bestNext = target;
+                                bestSupport = count; // Number of clients with this exact pair
+                            }
+                        }
+                    });
+
+                    if (bestNext) {
+                        nba = {
+                            product: bestNext,
+                            confidence: bestConf.toFixed(0),
+                            reason: `Patrón en ${bestSupport} clientes`
+                        };
+                    }
+                }
+
                 return {
                     name: codeToNameMap.get(code) || code,
                     primas: b?.primas || 0,
                     products: productsArray,
-                    ramosCount: enteRamosMap.get(code)?.size || 0
+                    ramosCount: enteRamosMap.get(code)?.size || 0,
+                    nba // Add NBA object
                 };
             }).sort((a, b) => b.primas - a.primas).slice(0, 5); // Just top 5 for UI performance
 

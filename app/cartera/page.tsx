@@ -842,19 +842,41 @@ export default function CarteraPage() {
 
                             <div className="space-y-3">
                                 {ramo.topClients?.map((client: any, idx: number) => (
-                                    <div key={idx} className="group p-3 bg-white rounded-xl border border-slate-100 shadow-sm hover:border-indigo-200 transition-all">
+                                    <div key={idx} className="group p-3 bg-white rounded-xl border border-slate-100 shadow-sm hover:border-indigo-200 transition-all relative overflow-hidden">
+                                        {client.nba && (
+                                            <div className="absolute top-0 right-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-purple-500" />
+                                        )}
                                         <div className="flex justify-between items-start mb-1">
-                                            <span className="text-[10px] font-bold text-slate-800 truncate max-w-[140px]">{client.name}</span>
-                                            <span className="text-[9px] font-black text-emerald-600">
-                                                {client.ramosCount === 1 ? 'Venta Cruzada!' : `${client.ramosCount} Ramos`}
-                                            </span>
+                                            <span className="text-[10px] font-bold text-slate-800 truncate max-w-[120px]">{client.name}</span>
+                                            {client.nba ? (
+                                                <span className="text-[8px] font-black text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100">
+                                                    {client.nba.confidence}% Éxito
+                                                </span>
+                                            ) : (
+                                                <span className="text-[9px] font-black text-emerald-600">
+                                                    {client.ramosCount} Ramos
+                                                </span>
+                                            )}
                                         </div>
-                                        <div className="flex flex-wrap gap-1 mt-2">
+                                        <div className="flex flex-wrap gap-1 mt-2 mb-2">
                                             {client.products.slice(0, 3).map((p: string) => (
                                                 <span key={p} className="text-[8px] px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded-md font-medium border border-slate-200/50">{p}</span>
                                             ))}
                                             {client.products.length > 3 && <span className="text-[8px] text-slate-400">+{client.products.length - 3}</span>}
                                         </div>
+
+                                        {/* NBA Recommendation */}
+                                        {client.nba && (
+                                            <div className="mt-2 pt-2 border-t border-slate-50">
+                                                <div className="flex items-center gap-1 text-[9px] font-bold text-indigo-700">
+                                                    <Zap className="w-3 h-3 fill-indigo-100" />
+                                                    Vender: {client.nba.product}
+                                                </div>
+                                                <div className="text-[8px] text-slate-400 mt-0.5 pl-4 leading-tight">
+                                                    {client.nba.reason}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
                             </div>
