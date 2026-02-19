@@ -8,7 +8,20 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
-        const asesorFilter = searchParams.get('asesor');
+
+        // Helper to parse comma-separated params into arrays, handling 'Todos'
+        const parseParam = (param: string | null) => {
+            if (!param || param === 'Todos') return [];
+            return param.split(',').map(s => s.trim()).filter(Boolean);
+        };
+
+        const comerciales = parseParam(searchParams.get('comercial'));
+        const anios = parseParam(searchParams.get('anio'));
+        const meses = parseParam(searchParams.get('mes'));
+        const estados = parseParam(searchParams.get('estado'));
+        const entesFilter = parseParam(searchParams.get('ente'));
+
+        const asesorFilter = searchParams.get('asesor'); // Legacy fallback
 
         // 1. Read Data
         const [polizas, links] = await Promise.all([
@@ -16,8 +29,8 @@ export async function GET(request: Request) {
             getLinks()
         ]);
 
-        // 2. Index Registry for Ente Filtering & Asesor Mapping
         const codeToAsesorMap = new Map<string, string>();
+        const codeToNameMap = new Map<string, string>();
         const validEnteCodes = new Set<string>();
 
         links.forEach(l => {
@@ -26,6 +39,7 @@ export async function GET(request: Request) {
             const code = parts.length > 1 ? parts[parts.length - 1].trim() : val.trim();
             const asesor = String(l['ASESOR'] || 'Sin Asesor');
             codeToAsesorMap.set(code, asesor);
+            codeToNameMap.set(code, val);
             validEnteCodes.add(code);
         });
 
@@ -59,7 +73,21 @@ export async function GET(request: Request) {
         polizas.forEach(p => {
             const finalCode = getPolizaEnteCode(p);
             if (!finalCode) return;
-            if (asesorFilter && codeToAsesorMap.get(finalCode) !== asesorFilter) return;
+
+            const asesor = codeToAsesorMap.get(finalCode) || 'Sin Asesor';
+            const enteName = codeToNameMap.get(finalCode) || finalCode;
+            const pAnio = String(p['AÑO_PROD'] || '');
+            const pMes = String(p['MES_Prod'] || '');
+            const pEstado = String(p['Estado'] || '');
+
+            // Combined filtering
+            const matchAsesor = comerciales.length === 0 || comerciales.includes(asesor) || (asesorFilter === asesor);
+            const matchEnte = entesFilter.length === 0 || entesFilter.includes(enteName);
+            const matchAnio = anios.length === 0 || anios.includes(pAnio);
+            const matchMes = meses.length === 0 || meses.includes(pMes);
+            const matchEstado = estados.length === 0 || estados.includes(pEstado);
+
+            if (!matchAsesor || !matchEnte || !matchAnio || !matchMes || !matchEstado) return;
 
             const producto = String(p['Producto'] || '');
             const ramo = getRamo(producto);

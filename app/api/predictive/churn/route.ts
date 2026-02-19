@@ -24,17 +24,37 @@ const parseAnyDate = (val: any) => {
 
 export async function GET(request: Request) {
     try {
+        const { searchParams } = new URL(request.url);
+
+        // Helper to parse comma-separated params into arrays, handling 'Todos'
+        const parseParam = (param: string | null) => {
+            if (!param || param === 'Todos') return [];
+            return param.split(',').map(s => s.trim()).filter(Boolean);
+        };
+
+        const comerciales = parseParam(searchParams.get('comercial'));
+        const anios = parseParam(searchParams.get('anio'));
+        const meses = parseParam(searchParams.get('mes'));
+        const estados = parseParam(searchParams.get('estado'));
+        const entesFilter = parseParam(searchParams.get('ente'));
+
         const [polizasRaw, links] = await Promise.all([
             readData('listado_polizas.xlsx'),
             getLinks()
         ]);
 
         // 0. Index Registry for Ente Filtering (Consistent with metrics/route.ts)
+        const codeToAsesorMap = new Map<string, string>();
+        const codeToNameMap = new Map<string, string>();
         const validEnteCodes = new Set<string>();
+
         links.forEach(l => {
             const val = String(l['ENTE']);
             const parts = val.split(' - ');
             const code = parts.length > 1 ? parts[parts.length - 1].trim() : val.trim();
+            const asesor = String(l['ASESOR'] || 'Sin Asesor');
+            codeToAsesorMap.set(code, asesor);
+            codeToNameMap.set(code, val);
             validEnteCodes.add(code);
         });
 
@@ -48,8 +68,25 @@ export async function GET(request: Request) {
             return null;
         };
 
-        // Filter policies to only include those linked to a valid Ente
-        const polizas = polizasRaw.filter(p => getPolizaEnteCode(p) !== null);
+        // Filter policies to only include those linked to a valid Ente AND match active filters
+        const polizas = polizasRaw.filter(p => {
+            const code = getPolizaEnteCode(p);
+            if (!code) return false;
+
+            const asesor = codeToAsesorMap.get(code) || 'Sin Asesor';
+            const enteName = codeToNameMap.get(code) || code;
+            const pAnio = String(p['AÑO_PROD'] || '');
+            const pMes = String(p['MES_Prod'] || '');
+            const pEstado = String(p['Estado'] || '');
+
+            const matchAsesor = comerciales.length === 0 || comerciales.includes(asesor);
+            const matchEnte = entesFilter.length === 0 || entesFilter.includes(enteName);
+            const matchAnio = anios.length === 0 || anios.includes(pAnio);
+            const matchMes = meses.length === 0 || meses.includes(pMes);
+            const matchEstado = estados.length === 0 || estados.includes(pEstado);
+
+            return matchAsesor && matchEnte && matchAnio && matchMes && matchEstado;
+        });
 
         // 1. Unique-ify policies by Number to avoid population inflation
         const uniquePolizasMap = new Map<string, any>();
@@ -228,6 +265,8 @@ export async function GET(request: Request) {
                 ramo,
                 cia,
                 seniority: seniorityRange,
+                prima,
+                pago: String(p['Forma de Pago'] || 'Anual'),
                 score: probability,
                 factors: factors
             };
