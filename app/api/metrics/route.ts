@@ -51,15 +51,16 @@ export async function GET(request: Request) {
             validEnteCodes.add(code);
         });
 
-        // Helper to get Ente Code from policy (validating against registry)
+        // Helper to get Ente Code from policy
         const getPolizaEnteCode = (p: any) => {
             const enteComercial = String(p['Ente Comercial'] || '');
             const parts = enteComercial.split(' - ');
             const codeFromEnte = parts.length > 1 ? parts[parts.length - 1].trim() : enteComercial.trim();
             const codeDirect = String(p['Código'] || '');
-            if (validEnteCodes.has(codeFromEnte)) return codeFromEnte;
-            if (validEnteCodes.has(codeDirect)) return codeDirect;
-            return null;
+
+            // Return either code found, preference for registry match if it were needed, 
+            // but here we just need a key for grouping.
+            return codeDirect || codeFromEnte || 'Desconocido';
         };
 
         // Aggregators for metrics
