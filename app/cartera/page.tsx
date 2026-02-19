@@ -349,12 +349,23 @@ export default function CarteraPage() {
                         <p className="text-sm text-slate-500 font-medium tracking-wide">Análisis de composición y distribución de riesgos</p>
                     </div>
                 </div>
-                <div className="flex flex-wrap gap-2 no-print">
-                    <button onClick={handleExportExcel} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all font-semibold shadow-sm text-sm">
+
+                {/* Action Buttons Group */}
+                <div className="flex flex-wrap gap-2 w-full md:w-auto no-print">
+                    {(filters.ramo.length > 0 || filters.producto.length > 0) && (
+                        <button
+                            onClick={() => setFilters(prev => ({ ...prev, ramo: [], producto: [] }))}
+                            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 md:px-4 py-2 bg-red-50 border border-red-200 rounded-xl hover:bg-red-100 transition-all shadow-sm text-xs md:text-sm font-medium text-red-600"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-x w-4 h-4" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+                            Limpiar
+                        </button>
+                    )}
+                    <button onClick={handleExportExcel} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 md:px-4 py-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all shadow-sm text-xs md:text-sm font-medium">
                         <FileDown className="w-4 h-4 text-green-600" />
                         Excel
                     </button>
-                    <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl hover:bg-primary/90 transition-all font-semibold shadow-sm text-sm">
+                    <button onClick={() => window.print()} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 md:px-4 py-2 bg-primary text-white rounded-xl hover:bg-primary/90 transition-all shadow-sm text-xs md:text-sm font-medium">
                         <Printer className="w-4 h-4" />
                         PDF
                     </button>
@@ -372,21 +383,6 @@ export default function CarteraPage() {
                     <MultiSelect label="Mes" options={filterOptions.meses} selected={filters.mes} onChange={(val) => handleFilterChange('mes', val)} />
                     <MultiSelect label="Estado" options={filterOptions.estados} selected={filters.estado} onChange={(val) => handleFilterChange('estado', val)} />
                 </div>
-                {(filters.ramo.length > 0 || filters.producto.length > 0) && (
-                    <div className="mt-4 flex flex-wrap gap-2">
-                        {filters.ramo.map(r => (
-                            <span key={r} onClick={() => toggleFilter('ramo', r)} className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 cursor-pointer hover:bg-indigo-100">
-                                Ramo: {r} <span className="text-indigo-400">×</span>
-                            </span>
-                        ))}
-                        {filters.producto.map(p => (
-                            <span key={p} onClick={() => toggleFilter('producto', p)} className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-purple-50 text-purple-700 cursor-pointer hover:bg-purple-100">
-                                Producto: {p} <span className="text-purple-400">×</span>
-                            </span>
-                        ))}
-                        <button onClick={() => setFilters(prev => ({ ...prev, ramo: [], producto: [] }))} className="text-xs text-slate-400 hover:text-slate-600 underline">Limpiar filtros interactivos</button>
-                    </div>
-                )}
             </div>
 
             {/* Main Distribution Chart & Inline Table */}
@@ -421,11 +417,6 @@ export default function CarteraPage() {
                         ) : (
                             <div className="h-full w-full bg-slate-50 animate-pulse rounded-2xl flex items-center justify-center text-slate-400 font-medium">Cargando distribución...</div>
                         )}
-                        {/* Summary in center of doughnut */}
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none hidden md:block" style={{ marginTop: '10px' }}>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Primas</p>
-                            <p className="text-lg font-extrabold text-slate-900">{currencyFormatter.format(activeMixData.reduce((s, d) => s + d.primas, 0)).split(',')[0]}€</p>
-                        </div>
                     </div>
 
                     <div className="overflow-x-auto">
@@ -506,11 +497,13 @@ export default function CarteraPage() {
                                     <span className="flex items-center justify-end">Primas (€) <SortIcon col="primas" /></span>
                                 </th>
                                 <th className="px-8 py-4 text-right text-[11px] font-black text-slate-400 uppercase tracking-[0.1em]">Peso</th>
+                                <th className="px-8 py-4 text-right text-[11px] font-black text-slate-400 uppercase tracking-[0.1em] no-print">Acción</th>
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-slate-50">
                             {sortedData.map((item, idx) => {
                                 const totalPrimas = productosBreakdown.reduce((sum, d) => sum + d.primas, 0);
+                                const pct = totalPrimas > 0 ? ((item.primas / totalPrimas) * 100).toFixed(1) : '0';
                                 return (
                                     <tr key={idx} className="hover:bg-slate-50/80 transition-all group">
                                         <td className="px-8 py-5 whitespace-nowrap text-[10px] font-black text-slate-400 uppercase tracking-widest group-hover:text-primary transition-colors">{item.ramo}</td>
@@ -518,7 +511,19 @@ export default function CarteraPage() {
                                         <td className="px-8 py-5 whitespace-nowrap text-sm text-slate-500 text-right font-mono">{numberFormatter.format(item.polizas)}</td>
                                         <td className="px-8 py-5 whitespace-nowrap text-sm text-primary text-right font-black font-mono tracking-tight">{currencyFormatter.format(item.primas)}</td>
                                         <td className="px-8 py-5 whitespace-nowrap text-[11px] text-slate-400 text-right font-bold bg-slate-50/20">
-                                            {((item.primas / (totalPrimas || 1)) * 100).toFixed(1)}%
+                                            {pct}%
+                                        </td>
+                                        <td className="px-8 py-5 whitespace-nowrap text-right no-print">
+                                            <button
+                                                onClick={() => {
+                                                    const url = `/polizas/listado?${getFilterParams(item.producto)}`;
+                                                    window.location.href = url;
+                                                }}
+                                                className="p-2 text-slate-400 hover:text-white hover:bg-primary transition-all rounded-lg border border-transparent hover:border-primary shadow-sm"
+                                                title="Ver listado de pólizas"
+                                            >
+                                                <TrendingUp className="w-4 h-4" />
+                                            </button>
                                         </td>
                                     </tr>
                                 );
