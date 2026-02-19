@@ -300,7 +300,7 @@ export default function CarteraPage() {
     const generateParetoData = () => {
         if (!advancedMetrics?.paretoData) return { labels: [], datasets: [] };
         // Limit to Top 15 for LEGIBILITY in chart, but use full data for calculations
-        const chartData = advancedMetrics.paretoData.slice(0, 15);
+        const chartData = advancedMetrics.paretoData;
 
         return {
             labels: chartData.map((d: any) => d.ente),
@@ -536,7 +536,7 @@ export default function CarteraPage() {
                         <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight flex items-baseline gap-3">
                             Salud de la Cartera
                             <span className="text-xs font-bold text-indigo-500 bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-100 uppercase tracking-tighter">
-                                {loading ? 'Cargando...' : `${advancedMetrics?.totalEntes || 0} Clientes únicos`}
+                                {loading ? 'Cargando...' : `${advancedMetrics?.totalEntes || 0} Entes únicos`}
                             </span>
                         </h1>
                         <p className="text-sm text-slate-500 font-medium tracking-wide">Auditoría estratégica 100% veraz basada en el historial completo</p>
@@ -769,7 +769,7 @@ export default function CarteraPage() {
                                         <div className="mt-4">
                                             <div className="flex justify-between items-center mb-6">
                                                 <h4 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-3">
-                                                    Curva de Pareto: Top 15 Activos Críticos
+                                                    Curva de Pareto: Todos los Entes
                                                     <div className="h-px bg-slate-100 w-40"></div>
                                                 </h4>
                                                 <div className="flex gap-4">
