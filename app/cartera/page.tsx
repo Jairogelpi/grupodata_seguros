@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from 'react';
-import { PieChart as PieIcon, FileText, LayoutList, ArrowUpDown, ArrowUp, ArrowDown, FileDown, Printer, BarChart2, TrendingUp, Info, Package, ShieldCheck, Zap, AlertCircle, XCircle } from 'lucide-react';
+import { PieChart as PieIcon, FileText, LayoutList, ArrowUpDown, ArrowUp, ArrowDown, FileDown, Printer, BarChart2, TrendingUp, Info, Package, ShieldCheck, Zap, AlertCircle, XCircle, Users } from 'lucide-react';
 import MultiSelect from '@/components/MultiSelect';
 import PrintFilterSummary from '@/components/PrintFilterSummary';
 import * as XLSX from 'xlsx';
@@ -497,8 +497,13 @@ export default function CarteraPage() {
                         <BarChart2 className="w-6 h-6" />
                     </div>
                     <div>
-                        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Salud de la Cartera</h1>
-                        <p className="text-sm text-slate-500 font-medium tracking-wide">Análisis de composición y distribución de riesgos</p>
+                        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight flex items-baseline gap-3">
+                            Salud de la Cartera
+                            <span className="text-xs font-bold text-indigo-500 bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-100 uppercase tracking-tighter">
+                                {loading ? 'Cargando...' : `${advancedMetrics?.totalEntes || 0} Clientes únicos`}
+                            </span>
+                        </h1>
+                        <p className="text-sm text-slate-500 font-medium tracking-wide">Auditoría estratégica 100% veraz basada en el historial completo</p>
                     </div>
                 </div>
 
@@ -697,6 +702,32 @@ export default function CarteraPage() {
                                                     </p>
                                                 </div>
                                             </div>
+
+                                            {/* Conversion Funnel / Jump Probabilities */}
+                                            {advancedMetrics.jumpProbabilities && (
+                                                <div className="pt-2">
+                                                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                                        Funnel de Conversión Real
+                                                        <div className="h-px bg-slate-100 flex-1"></div>
+                                                    </h4>
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        <div className="bg-emerald-50/50 p-3 rounded-xl border border-emerald-100/50">
+                                                            <div className="text-[10px] font-bold text-emerald-600 uppercase mb-1">Salto 1 → 2 Ramos</div>
+                                                            <div className="flex items-baseline gap-2">
+                                                                <span className="text-xl font-black text-emerald-700">{advancedMetrics.jumpProbabilities['1to2'].toFixed(1)}%</span>
+                                                                <TrendingUp className="w-3 h-3 text-emerald-500" />
+                                                            </div>
+                                                        </div>
+                                                        <div className="bg-blue-50/50 p-3 rounded-xl border border-blue-100/50">
+                                                            <div className="text-[10px] font-bold text-blue-600 uppercase mb-1">Salto 2 → 3+ Ramos</div>
+                                                            <div className="flex items-baseline gap-2">
+                                                                <span className="text-xl font-black text-blue-700">{advancedMetrics.jumpProbabilities['2to3'].toFixed(1)}%</span>
+                                                                <TrendingUp className="w-3 h-3 text-blue-500" />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     );
                                 })()
@@ -760,6 +791,52 @@ export default function CarteraPage() {
                             <div className="h-[100px]"><Bar data={sinEfectoChartData} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { ticks: { font: { size: 8 }, precision: 0 } } } }} /></div>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            {/* Clients per Ramo Intelligence Section */}
+            <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden no-print">
+                <div className="px-8 py-5 border-b border-slate-200 bg-slate-50/50 flex justify-between items-center">
+                    <h3 className="text-lg font-extrabold flex items-center gap-3 tracking-tight">
+                        <div className="p-2 bg-amber-50 rounded-lg text-amber-600"><Users className="w-5 h-5" /></div>
+                        Inteligencia de Clientes por Ramo
+                    </h3>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Top 5 Clientes por Ramo</span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-0 divide-x divide-y divide-slate-100">
+                    {advancedMetrics?.ramosBreakdown?.map((ramo: any) => (
+                        <div key={ramo.ramo} className="p-6 hover:bg-slate-50/50 transition-colors">
+                            <div className="flex justify-between items-start mb-4">
+                                <div>
+                                    <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight">{ramo.ramo}</h4>
+                                    <p className="text-[10px] font-bold text-slate-400 mt-1">{ramo.entes} Clientes en este ramo</p>
+                                </div>
+                                <div className="text-right">
+                                    <div className="text-xs font-black text-primary">{new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(ramo.primas)}</div>
+                                </div>
+                            </div>
+
+                            <div className="space-y-3">
+                                {ramo.topClients?.map((client: any, idx: number) => (
+                                    <div key={idx} className="group p-3 bg-white rounded-xl border border-slate-100 shadow-sm hover:border-indigo-200 transition-all">
+                                        <div className="flex justify-between items-start mb-1">
+                                            <span className="text-[10px] font-bold text-slate-800 truncate max-w-[140px]">{client.name}</span>
+                                            <span className="text-[9px] font-black text-emerald-600">
+                                                {client.ramosCount === 1 ? 'Venta Cruzada!' : `${client.ramosCount} Ramos`}
+                                            </span>
+                                        </div>
+                                        <div className="flex flex-wrap gap-1 mt-2">
+                                            {client.products.slice(0, 3).map((p: string) => (
+                                                <span key={p} className="text-[8px] px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded-md font-medium border border-slate-200/50">{p}</span>
+                                            ))}
+                                            {client.products.length > 3 && <span className="text-[8px] text-slate-400">+{client.products.length - 3}</span>}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
                 </div>
             </div>
 

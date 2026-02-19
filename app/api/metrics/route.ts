@@ -106,6 +106,22 @@ export async function GET(request: Request) {
             }
         });
 
+        // 3.5 Deduplicate policies by Number to avoid population inflation (Total Reality)
+        const uniquePolizasMap = new Map<string, any>();
+        polizas.forEach(p => {
+            const num = String(p['NºPóliza'] || 'S/N');
+            const estado = String(p['Estado'] || '').toLowerCase();
+            const isCancelled = estado.includes('anula') || estado.includes('baja');
+            if (!uniquePolizasMap.has(num)) {
+                uniquePolizasMap.set(num, p);
+            } else if (isCancelled) {
+                // Prioritize cancelled version for accurate churn tracking if multiple rows exist
+                uniquePolizasMap.set(num, p);
+            }
+        });
+
+        const deduplicatedPolizas = Array.from(uniquePolizasMap.values());
+
         const dynAnios = new Set<string>();
         const dynMeses = new Set<string>();
         const dynEstados = new Set<string>();
@@ -114,7 +130,7 @@ export async function GET(request: Request) {
         const dynRamos = new Set<string>();
         const dynProductos = new Set<string>();
 
-        polizas.forEach(p => {
+        deduplicatedPolizas.forEach(p => {
             const pAnio = String(p['AÑO_PROD'] || '');
             const pMes = String(p['MES_Prod'] || '');
             const pEstado = String(p['Estado'] || '');
@@ -155,6 +171,14 @@ export async function GET(request: Request) {
 
             const dateEfecto = parseAnyDate(fEfecto);
             const dateAnula = parseAnyDate(fAnulacion);
+
+            const isCancelled = pEstado.toLowerCase().includes('anula') || pEstado.toLowerCase().includes('baja');
+            const isActive = pEstado.toLowerCase().includes('vigor') ||
+                pEstado.toLowerCase().includes('pendien') ||
+                pEstado.toLowerCase().includes('cartera') ||
+                pEstado.toLowerCase().includes('cobro') ||
+                pEstado.toLowerCase().includes('suspension');
+
             if (dateEfecto && dateAnula && dateAnula <= dateEfecto) {
                 polizasSinEfecto++;
                 sinEfectoRamoStats.set(ramoName, (sinEfectoRamoStats.get(ramoName) || 0) + 1);
@@ -167,9 +191,9 @@ export async function GET(request: Request) {
             const b = breakdownMap.get(code)!;
             b.primas += primas;
             b.polizas += 1;
-            if (fAnulacion || pEstado.toUpperCase().includes('ANULA')) b.anulaciones += 1;
+            if (fAnulacion || isCancelled) b.anulaciones += 1;
 
-            if ((fAnulacion || pEstado.toUpperCase().includes('ANULA')) && motAnulacion) {
+            if ((fAnulacion || isCancelled) && motAnulacion) {
                 cancellationReasons.set(motAnulacion, (cancellationReasons.get(motAnulacion) || 0) + 1);
             }
 
@@ -238,22 +262,35 @@ export async function GET(request: Request) {
             }
         });
 
-        // Find Top Pair for NBA Argument
-        const topPairEntry = Array.from(pairFreq.entries()).sort((a, b) => b[1] - a[1])[0];
-        const topNBA = topPairEntry ? {
-            pair: topPairEntry[0],
-            count: topPairEntry[1],
-            description: `El binomio ${topPairEntry[0]} es tu éxito histórico más repetido (${topPairEntry[1]} casos). Úsalo para convertir a la Larga Cola.`
-        } : null;
+        // Find Top Pair for NBA Argument (more professional with Confidence)
+        const entries = Array.from(pairFreq.entries()).sort((a, b) => b[1] - a[1]);
+        let topNBA = null;
+
+        if (entries.length > 0) {
+            const [pair, count] = entries[0];
+            const [ramoA, ramoB] = pair.split(' + ');
+
+            // Confidence = P(B|A) = count(A+B) / count(A)
+            const supportA = ramoStats.get(ramoA)?.entes.size || 1;
+            const supportB = ramoStats.get(ramoB)?.entes.size || 1;
+
+            // We take the direction with higher confidence
+            const confAtoB = (count / supportA) * 100;
+            const confBtoA = (count / supportB) * 100;
+
+            const bestConf = Math.max(confAtoB, confBtoA);
+            const source = confAtoB >= confBtoA ? ramoA : ramoB;
+            const target = confAtoB >= confBtoA ? ramoB : ramoA;
+
+            topNBA = {
+                pair,
+                count,
+                confidence: bestConf.toFixed(1),
+                description: `El binomio ${pair} es tu éxito nº1. La estadística dice que si un cliente tiene ${source}, hay un ${bestConf.toFixed(1)}% de probabilidad de captarlo para ${target}.`
+            };
+        }
 
         const crossSellRatio = totalEntesWithPolizas > 0 ? totalRamosCoverage / totalEntesWithPolizas : 0;
-
-        const entesSortedByPrimas = Array.from(breakdownMap.values()).sort((a, b) => b.primas - a.primas);
-        let cumulativePrimas = 0;
-        const paretoData = entesSortedByPrimas.map((e, idx) => {
-            cumulativePrimas += e.primas;
-            return { ente: e.ente, primas: e.primas, cumulativePct: currentPrimas > 0 ? (cumulativePrimas / currentPrimas) * 100 : 0, index: idx + 1 };
-        });
 
         let totalAnuladas = 0;
         breakdownMap.forEach(b => totalAnuladas += b.anulaciones);
@@ -265,7 +302,7 @@ export async function GET(request: Request) {
             const curY = parseInt(anios[0]), curM = parseInt(meses[0]);
             let prevY = curY, prevM = curM - 1;
             if (prevM === 0) { prevM = 12; prevY -= 1; }
-            polizas.forEach(p => {
+            deduplicatedPolizas.forEach(p => {
                 if (String(p['AÑO_PROD']) === String(prevY) && String(p['MES_Prod']) === String(prevM)) {
                     const code = getPolizaEnteCode(p);
                     if (!code || !validEnteCodes.has(code)) return;
@@ -285,6 +322,55 @@ export async function GET(request: Request) {
             return ((curr - prev) / prev) * 100;
         };
 
+        // Jump Probabilities (Funnel)
+        const totalPlus1 = crossSellingCounts[1] + crossSellingCounts[2] + crossSellingCounts['3+'];
+        const totalPlus2 = crossSellingCounts[2] + crossSellingCounts['3+'];
+        const totalPlus3 = crossSellingCounts['3+'];
+
+        const jumpProbabilities = {
+            '1to2': totalPlus1 > 0 ? (totalPlus2 / totalPlus1) * 100 : 0,
+            '2to3': totalPlus2 > 0 ? (totalPlus3 / totalPlus2) * 100 : 0
+        };
+
+        const entesSortedByPrimas = Array.from(breakdownMap.values()).sort((a, b) => b.primas - a.primas);
+        let cumulativePrimasVal = 0;
+        const paretoData = entesSortedByPrimas.map((e, idx) => {
+            cumulativePrimasVal += e.primas;
+            return { ente: e.ente, primas: e.primas, cumulativePct: currentPrimas > 0 ? (cumulativePrimasVal / currentPrimas) * 100 : 0, index: idx + 1 };
+        });
+
+        // Advanced metrics update
+        const advanced = {
+            totalEntes: paretoData.length,
+            topNBA,
+            jumpProbabilities,
+            crossSellingDistribution: crossSellingCounts,
+            paretoData: paretoData,
+            survivalByRamo: Array.from(survivalStats.entries()).map(([ramo, stats]) => ({
+                ramo, avgMonths: stats.count > 0 ? stats.totalMonths / stats.count : 0
+            })).sort((a, b) => b.avgMonths - a.avgMonths),
+            sinEfectoByRamo: Array.from(sinEfectoRamoStats.entries()).map(([ramo, count]) => ({ ramo, count })).sort((a, b) => b.count - a.count)
+        };
+
+        // Enrich Ramos Breakdown with Top Clients and their product mix
+        const enrichedRamosBreakdown = Array.from(ramoStats.values()).map(r => {
+            const clientsInRamo = Array.from(r.entes).map(code => {
+                const b = breakdownMap.get(code);
+                const productsArray = Array.from(productStats.values())
+                    .filter(ps => ps.entes.has(code))
+                    .map(ps => ps.producto);
+
+                return {
+                    name: codeToNameMap.get(code) || code,
+                    primas: b?.primas || 0,
+                    products: productsArray,
+                    ramosCount: enteRamosMap.get(code)?.size || 0
+                };
+            }).sort((a, b) => b.primas - a.primas).slice(0, 5); // Just top 5 for UI performance
+
+            return { ...r, entes: r.entes.size, topClients: clientsInRamo };
+        }).sort((a, b) => b.primas - a.primas);
+
         return NextResponse.json({
             metrics: {
                 primasNP: currentPrimas,
@@ -296,16 +382,7 @@ export async function GET(request: Request) {
                 crossSellRatio,
                 polizasSinEfecto
             },
-            advanced: {
-                totalEntes: paretoData.length,
-                topNBA,
-                crossSellingDistribution: crossSellingCounts,
-                paretoData: paretoData.slice(0, 50),
-                survivalByRamo: Array.from(survivalStats.entries()).map(([ramo, stats]) => ({
-                    ramo, avgMonths: stats.count > 0 ? stats.totalMonths / stats.count : 0
-                })).sort((a, b) => b.avgMonths - a.avgMonths),
-                sinEfectoByRamo: Array.from(sinEfectoRamoStats.entries()).map(([ramo, count]) => ({ ramo, count })).sort((a, b) => b.count - a.count)
-            },
+            advanced,
             filters: {
                 anios: Array.from(dynAnios).sort(),
                 meses: Array.from(dynMeses).sort((a, b) => parseInt(a) - parseInt(b)),
@@ -319,7 +396,7 @@ export async function GET(request: Request) {
             asesoresBreakdown: Array.from(asesoresStats.values()).map(a => ({ asesor: a.asesor, numEntes: a.numEntes, totalPrimas: a.totalPrimas, numPolizas: a.numPolizos, avgPrimas: a.numPolizos > 0 ? a.totalPrimas / a.numPolizos : 0 })).sort((a, b) => b.totalPrimas - a.totalPrimas),
             companiasBreakdown: Array.from(companyStats.values()).map(c => ({ company: c.company, primas: c.primas, polizas: c.polizas, numEntes: c.entes.size, numAsesores: c.asesores.size, ticketMedio: c.polizas > 0 ? c.primas / c.polizas : 0 })).sort((a, b) => b.primas - a.primas),
             productosBreakdown: Array.from(productStats.values()).map(p => ({ ...p, entes: p.entes.size, ticketMedio: p.polizas > 0 ? p.primas / p.polizas : 0 })).sort((a, b) => b.primas - a.primas),
-            ramosBreakdown: Array.from(ramoStats.values()).map(r => ({ ...r, entes: r.entes.size })),
+            ramosBreakdown: enrichedRamosBreakdown,
             estadosBreakdown: Array.from(estadoStats.values()).sort((a, b) => b.polizas - a.polizas),
             cancellationReasons: Array.from(cancellationReasons.entries()).map(([reason, count]) => ({ reason, count })).sort((a, b) => b.count - a.count)
         });
