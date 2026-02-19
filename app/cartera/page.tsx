@@ -777,10 +777,7 @@ export default function CarteraPage() {
                                                 <Chart
                                                     type="bar"
                                                     data={generateParetoData()}
-                                                    options={{
-                                                        ...paretoOptions,
-                                                        indexAxis: 'y',
-                                                    } as any}
+                                                    options={paretoOptions as any}
                                                 />
                                             </div>
                                         </div>
