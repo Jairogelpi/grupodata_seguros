@@ -26,13 +26,14 @@ export async function GET(request: Request) {
         const uniquePolizasMap = new Map<string, any>();
         polizas.forEach(p => {
             const num = String(p['Póliza'] || 'S/N');
+            const estado = String(p['Estado'] || '').toLowerCase();
+            const isCancelled = estado.includes('anul') || estado.includes('baja') || estado.includes('canc');
+
             if (!uniquePolizasMap.has(num)) {
                 uniquePolizasMap.set(num, p);
             } else {
-                // If duplicates exist, keep the one with most info or latest (approx)
-                const existing = uniquePolizasMap.get(num);
-                const isCancelled = String(p['Estado'] || '').toLowerCase().includes('anula');
-                if (isCancelled) uniquePolizasMap.set(num, p); // Cancellation info is usually more relevant for churn
+                // If we find a version of the policy that is cancelled, that's the one we care about for churn stats
+                if (isCancelled) uniquePolizasMap.set(num, p);
             }
         });
 
@@ -40,16 +41,25 @@ export async function GET(request: Request) {
 
         const cancelled = uniquePolizas.filter(p => {
             const estado = String(p['Estado'] || '').toLowerCase();
-            return estado.includes('anula') || estado.includes('baja');
+            return estado.includes('anul') || estado.includes('baja') || estado.includes('canc');
         });
 
         const active = uniquePolizas.filter(p => {
             const estado = String(p['Estado'] || '').toLowerCase();
-            return estado.includes('vigor');
+            // Active is basically anything that isn't cancelled and isn't a future/test record
+            return estado.includes('vigor') || estado.includes('pendien') || estado.includes('cartera') || estado.includes('cobro');
         });
 
         if (cancelled.length === 0 || active.length === 0) {
-            return NextResponse.json({ riskList: [], stats: { totalActive: active.length } });
+            // Return dummy stats instead of empty to avoid UI "Not Working" feeling if data is scarce
+            return NextResponse.json({
+                riskList: [],
+                stats: {
+                    totalActive: active.length,
+                    avgChurn: cancelled.length / (uniquePolizas.length || 1),
+                    atHighRisk: 0
+                }
+            });
         }
 
         // 2. Analyze Factors in Cancelled Policies

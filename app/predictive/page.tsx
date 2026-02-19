@@ -157,7 +157,7 @@ export default function PredictivePage() {
                                     </div>
                                 ) : (
                                     <div className="divide-y divide-slate-100">
-                                        {rules.map((rule, idx) => {
+                                        {rules.length > 0 ? rules.map((rule, idx) => {
                                             const conf = getConfidenceLabel(rule.confidence);
                                             return (
                                                 <div key={idx} className="p-6 hover:bg-slate-50/50 transition-colors group">
@@ -221,7 +221,15 @@ export default function PredictivePage() {
                                                     )}
                                                 </div>
                                             );
-                                        })}
+                                        }) : (
+                                            <div className="p-20 text-center">
+                                                <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-slate-100">
+                                                    <BrainCircuit className="w-8 h-8 text-slate-300" />
+                                                </div>
+                                                <h4 className="text-slate-800 font-bold">Sin Patrones Detectados</h4>
+                                                <p className="text-slate-500 text-xs mt-1 max-w-xs mx-auto">La base de datos actual no tiene suficientes secuencias de compra cruzada para generar reglas estadísticas seguras.</p>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -326,7 +334,7 @@ export default function PredictivePage() {
                                     </div>
                                 ) : (
                                     <div className="divide-y divide-slate-100">
-                                        {churnList.map((item, idx) => (
+                                        {churnList.length > 0 ? churnList.map((item, idx) => (
                                             <div key={idx} className="p-6 hover:bg-red-50/30 transition-colors group">
                                                 <div className="flex flex-col lg:flex-row items-center gap-6">
                                                     <div className="flex-1 min-w-0">
@@ -362,7 +370,15 @@ export default function PredictivePage() {
                                                     </div>
                                                 </div>
                                             </div>
-                                        ))}
+                                        )) : (
+                                            <div className="p-20 text-center">
+                                                <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-red-100">
+                                                    <ShieldAlert className="w-8 h-8 text-red-300" />
+                                                </div>
+                                                <h4 className="text-slate-800 font-bold">Sin Alertas Críticas</h4>
+                                                <p className="text-slate-500 text-xs mt-1 max-w-xs mx-auto">No se han encontrado pólizas que superen el umbral de riesgo basado en el histórico de cancelaciones actual.</p>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>

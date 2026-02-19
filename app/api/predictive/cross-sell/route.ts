@@ -29,30 +29,41 @@ export async function GET(request: Request) {
             validEnteCodes.add(code);
         });
 
-        // 3. Group Ramos by Ente with Date (Transactions with Sequence)
-        const enteTransactions = new Map<string, { ramo: string, date: Date }[]>();
+        // 3. Robust Date Parsing and Entity Linking (aligned with metrics/route.ts)
         const parseAnyDate = (val: any) => {
             if (!val) return null;
             if (typeof val === 'number') return new Date((val - 25569) * 86400 * 1000);
+            const parts = String(val).split('/');
+            if (parts.length === 3) {
+                const day = parseInt(parts[0]);
+                const month = parseInt(parts[1]);
+                const year = parseInt(parts[2]);
+                if (!isNaN(day) && !isNaN(month) && !isNaN(year)) return new Date(year, month - 1, day);
+            }
             const d = new Date(val);
             return isNaN(d.getTime()) ? null : d;
         };
 
-        polizas.forEach(p => {
+        const getPolizaEnteCode = (p: any) => {
             const enteComercial = String(p['Ente Comercial'] || '');
             const parts = enteComercial.split(' - ');
-            const code = parts.length > 1 ? parts[parts.length - 1].trim() : enteComercial.trim();
+            const codeFromEnte = parts.length > 1 ? parts[parts.length - 1].trim() : enteComercial.trim();
             const codeDirect = String(p['Código'] || '');
+            if (validEnteCodes.has(codeFromEnte)) return codeFromEnte;
+            if (validEnteCodes.has(codeDirect)) return codeDirect;
+            return null;
+        };
 
-            let finalCode = null;
-            if (validEnteCodes.has(code)) finalCode = code;
-            else if (validEnteCodes.has(codeDirect)) finalCode = codeDirect;
+        const enteTransactions = new Map<string, { ramo: string, date: Date }[]>();
 
+        polizas.forEach(p => {
+            const finalCode = getPolizaEnteCode(p);
             if (!finalCode) return;
             if (asesorFilter && codeToAsesorMap.get(finalCode) !== asesorFilter) return;
 
             const producto = String(p['Producto'] || '');
             const ramo = getRamo(producto);
+            // Sequential mining needs the earliest possible date for this branch for the customer
             const fEfecto = parseAnyDate(p['F.Efecto']);
 
             if (!enteTransactions.has(finalCode)) {
