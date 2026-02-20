@@ -65,7 +65,7 @@ export async function GET(request: Request) {
                 const dateE = new Date(yE, mE - 1, dE);
                 const dateA = new Date(yA, mA - 1, dA);
                 if (!isNaN(dateE.getTime()) && !isNaN(dateA.getTime())) {
-                    return Math.ceil(Math.abs(dateA.getTime() - dateE.getTime()) / (1000 * 60 * 60 * 24));
+                    return Math.max(0, Math.floor((dateA.getTime() - dateE.getTime()) / (1000 * 60 * 60 * 24)));
                 }
             } catch { }
             return null;

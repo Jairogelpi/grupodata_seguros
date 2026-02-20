@@ -98,8 +98,8 @@ export async function GET(request: Request) {
                         }
 
                         if (!isNaN(targetDate.getTime())) {
-                            const diffTime = Math.abs(targetDate.getTime() - dateE.getTime());
-                            diasHastaAnula = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                            const diffTime = targetDate.getTime() - dateE.getTime();
+                            diasHastaAnula = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
                         }
                     }
                 } catch (e) {
