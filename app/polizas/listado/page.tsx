@@ -46,10 +46,12 @@ function PolizasContent() {
     const producto = searchParams.get('producto');
     const anio = searchParams.get('anio');
     const mes = searchParams.get('mes');
+    const compania = searchParams.get('compania');
 
     const [polizas, setPolizas] = useState<Poliza[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [displayLimit, setDisplayLimit] = useState(100);
     const [sortConfig, setSortConfig] = useState<{ key: keyof Poliza; direction: 'asc' | 'desc' }>({
         key: 'primas',
         direction: 'desc'
@@ -57,7 +59,7 @@ function PolizasContent() {
 
     useEffect(() => {
         fetchPolizas();
-    }, [ente, asesor, estado, startYear, startMonth, endYear, endMonth, ramo, producto, anio, mes]);
+    }, [ente, asesor, estado, startYear, startMonth, endYear, endMonth, ramo, producto, anio, mes, compania]);
 
     const fetchPolizas = async () => {
         setLoading(true);
@@ -74,6 +76,7 @@ function PolizasContent() {
             if (producto) params.append('producto', producto);
             if (anio) params.append('anio', anio);
             if (mes) params.append('mes', mes);
+            if (compania) params.append('compania', compania);
 
             const res = await fetch(`/api/polizas/listado?${params.toString()}`);
             if (!res.ok) throw new Error('Failed to fetch polizas');
@@ -116,6 +119,10 @@ function PolizasContent() {
             return 0;
         });
     }, [polizas, searchTerm, sortConfig]);
+
+    const displayedData = useMemo(() => {
+        return sortedData.slice(0, displayLimit);
+    }, [sortedData, displayLimit]);
 
     const SortIcon = ({ col }: { col: keyof Poliza }) => {
         if (sortConfig.key !== col) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-30" />;
@@ -206,13 +213,14 @@ function PolizasContent() {
                             {ente || asesor}
                             {ramo && ` • Ramo: ${ramo}`}
                             {producto && ` • Producto: ${producto}`}
+                            {compania && ` • Cía: ${compania}`}
                             {anio && mes && ` • Periodo: ${MONTHS[parseInt(mes) - 1]} ${anio}`}
                             {startYear && startMonth && !anio && ` • ${MONTHS[parseInt(startMonth) - 1]} ${startYear} a ${MONTHS[parseInt(endMonth!) - 1]} ${endYear}`}
                         </p>
                     </div>
                 </div>
                 <div className="flex gap-2 w-full md:w-auto">
-                    {(ente || asesor || estado || startYear || ramo || producto || anio) && (
+                    {(ente || asesor || estado || startYear || ramo || producto || anio || compania) && (
                         <button
                             onClick={() => {
                                 setSearchTerm('');
@@ -293,8 +301,8 @@ function PolizasContent() {
                                         <td colSpan={7} className="p-4"><div className="h-4 bg-slate-100 rounded"></div></td>
                                     </tr>
                                 ))
-                            ) : sortedData.length > 0 ? (
-                                sortedData.map((p, i) => (
+                            ) : displayedData.length > 0 ? (
+                                displayedData.map((p, i) => (
                                     <tr key={i} className="hover:bg-slate-50 transition-colors">
                                         <td className="p-4 font-bold text-slate-900">{p.poliza}</td>
                                         <td className="p-4">
@@ -333,6 +341,19 @@ function PolizasContent() {
                             )}
                         </tbody>
                     </table>
+                    {!loading && sortedData.length > displayLimit && (
+                        <div className="p-6 text-center bg-slate-50/50 border-t border-slate-200">
+                            <button
+                                onClick={() => setDisplayLimit(curr => curr + 100)}
+                                className="px-6 py-2.5 bg-white border border-slate-300 rounded-xl font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-800 transition-all shadow-sm flex items-center gap-2 mx-auto"
+                            >
+                                Mostrar más pólizas <ArrowDown className="w-4 h-4" />
+                            </button>
+                            <div className="text-[10px] text-slate-400 mt-2 font-medium">
+                                Mostrando {displayLimit} de {sortedData.length} registros
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

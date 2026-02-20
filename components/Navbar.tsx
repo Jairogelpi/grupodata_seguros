@@ -3,11 +3,13 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
-import { LayoutDashboard, Users, Link as LinkIcon, BarChart3 as BarChart2, PieChart, Activity, AlertTriangle, LogOut, User, Building2, BrainCircuit } from 'lucide-react';
+import { LayoutDashboard, Users, Link as LinkIcon, BarChart3 as BarChart2, PieChart, Activity, AlertTriangle, LogOut, User, Building2, BrainCircuit, Menu, X } from 'lucide-react';
+import { useState } from 'react';
 
 export default function Navbar() {
     const pathname = usePathname();
     const { data: session } = useSession();
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
     if (pathname === '/login') return null;
 
@@ -33,7 +35,8 @@ export default function Navbar() {
                     </span>
                 </div>
 
-                <div className="flex gap-1 overflow-x-auto no-scrollbar">
+                {/* Desktop Menu */}
+                <div className="hidden md:flex gap-1 overflow-x-auto no-scrollbar">
                     {navItems.map((item) => {
                         const isActive = pathname === item.href;
                         const Icon = item.icon;
@@ -71,8 +74,50 @@ export default function Navbar() {
                             </button>
                         </div>
                     )}
+                    {/* Mobile Menu Toggle */}
+                    <button
+                        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                        className="md:hidden w-10 h-10 bg-slate-50 text-slate-600 hover:text-primary rounded-xl flex items-center justify-center transition-all border border-slate-100"
+                    >
+                        {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                    </button>
                 </div>
             </div>
+
+            {/* Mobile Menu Overlay */}
+            {isMobileMenuOpen && (
+                <div className="md:hidden absolute top-16 left-0 w-full bg-white/95 backdrop-blur-xl border-b border-slate-200 shadow-xl overflow-y-auto" style={{ maxHeight: 'calc(100vh - 4rem)' }}>
+                    <div className="px-4 py-6 space-y-2">
+                        {navItems.map((item) => {
+                            const isActive = pathname === item.href;
+                            const Icon = item.icon;
+                            return (
+                                <Link
+                                    key={item.href}
+                                    href={item.href}
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                    className={`flex items-center gap-3 rounded-xl px-4 py-3 text-base font-semibold transition-all shadow-sm border
+                  ${isActive
+                                            ? 'bg-primary/10 text-primary border-primary/20'
+                                            : 'bg-white text-slate-600 border-slate-100 hover:bg-slate-50'
+                                        }`}
+                                >
+                                    <Icon className="h-5 w-5" />
+                                    <span>{item.name}</span>
+                                </Link>
+                            );
+                        })}
+                        {session?.user && (
+                            <button
+                                onClick={() => signOut({ callbackUrl: '/login' })}
+                                className="w-full mt-4 flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-base font-bold text-red-600 bg-red-50 border border-red-100 shadow-sm"
+                            >
+                                <LogOut className="h-5 w-5" /> Copia Seguridad y Salir
+                            </button>
+                        )}
+                    </div>
+                </div>
+            )}
         </nav>
     );
 }

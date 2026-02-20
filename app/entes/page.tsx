@@ -333,8 +333,12 @@ export default function EntesPage() {
                             )}
                         </>
                     ) : (
-                        <div className="col-span-3 xl:col-span-4 text-center py-8 text-slate-400 italic bg-slate-50 rounded-xl border border-dashed">
-                            Selecciona filtros con datos para ver el ranking
+                        <div className="col-span-1 md:col-span-3 xl:col-span-4 bg-white rounded-2xl border border-slate-200 shadow-sm p-12 flex flex-col items-center justify-center text-center">
+                            <div className="w-16 h-16 bg-primary/5 rounded-full flex items-center justify-center mb-4 border border-primary/10">
+                                <Search className="w-8 h-8 text-primary/40" />
+                            </div>
+                            <h3 className="text-lg font-bold text-slate-800 mb-2">Explora tu red de colaboradores</h3>
+                            <p className="text-slate-500 max-w-md">Para ver el Ranking de Eficiencia, utiliza los **Filtros de Análisis** superiores para seleccionar un año, mes o grupo de asesores específico.</p>
                         </div>
                     )}
                 </div>

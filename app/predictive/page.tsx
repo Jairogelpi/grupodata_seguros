@@ -280,8 +280,12 @@ export default function PredictivePage() {
                                 </div>
                                 <LayoutList className="w-4 h-4 text-primary" />
                             </div>
-                            <div className="mt-4">
-                                <span className="text-2xl font-black text-slate-800 tracking-tight">{(stats?.totalPolizas || 0).toLocaleString()} <span className="text-slate-400 text-lg font-bold">Pólizas</span></span>
+                            <div className="mt-4 flex items-center h-8">
+                                {loading && !stats ? (
+                                    <div className="h-6 w-24 bg-slate-100 animate-pulse rounded"></div>
+                                ) : (
+                                    <span className="text-2xl font-black text-slate-800 tracking-tight">{(stats?.totalPolizas || 0).toLocaleString()} <span className="text-slate-400 text-lg font-bold">Pólizas</span></span>
+                                )}
                             </div>
                         </div>
                         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
@@ -292,11 +296,17 @@ export default function PredictivePage() {
                                 </div>
                                 <Target className="w-4 h-4 text-blue-500" />
                             </div>
-                            <div className="mt-4 flex items-baseline gap-2">
-                                <span className="text-2xl font-black text-blue-600 tracking-tight">{(stats?.avgConfidence * 100 || 0).toFixed(1)}%</span>
-                                <div className="h-1.5 w-24 bg-slate-100 rounded-full overflow-hidden">
-                                    <div className="h-full bg-blue-500" style={{ width: `${stats?.avgConfidence * 100}%` }}></div>
-                                </div>
+                            <div className="mt-4 flex items-baseline gap-2 h-8">
+                                {loading && !stats ? (
+                                    <div className="h-6 w-32 bg-slate-100 animate-pulse rounded"></div>
+                                ) : (
+                                    <>
+                                        <span className="text-2xl font-black text-blue-600 tracking-tight">{(stats?.avgConfidence * 100 || 0).toFixed(1)}%</span>
+                                        <div className="h-1.5 w-24 bg-slate-100 rounded-full overflow-hidden">
+                                            <div className="h-full bg-blue-500" style={{ width: `${stats?.avgConfidence * 100}%` }}></div>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         </div>
                         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
@@ -307,9 +317,15 @@ export default function PredictivePage() {
                                 </div>
                                 <ArrowRight className="w-4 h-4 text-emerald-500" />
                             </div>
-                            <div className="mt-4">
-                                <span className="text-2xl font-black text-emerald-600 tracking-tight">{stats?.numRules || 0}</span>
-                                <span className="ml-2 text-xs font-bold text-emerald-500/70 bg-emerald-50 px-2 py-0.5 rounded-full">Calidad Certificada</span>
+                            <div className="mt-4 flex items-center h-8">
+                                {loading && !stats ? (
+                                    <div className="h-6 w-16 bg-slate-100 animate-pulse rounded"></div>
+                                ) : (
+                                    <>
+                                        <span className="text-2xl font-black text-emerald-600 tracking-tight">{stats?.numRules || 0}</span>
+                                        <span className="ml-2 text-xs font-bold text-emerald-500/70 bg-emerald-50 px-2 py-0.5 rounded-full">Calidad Certificada</span>
+                                    </>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -426,7 +442,7 @@ export default function PredictivePage() {
             ) : (
                 <>
                     {/* Quality Summary (Churn) */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                             <div className="flex justify-between items-start">
                                 <div className="flex items-center gap-1">
@@ -435,8 +451,12 @@ export default function PredictivePage() {
                                 </div>
                                 <LayoutList className="w-4 h-4 text-red-500" />
                             </div>
-                            <div className="mt-4">
-                                <span className="text-2xl font-black text-slate-800 tracking-tight">{(churnStats?.totalPolizas || 0).toLocaleString()} <span className="text-slate-400 text-lg font-bold">Pólizas</span></span>
+                            <div className="mt-4 h-8 flex items-center">
+                                {loading && !churnStats ? (
+                                    <div className="h-6 w-24 bg-slate-100 animate-pulse rounded"></div>
+                                ) : (
+                                    <span className="text-2xl font-black text-slate-800 tracking-tight">{(churnStats?.totalPolizas || 0).toLocaleString()} <span className="text-slate-400 text-lg font-bold">Pólizas</span></span>
+                                )}
                             </div>
                         </div>
                         <div
@@ -450,12 +470,18 @@ export default function PredictivePage() {
                                 </div>
                                 <ShieldAlert className={`w-4 h-4 transition-colors ${riskFilter === 'critical' ? 'text-amber-600' : 'text-amber-500 group-hover:text-amber-600'}`} />
                             </div>
-                            <div className="mt-4 flex items-baseline gap-2">
-                                <span className={`text-2xl font-black tracking-tight transition-colors ${riskFilter === 'critical' ? 'text-amber-700' : 'text-amber-600'}`}>{churnStats?.atHighRisk || 0}</span>
-                                <div className="flex flex-col">
-                                    <span className="text-[10px] font-bold text-amber-500/70 bg-amber-50 px-2 py-0.5 rounded-full">{(churnStats?.highRiskPct || 0).toFixed(1)}% de Cartera</span>
-                                    <span className="text-[8px] font-bold text-slate-400 uppercase mt-0.5 ml-1">Score {'>'} 1.5x Media</span>
-                                </div>
+                            <div className="mt-4 flex items-baseline gap-2 h-8">
+                                {loading && !churnStats ? (
+                                    <div className="h-6 w-20 bg-slate-100 animate-pulse rounded"></div>
+                                ) : (
+                                    <>
+                                        <span className={`text-2xl font-black tracking-tight transition-colors ${riskFilter === 'critical' ? 'text-amber-700' : 'text-amber-600'}`}>{churnStats?.atHighRisk || 0}</span>
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] font-bold text-amber-500/70 bg-amber-50 px-2 py-0.5 rounded-full">{(churnStats?.highRiskPct || 0).toFixed(1)}% de Cartera</span>
+                                            <span className="text-[8px] font-bold text-slate-400 uppercase mt-0.5 ml-1">Score {'>'} 1.5x Media</span>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         </div>
                         <div
@@ -469,9 +495,15 @@ export default function PredictivePage() {
                                 </div>
                                 <History className={`w-4 h-4 transition-colors ${riskFilter === 'all' ? 'text-emerald-600' : 'text-emerald-500 group-hover:text-emerald-600'}`} />
                             </div>
-                            <div className="mt-4">
-                                <span className={`text-2xl font-black tracking-tight transition-colors ${riskFilter === 'all' ? 'text-emerald-700' : 'text-emerald-600'}`}>{churnList.length}</span>
-                                <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Pólizas en Revisión</p>
+                            <div className="mt-4 h-8">
+                                {loading && !churnStats ? (
+                                    <div className="h-6 w-16 bg-slate-100 animate-pulse rounded"></div>
+                                ) : (
+                                    <>
+                                        <span className={`text-2xl font-black tracking-tight transition-colors ${riskFilter === 'all' ? 'text-emerald-700' : 'text-emerald-600'}`}>{churnList.length}</span>
+                                        <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Pólizas en Revisión</p>
+                                    </>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -572,12 +604,12 @@ export default function PredictivePage() {
                                 <ChevronRight className="w-6 h-6 rotate-180" />
                             </button>
 
-                            <div className="flex items-center gap-2 text-white/80 mb-2">
+                            <div className="flex items-center gap-2 text-white/80 mb-2 mt-4 md:mt-0">
                                 <ShieldAlert className="w-5 h-5 text-white" />
                                 <span className="text-[10px] font-black uppercase tracking-[0.2em]">Diagnóstico de Retención</span>
                             </div>
-                            <h2 className="text-2xl font-black tracking-tight mb-2 truncate max-w-[80%]">{selectedRiskPoliza.ente}</h2>
-                            <div className="flex gap-4">
+                            <h2 className="text-xl md:text-2xl font-black tracking-tight mb-2 pr-12 line-clamp-2 md:line-clamp-none">{selectedRiskPoliza.ente}</h2>
+                            <div className="flex flex-col md:flex-row gap-2 md:gap-4">
                                 <div className="text-xs font-bold text-white/70">Póliza: <span className="text-white">{selectedRiskPoliza.poliza}</span></div>
                                 <div className="text-xs font-bold text-white/70">Ramo: <span className="text-white italic">{selectedRiskPoliza.ramo}</span></div>
                             </div>

@@ -21,6 +21,7 @@ export async function GET(request: Request) {
         const periodsFilter = periodsParam ? periodsParam.split(',').map(Number) : null;
         const ramoFilter = searchParams.get('ramo'); // Ramo classification filter
         const productoFilter = searchParams.get('producto');
+        const companiaFilter = searchParams.get('compania');
 
         // 1. Read Data
         const [polizas, links] = await Promise.all([
@@ -115,6 +116,12 @@ export async function GET(request: Request) {
                 if (!productos.includes(producto)) return false;
             }
 
+            // Filter by Compañia
+            if (companiaFilter) {
+                const companias = companiaFilter.split(',');
+                const cia = String(p['Abrev.Cía'] || p['Compañía'] || 'Otros');
+                if (!companias.includes(cia)) return false;
+            }
 
             return true;
         })
