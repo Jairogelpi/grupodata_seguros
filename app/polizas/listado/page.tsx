@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { useFilters } from '@/lib/FilterContext';
 import { ArrowLeft, Search, FileDown, Printer, FileText, LayoutList, ArrowUpDown, ArrowUp, ArrowDown, X } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
@@ -35,18 +36,31 @@ function PolizasContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
 
-    const ente = searchParams.get('ente');
-    const asesor = searchParams.get('asesor');
-    const estado = searchParams.get('estado');
-    const startYear = searchParams.get('startYear');
-    const startMonth = searchParams.get('startMonth');
-    const endYear = searchParams.get('endYear');
-    const endMonth = searchParams.get('endMonth');
-    const ramo = searchParams.get('ramo');
-    const producto = searchParams.get('producto');
-    const anio = searchParams.get('anio');
-    const mes = searchParams.get('mes');
-    const compania = searchParams.get('compania');
+    const { filters, setFilters, updateFilter, clearFilters } = useFilters();
+
+    // Mapping URL params to filters on mount
+    useEffect(() => {
+        const params = {
+            ente: searchParams.get('ente') ? [searchParams.get('ente')!] : filters.ente,
+            comercial: searchParams.get('asesor') ? [searchParams.get('asesor')!] : filters.comercial,
+            estado: searchParams.get('estado') ? [searchParams.get('estado')!] : filters.estado,
+            ramo: searchParams.get('ramo') ? [searchParams.get('ramo')!] : filters.ramo,
+            producto: searchParams.get('producto') ? [searchParams.get('producto')!] : filters.producto,
+            anio: searchParams.get('anio') ? [searchParams.get('anio')!] : filters.anio,
+            mes: searchParams.get('mes') ? [searchParams.get('mes')!] : filters.mes,
+            compania: searchParams.get('compania') ? [searchParams.get('compania')!] : filters.compania,
+            startYear: searchParams.get('startYear') ? [searchParams.get('startYear')!] : filters.startYear,
+            startMonth: searchParams.get('startMonth') ? [searchParams.get('startMonth')!] : filters.startMonth,
+            endYear: searchParams.get('endYear') ? [searchParams.get('endYear')!] : filters.endYear,
+            endMonth: searchParams.get('endMonth') ? [searchParams.get('endMonth')!] : filters.endMonth,
+        };
+
+        // Update global filters if URL params were present
+        const hasUrlParams = Array.from(searchParams.keys()).length > 0;
+        if (hasUrlParams) {
+            setFilters(prev => ({ ...prev, ...params }));
+        }
+    }, [searchParams]);
 
     const [polizas, setPolizas] = useState<Poliza[]>([]);
     const [loading, setLoading] = useState(true);
@@ -59,24 +73,24 @@ function PolizasContent() {
 
     useEffect(() => {
         fetchPolizas();
-    }, [ente, asesor, estado, startYear, startMonth, endYear, endMonth, ramo, producto, anio, mes, compania]);
+    }, [filters]);
 
     const fetchPolizas = async () => {
         setLoading(true);
         try {
             const params = new URLSearchParams();
-            if (ente) params.append('ente', ente);
-            if (asesor) params.append('asesor', asesor);
-            if (estado) params.append('estado', estado);
-            if (startYear) params.append('startYear', startYear);
-            if (startMonth) params.append('startMonth', startMonth);
-            if (endYear) params.append('endYear', endYear);
-            if (endMonth) params.append('endMonth', endMonth);
-            if (ramo) params.append('ramo', ramo);
-            if (producto) params.append('producto', producto);
-            if (anio) params.append('anio', anio);
-            if (mes) params.append('mes', mes);
-            if (compania) params.append('compania', compania);
+            if (filters.ente.length > 0) params.append('ente', filters.ente.join(','));
+            if (filters.comercial.length > 0) params.append('asesor', filters.comercial.join(','));
+            if (filters.estado.length > 0) params.append('estado', filters.estado.join(','));
+            if (filters.startYear.length > 0) params.append('startYear', filters.startYear.join(','));
+            if (filters.startMonth.length > 0) params.append('startMonth', filters.startMonth.join(','));
+            if (filters.endYear.length > 0) params.append('endYear', filters.endYear.join(','));
+            if (filters.endMonth.length > 0) params.append('endMonth', filters.endMonth.join(','));
+            if (filters.ramo.length > 0) params.append('ramo', filters.ramo.join(','));
+            if (filters.producto.length > 0) params.append('producto', filters.producto.join(','));
+            if (filters.anio.length > 0) params.append('anio', filters.anio.join(','));
+            if (filters.mes.length > 0) params.append('mes', filters.mes.join(','));
+            if (filters.compania.length > 0) params.append('compania', filters.compania.join(','));
 
             const res = await fetch(`/api/polizas/listado?${params.toString()}`);
             if (!res.ok) throw new Error('Failed to fetch polizas');
@@ -131,11 +145,11 @@ function PolizasContent() {
 
     const handleExportExcel = () => {
         const filterStr = [];
-        if (ente) filterStr.push(`ENTE: ${ente.toUpperCase()}`);
-        if (asesor) filterStr.push(`ASESOR: ${asesor.toUpperCase()}`);
-        if (estado) filterStr.push(`ESTADO: ${estado}`);
-        if (startYear && startMonth) filterStr.push(`DESDE: ${MONTHS[parseInt(startMonth) - 1].toUpperCase()} ${startYear}`);
-        if (endYear && endMonth) filterStr.push(`HASTA: ${MONTHS[parseInt(endMonth) - 1].toUpperCase()} ${endYear}`);
+        if (filters.ente.length > 0) filterStr.push(`ENTE: ${filters.ente.join(', ').toUpperCase()}`);
+        if (filters.comercial.length > 0) filterStr.push(`ASESOR: ${filters.comercial.join(', ').toUpperCase()}`);
+        if (filters.estado.length > 0) filterStr.push(`ESTADO: ${filters.estado.join(', ')}`);
+        if (filters.startYear.length > 0 && filters.startMonth.length > 0) filterStr.push(`DESDE: ${MONTHS[parseInt(filters.startMonth[0]) - 1].toUpperCase()} ${filters.startYear[0]}`);
+        if (filters.endYear.length > 0 && filters.endMonth.length > 0) filterStr.push(`HASTA: ${MONTHS[parseInt(filters.endMonth[0]) - 1].toUpperCase()} ${filters.endYear[0]}`);
 
         const filterSummary = filterStr.join(' | ');
 
@@ -188,14 +202,16 @@ function PolizasContent() {
         ];
 
         XLSX.utils.book_append_sheet(wb, ws, "Pólizas");
-        XLSX.writeFile(wb, `Listado_Polizas_${ente || asesor || 'General'}.xlsx`);
+        const filename = filters.ente[0] || filters.comercial[0] || 'General';
+        XLSX.writeFile(wb, `Listado_Polizas_${filename}.xlsx`);
     };
 
     const getTitle = () => {
         let title = "Listado de Pólizas";
-        if (estado === 'VIGOR') title = "Cartera Activa (En Vigor)";
-        if (estado === 'SUSPENSION') title = "Pólizas en Suspensión";
-        if (estado === 'ANULADA') title = "Pólizas Anuladas";
+        const estadoVal = filters.estado[0] || '';
+        if (estadoVal === 'VIGOR') title = "Cartera Activa (En Vigor)";
+        if (estadoVal === 'SUSPENSION') title = "Pólizas en Suspensión";
+        if (estadoVal === 'ANULADA') title = "Pólizas Anuladas";
         return title;
     };
 
@@ -210,20 +226,21 @@ function PolizasContent() {
                     <div>
                         <h1 className="text-2xl font-bold text-slate-900">{getTitle()}</h1>
                         <p className="text-slate-500 text-sm font-medium">
-                            {ente || asesor}
-                            {ramo && ` • Ramo: ${ramo}`}
-                            {producto && ` • Producto: ${producto}`}
-                            {compania && ` • Cía: ${compania}`}
-                            {anio && mes && ` • Periodo: ${MONTHS[parseInt(mes) - 1]} ${anio}`}
-                            {startYear && startMonth && !anio && ` • ${MONTHS[parseInt(startMonth) - 1]} ${startYear} a ${MONTHS[parseInt(endMonth!) - 1]} ${endYear}`}
+                            {filters.ente[0] || filters.comercial[0] || 'General'}
+                            {filters.ramo.length > 0 && ` • Ramo: ${filters.ramo.join(', ')}`}
+                            {filters.producto.length > 0 && ` • Producto: ${filters.producto.join(', ')}`}
+                            {filters.compania.length > 0 && ` • Cía: ${filters.compania.join(', ')}`}
+                            {filters.anio.length > 0 && filters.mes.length > 0 && ` • Periodo: ${MONTHS[parseInt(filters.mes[0]) - 1]} ${filters.anio[0]}`}
+                            {filters.startYear.length > 0 && filters.startMonth.length > 0 && filters.anio.length === 0 && ` • ${MONTHS[parseInt(filters.startMonth[0]) - 1]} ${filters.startYear[0]} a ${MONTHS[parseInt(filters.endMonth[0]) - 1]} ${filters.endYear[0]}`}
                         </p>
                     </div>
                 </div>
                 <div className="flex gap-2 w-full md:w-auto">
-                    {(ente || asesor || estado || startYear || ramo || producto || anio || compania) && (
+                    {Object.values(filters).some(f => f.length > 0) && (
                         <button
                             onClick={() => {
                                 setSearchTerm('');
+                                clearFilters();
                                 router.push(`/polizas/listado`);
                             }}
                             className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-red-50 border border-red-200 rounded-xl hover:bg-red-100 transition-all shadow-sm text-sm font-medium text-red-600"

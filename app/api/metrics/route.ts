@@ -71,6 +71,7 @@ export async function GET(request: Request) {
         const ramoStats = new Map<string, { ramo: string; primas: number; polizas: number; entes: Set<string> }>();
         const cancellationReasons = new Map<string, number>();
         const enteRamosMap = new Map<string, Set<string>>();
+        const tomadorRamosMap = new Map<string, Set<string>>();
         const survivalStats = new Map<string, { totalMonths: number, count: number }>();
         const sinEfectoRamoStats = new Map<string, number>();
 
@@ -142,6 +143,7 @@ export async function GET(request: Request) {
 
             const pAsesor = codeToAsesorMap.get(code) || 'Sin Asesor';
             const pEnteName = codeToNameMap.get(code) || code;
+            const tomadorName = String(p['Tomador'] || '').trim() || pEnteName;
 
             const matchAnio = anios.length === 0 || anios.includes(pAnio);
             const matchMes = meses.length === 0 || meses.includes(pMes);
@@ -238,14 +240,17 @@ export async function GET(request: Request) {
 
             if (!enteRamosMap.has(code)) enteRamosMap.set(code, new Set());
             enteRamosMap.get(code)!.add(ramoName);
+
+            if (!tomadorRamosMap.has(tomadorName)) tomadorRamosMap.set(tomadorName, new Set());
+            tomadorRamosMap.get(tomadorName)!.add(ramoName);
         });
 
         const crossSellingCounts = { 1: 0, 2: 0, '3+': 0 };
         const pairFreq = new Map<string, number>(); // Simple association frequency
-        let totalEntesWithPolizas = 0, totalRamosCoverage = 0;
+        let totalTomadoresWithPolizas = 0, totalRamosCoverage = 0;
 
-        enteRamosMap.forEach((ramos) => {
-            totalEntesWithPolizas++;
+        tomadorRamosMap.forEach((ramos) => {
+            totalTomadoresWithPolizas++;
             const count = ramos.size;
             totalRamosCoverage += count;
             if (count === 1) crossSellingCounts[1]++;
@@ -308,7 +313,7 @@ export async function GET(request: Request) {
                 type: 'CROSS_SELL',
                 title: 'Oportunidad de Venta Cruzada',
                 color: 'indigo',
-                description: `Tus entes de **${source}** tienen una alta probabilidad (**${bestConf.toFixed(1)}%**) de contratar **${target}**. Lanza una campaña dirigida a este segmento específico.`
+                description: `Tus clientes de **${source}** tienen una alta probabilidad (**${bestConf.toFixed(1)}%**) de contratar **${target}**. Lanza una campaña dirigida a este segmento específico.`
             });
         }
 
@@ -324,7 +329,7 @@ export async function GET(request: Request) {
                 type: 'EXPANSION',
                 title: 'Potencial de Expansión Masiva',
                 color: 'purple',
-                description: `El **${pctMono.toFixed(1)}%** de tus entes tiene un solo producto. Es una base enorme sin explotar. Ofréceles un segundo producto con descuento por vinculación.`
+                description: `El **${pctMono.toFixed(1)}%** de tus clientes (tomadores) tiene un solo producto. Es una base enorme sin explotar. Ofréceles un segundo producto con descuento por vinculación.`
             });
         } else {
             // Generic fallback if not extreme mono-product
@@ -332,7 +337,7 @@ export async function GET(request: Request) {
                 type: 'EXPANSION',
                 title: 'Desarrollo de Cliente',
                 color: 'blue',
-                description: `Tienes **${crossSellingCounts[1]} entes** con un solo contrato. Convertir solo al 10% de ellos duplicaría significativamente tu rentabilidad por ente.`
+                description: `Tienes **${crossSellingCounts[1]} tomadores** con un solo contrato. Convertir solo al 10% de ellos duplicaría significativamente tu rentabilidad por cuenta.`
             });
         }
 
@@ -371,7 +376,7 @@ export async function GET(request: Request) {
             });
         }
 
-        const crossSellRatio = totalEntesWithPolizas > 0 ? totalRamosCoverage / totalEntesWithPolizas : 0;
+        const crossSellRatio = totalTomadoresWithPolizas > 0 ? totalRamosCoverage / totalTomadoresWithPolizas : 0;
 
         let totalAnuladas = 0;
         breakdownMap.forEach(b => totalAnuladas += b.anulaciones);
@@ -458,7 +463,7 @@ export async function GET(request: Request) {
                             if (confidence > bestConf) {
                                 bestConf = confidence;
                                 bestNext = target;
-                                bestSupport = count; // Number of clients with this exact pair
+                                bestSupport = count; // Number of Tomadores with this exact pair
                             }
                         }
                     });
@@ -470,7 +475,7 @@ export async function GET(request: Request) {
                             reason: `Patrón en ${bestSupport} clientes`
                         };
                         allNbas.push({
-                            ente: codeToNameMap.get(code) || code,
+                            ente: codeToNameMap.get(code) || code, // Keeping ente property for UI compatibility but behavior is for client
                             currentProduct: currentProd,
                             targetProduct: bestNext,
                             confidence: bestConf.toFixed(0),
@@ -516,6 +521,7 @@ export async function GET(request: Request) {
                     primas: b?.primas || 0,
                     products: productsArray,
                     ramosCount: enteRamosMap.get(code)?.size || 0,
+                    tomadorRamosCount: tomadorRamosMap.size,
                     timeline, // Include the timeline
                     nba // Add NBA object
                 };

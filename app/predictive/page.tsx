@@ -6,6 +6,7 @@ import { Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip as ChartTooltip, Legend } from 'chart.js';
 import MultiSelect from '@/components/MultiSelect';
 import PrintFilterSummary from '@/components/PrintFilterSummary';
+import { useFilters } from '@/lib/FilterContext';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, ChartTooltip, Legend);
 
@@ -59,21 +60,16 @@ export default function PredictivePage() {
     const [loadingCandidate, setLoadingCandidate] = useState(false);
     const [riskFilter, setRiskFilter] = useState<'all' | 'critical'>('all');
 
-    // Filter State
+    // Filter Context
+    const { filters, updateFilter, clearFilters } = useFilters();
+
+    // Filter Options
     const [filterOptions, setFilterOptions] = useState<any>({
         asesores: [],
         entes: [],
         anios: [],
         meses: [],
         estados: []
-    });
-
-    const [filters, setFilters] = useState({
-        comercial: [] as string[],
-        ente: [] as string[],
-        anio: [] as string[],
-        mes: [] as string[],
-        estado: [] as string[]
     });
 
     const fetchPredictions = async () => {
@@ -112,20 +108,6 @@ export default function PredictivePage() {
         fetchPredictions();
     }, [filters]);
 
-    const handleFilterChange = (key: string, values: string[]) => {
-        setFilters(prev => ({ ...prev, [key]: values }));
-    };
-
-    const clearFilters = () => {
-        setFilters({
-            comercial: [],
-            ente: [],
-            anio: [],
-            mes: [],
-            estado: []
-        });
-    };
-
     const getLiftColor = (lift: number) => {
         if (lift > 3) return 'text-emerald-600 bg-emerald-50 border-emerald-100';
         if (lift > 2) return 'text-blue-600 bg-blue-50 border-blue-100';
@@ -154,7 +136,7 @@ export default function PredictivePage() {
         setLoadingCandidate(true);
         setSelectedCandidate(code);
         try {
-            const res = await fetch(`/api/predictive/ente-detail?code=${code}`);
+            const res = await fetch(`/api/predictive/tomador-detail?name=${encodeURIComponent(code)}`);
             const data = await res.json();
             setCandidateProfile(data);
         } catch (e) {
@@ -260,11 +242,11 @@ export default function PredictivePage() {
                     <h3 className="uppercase text-xs tracking-widest">Filtros de Análisis IA</h3>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-                    <MultiSelect label="Comercial" options={filterOptions.asesores} selected={filters.comercial} onChange={(val) => handleFilterChange('comercial', val)} />
-                    <MultiSelect label="Ente" options={filterOptions.entes} selected={filters.ente} onChange={(val) => handleFilterChange('ente', val)} />
-                    <MultiSelect label="Año" options={filterOptions.anios} selected={filters.anio} onChange={(val) => handleFilterChange('anio', val)} />
-                    <MultiSelect label="Mes" options={filterOptions.meses} selected={filters.mes} onChange={(val) => handleFilterChange('mes', val)} />
-                    <MultiSelect label="Estado" options={filterOptions.estados} selected={filters.estado} onChange={(val) => handleFilterChange('estado', val)} />
+                    <MultiSelect label="Comercial" options={filterOptions.asesores} selected={filters.comercial} onChange={(val) => updateFilter('comercial', val)} />
+                    <MultiSelect label="Ente" options={filterOptions.entes} selected={filters.ente} onChange={(val) => updateFilter('ente', val)} />
+                    <MultiSelect label="Año" options={filterOptions.anios} selected={filters.anio} onChange={(val) => updateFilter('anio', val)} />
+                    <MultiSelect label="Mes" options={filterOptions.meses} selected={filters.mes} onChange={(val) => updateFilter('mes', val)} />
+                    <MultiSelect label="Estado" options={filterOptions.estados} selected={filters.estado} onChange={(val) => updateFilter('estado', val)} />
                 </div>
             </div>
 
@@ -366,7 +348,7 @@ export default function PredictivePage() {
                                                                 {rule.antecedent.map(a => (
                                                                     <div key={a} className="flex flex-col">
                                                                         <span className="px-3 py-1 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-700 shadow-sm">{a}</span>
-                                                                        <span className="text-[9px] text-slate-400 mt-1 font-medium">{rule.totalA} entes con este perfil</span>
+                                                                        <span className="text-[9px] text-slate-400 mt-1 font-medium">{rule.totalA} tomadores con este perfil</span>
                                                                     </div>
                                                                 ))}
                                                             </div>
@@ -391,7 +373,7 @@ export default function PredictivePage() {
                                                             <div className="text-center">
                                                                 <div className="flex items-center justify-center gap-1">
                                                                     <div className="text-[10px] font-bold text-slate-400 uppercase">Conversión</div>
-                                                                    <MetricTooltip text="Probabilidad (Confianza) de que un ente que tiene el perfil inicial también adquiera la oferta recomendada." />
+                                                                    <MetricTooltip text="Probabilidad (Confianza) de que un tomador que tiene el perfil inicial también adquiera la oferta recomendada." />
                                                                 </div>
                                                                 <div className={`text-lg font-black ${conf.color}`}>{(rule.confidence * 100).toFixed(0)}%</div>
                                                             </div>
@@ -410,7 +392,7 @@ export default function PredictivePage() {
                                                         <div className="mt-6 pt-4 border-t border-slate-100">
                                                             <div className="text-[10px] font-black text-slate-400 uppercase mb-3 tracking-widest flex items-center gap-2">
                                                                 <Target className="w-3 h-3 text-primary" />
-                                                                Candidatos ideales (Entes que cumplen el perfil pero no tienen {rule.consequent})
+                                                                Candidatos ideales (Tomadores que cumplen el perfil pero no tienen {rule.consequent})
                                                             </div>
                                                             <div className="flex flex-wrap gap-2">
                                                                 {rule.targets.map(target => (

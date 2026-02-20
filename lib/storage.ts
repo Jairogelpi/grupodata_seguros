@@ -6,11 +6,15 @@ import { createClient } from '@supabase/supabase-js';
 const DATA_DIR = path.join(process.cwd(), 'data');
 const IS_VERCEL = process.env.VERCEL === '1';
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://yjelnqsbohuorcrpkxng.supabase.co';
-const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlqZWxucXNib2h1b3JjcnBraG5nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0ODQxNzAsImV4cCI6MjA4NzA2MDE3MH0.iTHGj5KNWpw9ADMwWRyTI1oSoVaLQxiS-s_FZNgqC78';
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlqZWxucXNib2h1b3JjcnBraG5nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0ODQxNzAsImV4cCI6MjA4NzA2MDE3MH0.iTHGj5KNWpw9ADMwWRyTI1oSoVaLQxiS-s_FZNgqC78';
 const USE_SUPABASE = !!(SUPABASE_URL && SUPABASE_KEY);
 const BUCKET_NAME = 'metrics';
 
-const supabase = USE_SUPABASE ? createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+const supabase = USE_SUPABASE ? createClient(SUPABASE_URL, SUPABASE_KEY, {
+    auth: {
+        persistSession: false
+    }
+}) : null;
 
 // In-memory cache to avoid redundant downloads
 const storageCache: Record<string, { data: any[], timestamp: number }> = {};
@@ -71,13 +75,16 @@ export async function writeData(filename: string, buffer: Buffer): Promise<void>
                 contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
             });
 
-            if (error) throw new Error(`Supabase upload error: ${error.message}`);
+            if (error) {
+                console.error(`[Storage] Supabase upload error: ${error.message}`);
+                throw new Error(`Failed to save to Supabase: ${error.message}`);
+            }
             // Invalidate ALL entries to ensure consistency across related data
             Object.keys(storageCache).forEach(key => delete storageCache[key]);
         } catch (err) {
             console.error(`[Storage] Error writing ${filename} to Supabase:`, err);
-            // If it failed and we are in Vercel, we can't write to disk, so we throw
-            if (IS_VERCEL) throw err;
+            // Re-throw to ensure the API returns an error instead of pretending success
+            throw err;
         }
     }
 

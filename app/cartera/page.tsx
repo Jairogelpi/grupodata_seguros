@@ -8,6 +8,7 @@ import * as XLSX from 'xlsx';
 import { Doughnut, Bar, Chart } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title } from 'chart.js';
 import { getRamo } from '@/lib/ramos';
+import { useFilters } from '@/lib/FilterContext';
 
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 
@@ -75,15 +76,7 @@ export default function CarteraPage() {
         productos: []
     });
 
-    const [filters, setFilters] = useState({
-        comercial: [] as string[],
-        ente: [] as string[],
-        anio: [] as string[],
-        mes: [] as string[],
-        estado: [] as string[],
-        ramo: [] as string[],
-        producto: [] as string[]
-    });
+    const { filters, setFilters } = useFilters();
 
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' }>({
         key: 'primas',
@@ -728,7 +721,7 @@ export default function CarteraPage() {
                         <div>
                             <h2 className="text-2xl font-black text-slate-800 flex items-center gap-4 tracking-tighter">
                                 <div className="p-3 bg-amber-50 rounded-2xl text-amber-500 shadow-sm"><Zap className="w-6 h-6" /></div>
-                                Análisis de Concentración Estratégica
+                                Análisis de Concentración Estratégica (Tomadores)
                             </h2>
                             <p className="text-sm text-slate-500 font-medium mt-1">Identificación de activos críticos y potencial de expansión del Long Tail</p>
                         </div>
@@ -995,7 +988,7 @@ export default function CarteraPage() {
                                                 </span>
                                             ) : (
                                                 <span className="text-[9px] font-black text-emerald-600">
-                                                    {client.ramosCount} Ramos
+                                                    {client.tomadorRamosCount || client.ramosCount} Ramos
                                                 </span>
                                             )}
                                         </div>
@@ -1130,7 +1123,7 @@ export default function CarteraPage() {
                                     <span className="px-2 py-1 bg-indigo-100 text-indigo-700 text-[10px] font-black rounded uppercase tracking-widest">
                                         Perfil 360
                                     </span>
-                                    <span className="text-xs font-bold text-slate-400">{selectedEnteForProfile.ramosCount} Ramos Contratados</span>
+                                    <span className="text-xs font-bold text-slate-400">{selectedEnteForProfile.tomadorRamosCount || selectedEnteForProfile.ramosCount} Ramos Contratados</span>
                                 </div>
                                 <h3 className="text-2xl font-black text-slate-900 leading-tight">
                                     {selectedEnteForProfile.name}

@@ -70,7 +70,7 @@ export async function GET(request: Request) {
 
         // 3.5 Track unique policy numbers to provide total policy count
         const uniquePoliciesInFilters = new Set<string>();
-        const enteTransactions = new Map<string, { ramo: string, date: Date }[]>();
+        const tomadorTransactions = new Map<string, { ramo: string, date: Date }[]>();
 
         polizas.forEach(p => {
             const finalCode = getPolizaEnteCode(p);
@@ -78,6 +78,7 @@ export async function GET(request: Request) {
 
             const asesor = codeToAsesorMap.get(finalCode) || 'Sin Asesor';
             const enteName = codeToNameMap.get(finalCode) || finalCode;
+            const tomador = String(p['Tomador'] || '').trim() || enteName; // Default to Ente if no Tomador
             const pAnio = String(p['AÑO_PROD'] || '');
             const pMes = String(p['MES_Prod'] || '');
             const pEstado = String(p['Estado'] || '');
@@ -99,15 +100,15 @@ export async function GET(request: Request) {
             // Sequential mining needs the earliest possible date for this branch for the customer
             const fEfecto = parseAnyDate(p['F.Efecto']);
 
-            if (!enteTransactions.has(finalCode)) {
-                enteTransactions.set(finalCode, []);
+            if (!tomadorTransactions.has(tomador)) {
+                tomadorTransactions.set(tomador, []);
             }
             if (fEfecto) {
-                enteTransactions.get(finalCode)!.push({ ramo, date: fEfecto });
+                tomadorTransactions.get(tomador)!.push({ ramo, date: fEfecto });
             }
         });
 
-        const totalTransactions = enteTransactions.size;
+        const totalTransactions = tomadorTransactions.size;
         const totalPolizas = uniquePoliciesInFilters.size;
         if (totalTransactions === 0) return NextResponse.json({ rules: [], stats: { totalTransactions: 0, totalPolizas: 0 } });
 
@@ -115,7 +116,7 @@ export async function GET(request: Request) {
         const ramoFrequencies = new Map<string, number>();
         const sequentialFreq = new Map<string, number>(); // "A -> B" where Date(B) >= Date(A)
 
-        enteTransactions.forEach((history) => {
+        tomadorTransactions.forEach((history) => {
             // Sort by date to define sequence
             const sorted = history.sort((a, b) => a.date.getTime() - b.date.getTime());
             const uniqueRamosForThisEnte = new Set(sorted.map(s => s.ramo));
@@ -166,11 +167,11 @@ export async function GET(request: Request) {
 
             if (lift > 1.2 && confidence > 0.05 && isSignificant) {
                 // Find target customers: Have Ramo A, never had Ramo B
-                const targetEntes: string[] = [];
-                enteTransactions.forEach((history, ente) => {
+                const targetTomadores: string[] = [];
+                tomadorTransactions.forEach((history, tomador) => {
                     const ramos = new Set(history.map(h => h.ramo));
                     if (ramos.has(ramoA) && !ramos.has(ramoB)) {
-                        targetEntes.push(ente);
+                        targetTomadores.push(tomador);
                     }
                 });
 
@@ -184,7 +185,7 @@ export async function GET(request: Request) {
                     pVal: isSignificant ? '< 0.05' : '> 0.05',
                     count: observedAB,
                     totalA: countA,
-                    targets: targetEntes // Show all targets as requested
+                    targets: targetTomadores // Show all targets as requested
                 });
             }
         });
