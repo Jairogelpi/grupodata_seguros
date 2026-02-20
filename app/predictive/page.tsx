@@ -3,11 +3,11 @@
 import { useEffect, useState } from 'react';
 import { BrainCircuit, TrendingUp, Sparkles, Filter, Info, Package, Target, ArrowRight, Gauge, ChevronRight, AlertTriangle, ShieldAlert, History, UserMinus, LayoutList, Zap } from 'lucide-react';
 import { Bar } from 'react-chartjs-2';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip as ChartTooltip, Legend } from 'chart.js';
 import MultiSelect from '@/components/MultiSelect';
 import PrintFilterSummary from '@/components/PrintFilterSummary';
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, ChartTooltip, Legend);
 
 interface Rule {
     antecedent: string[];
@@ -34,6 +34,16 @@ interface ChurnRisk {
     ramoChurnRate?: number;
     ciaChurnRate?: number;
 }
+
+const MetricTooltip = ({ text }: { text: string }) => (
+    <div className="group relative inline-block ml-1">
+        <Info className="w-3 h-3 text-slate-300 cursor-help hover:text-primary transition-colors" />
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-48 p-2 bg-slate-800 text-white text-[10px] font-medium rounded-lg shadow-xl z-50 pointer-events-none">
+            {text}
+            <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></div>
+        </div>
+    </div>
+);
 
 export default function PredictivePage() {
     const [rules, setRules] = useState<Rule[]>([]);
@@ -264,7 +274,10 @@ export default function PredictivePage() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                             <div className="flex justify-between items-start">
-                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest cursor-help" title="Universo total de pólizas filtradas que tienen un asesor asignado en el registro comercial.">Número de Pólizas</h3>
+                                <div className="flex items-center gap-1">
+                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Número de Pólizas</h3>
+                                    <MetricTooltip text="Universo total de pólizas filtradas que tienen un asesor asignado en el registro comercial." />
+                                </div>
                                 <LayoutList className="w-4 h-4 text-primary" />
                             </div>
                             <div className="mt-4">
@@ -273,7 +286,10 @@ export default function PredictivePage() {
                         </div>
                         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                             <div className="flex justify-between items-start">
-                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest cursor-help" title="Probabilidad promedio de éxito estadístico basada en comportamientos reales verificados en tu propia cartera.">Acierto Medio</h3>
+                                <div className="flex items-center gap-1">
+                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Acierto Medio</h3>
+                                    <MetricTooltip text="Probabilidad promedio de éxito estadístico basada en comportamientos reales verificados en tu propia cartera." />
+                                </div>
                                 <Target className="w-4 h-4 text-blue-500" />
                             </div>
                             <div className="mt-4 flex items-baseline gap-2">
@@ -285,7 +301,10 @@ export default function PredictivePage() {
                         </div>
                         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                             <div className="flex justify-between items-start">
-                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest cursor-help" title="Reglas matemáticas de comportamiento encontradas en tus datos con significancia estadística certificada (Test Chi-Cuadrado).">Patrones Detectados</h3>
+                                <div className="flex items-center gap-1">
+                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Patrones Detectados</h3>
+                                    <MetricTooltip text="Reglas matemáticas de comportamiento encontradas en tus datos con significancia estadística certificada (Test Chi-Cuadrado)." />
+                                </div>
                                 <ArrowRight className="w-4 h-4 text-emerald-500" />
                             </div>
                             <div className="mt-4">
@@ -354,11 +373,17 @@ export default function PredictivePage() {
                                                         {/* Metrics */}
                                                         <div className="flex items-center gap-4 border-l border-slate-100 pl-6 w-full md:w-auto">
                                                             <div className="text-center">
-                                                                <div className="text-[10px] font-bold text-slate-400 uppercase cursor-help" title="Probabilidad (Confianza) de que un ente que tiene el perfil inicial también adquiera la oferta recomendada.">Conversión</div>
+                                                                <div className="flex items-center justify-center gap-1">
+                                                                    <div className="text-[10px] font-bold text-slate-400 uppercase">Conversión</div>
+                                                                    <MetricTooltip text="Probabilidad (Confianza) de que un ente que tiene el perfil inicial también adquiera la oferta recomendada." />
+                                                                </div>
                                                                 <div className={`text-lg font-black ${conf.color}`}>{(rule.confidence * 100).toFixed(0)}%</div>
                                                             </div>
                                                             <div className="text-center">
-                                                                <div className="text-[10px] font-bold text-slate-400 uppercase cursor-help" title="Multiplicador que indica cuántas veces es más probable esta venta comparada con una venta aleatoria. Mide la potencia de la recomendación.">Impacto</div>
+                                                                <div className="flex items-center justify-center gap-1">
+                                                                    <div className="text-[10px] font-bold text-slate-400 uppercase">Impacto</div>
+                                                                    <MetricTooltip text="Multiplicador que indica cuántas veces es más probable esta venta comparada con una venta aleatoria. Mide la potencia de la recomendación." />
+                                                                </div>
                                                                 <div className={`text-sm font-bold px-2 py-1 rounded-lg border ${getLiftColor(rule.lift)}`}>{rule.lift.toFixed(1)}x</div>
                                                             </div>
                                                         </div>
@@ -404,7 +429,10 @@ export default function PredictivePage() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                             <div className="flex justify-between items-start">
-                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest cursor-help" title="Universo total de pólizas filtradas que tienen un asesor asignado en el registro comercial.">Número de Pólizas</h3>
+                                <div className="flex items-center gap-1">
+                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Número de Pólizas</h3>
+                                    <MetricTooltip text="Universo total de pólizas filtradas que tienen un asesor asignado en el registro comercial." />
+                                </div>
                                 <LayoutList className="w-4 h-4 text-red-500" />
                             </div>
                             <div className="mt-4">
@@ -416,7 +444,10 @@ export default function PredictivePage() {
                             className={`bg-white p-6 rounded-2xl shadow-sm border transition-all cursor-pointer group ${riskFilter === 'critical' ? 'border-amber-500 ring-2 ring-amber-500/20' : 'border-slate-200 hover:border-amber-200'}`}
                         >
                             <div className="flex justify-between items-start">
-                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest cursor-help" title="Pólizas con una probabilidad de cancelación superior al 1.5x de la media, identificadas por patrones de comportamiento atípico.">Pólizas en Riesgo Crítico</h3>
+                                <div className="flex items-center gap-1">
+                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Pólizas en Riesgo Crítico</h3>
+                                    <MetricTooltip text="Pólizas con una probabilidad de cancelación superior al 1.5x de la media, identificadas por patrones de comportamiento atípico." />
+                                </div>
                                 <ShieldAlert className={`w-4 h-4 transition-colors ${riskFilter === 'critical' ? 'text-amber-600' : 'text-amber-500 group-hover:text-amber-600'}`} />
                             </div>
                             <div className="mt-4 flex items-baseline gap-2">
@@ -432,7 +463,10 @@ export default function PredictivePage() {
                             className={`bg-white p-6 rounded-2xl shadow-sm border transition-all cursor-pointer group ${riskFilter === 'all' ? 'border-emerald-500 ring-2 ring-emerald-500/20' : 'border-slate-200 hover:border-emerald-200'}`}
                         >
                             <div className="flex justify-between items-start">
-                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest cursor-help" title="Pólizas seleccionadas por el algoritmo de retención que requieren una acción comercial inmediata.">Carga Proactiva</h3>
+                                <div className="flex items-center gap-1">
+                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Carga Proactiva</h3>
+                                    <MetricTooltip text="Pólizas seleccionadas por el algoritmo de retención que requieren una acción comercial inmediata." />
+                                </div>
                                 <History className={`w-4 h-4 transition-colors ${riskFilter === 'all' ? 'text-emerald-600' : 'text-emerald-500 group-hover:text-emerald-600'}`} />
                             </div>
                             <div className="mt-4">

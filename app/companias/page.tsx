@@ -144,14 +144,14 @@ export default function CompaniasPage() {
     }, [data, filters.compania]);
 
     const sortedData = useMemo(() => {
-        const sorted = [...finalTableData];
+        const sorted = [...data];
         sorted.sort((a, b) => {
             if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1;
             if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'asc' ? 1 : -1;
             return 0;
         });
         return sorted;
-    }, [finalTableData, sortConfig]);
+    }, [data, sortConfig]);
 
     const SortIcon = ({ col }: { col: SortKey }) => {
         return (
@@ -261,6 +261,18 @@ export default function CompaniasPage() {
             }
         }
     });
+
+    const getFilterParams = (compania: string) => {
+        const params = new URLSearchParams();
+        if (filters.comercial.length > 0) params.append('comercial', filters.comercial.join(','));
+        if (filters.anio.length > 0) params.append('anio', filters.anio.join(','));
+        if (filters.mes.length > 0) params.append('mes', filters.mes.join(','));
+        if (filters.estado.length > 0) params.append('estado', filters.estado.join(','));
+        if (filters.ente.length > 0) params.append('ente', filters.ente.join(','));
+
+        params.append('compania', compania);
+        return params.toString();
+    };
 
     const handleExportExcel = () => {
         const ws = XLSX.utils.json_to_sheet(sortedData.map(d => ({
@@ -413,6 +425,7 @@ export default function CompaniasPage() {
                                 <th onClick={() => handleSort('numEntes')} className="p-4 font-bold text-slate-600 text-center cursor-pointer hover:bg-slate-100 transition-colors">
                                     <div className="flex items-center justify-center">Entes <SortIcon col="numEntes" /></div>
                                 </th>
+                                <th className="p-4 pr-6 font-bold text-slate-600 text-right">Acción</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -447,6 +460,14 @@ export default function CompaniasPage() {
                                             </td>
                                             <td className="p-4 text-center">
                                                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">{d.numEntes}</span>
+                                            </td>
+                                            <td className="p-4 pr-6 text-right">
+                                                <button onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    window.location.href = `/polizas/listado?${getFilterParams(d.company)}`;
+                                                }} className="p-1.5 text-primary hover:text-white hover:bg-primary transition-all rounded-lg border border-slate-200 shadow-sm inline-flex">
+                                                    <TrendingUp className="w-3.5 h-3.5" />
+                                                </button>
                                             </td>
                                         </tr>
                                     );
