@@ -27,8 +27,12 @@ interface ChurnRisk {
     ramo: string;
     cia: string;
     seniority: string;
+    pago: string;
     score: number;
     factors: { name: string, impact: number }[];
+    rejectedPolicies?: { num: string, ramo: string, cia: string, fecha: string }[];
+    ramoChurnRate?: number;
+    ciaChurnRate?: number;
 }
 
 export default function PredictivePage() {
@@ -43,6 +47,7 @@ export default function PredictivePage() {
     const [selectedCandidate, setSelectedCandidate] = useState<string | null>(null);
     const [candidateProfile, setCandidateProfile] = useState<any>(null);
     const [loadingCandidate, setLoadingCandidate] = useState(false);
+    const [riskFilter, setRiskFilter] = useState<'all' | 'critical'>('all');
 
     // Filter State
     const [filterOptions, setFilterOptions] = useState<any>({
@@ -192,16 +197,20 @@ export default function PredictivePage() {
         const reasons: string[] = [];
         const actions: string[] = [];
 
-        reasons.push(`Existe una correlación estadística de ${rule.lift.toFixed(1)}x entre clientes que tienen ${rule.antecedent.join(' + ')} y la contratación de ${rule.consequent}.`);
-        reasons.push(`Hemos detectado ${rule.count} casos de éxito reales en tu cartera que validan este patrón de comportamiento.`);
+        // 1. Lift Explanation (The "14.0x") - Focusing on "Effort reduction"
+        reasons.push(`**Fuerza de Correlación:** Los clientes con ${rule.antecedent.join(' + ')} tienen una propensión **${rule.lift.toFixed(1)} veces superior** a la media de contratar ${rule.consequent}. Esto significa que tu esfuerzo comercial será mucho más eficiente aquí que disparando a ciegas al resto de la cartera.`);
+
+        // 2. Support Explanation (Historical validation) with pedagogical touch
+        const caseText = rule.count === 1 ? 'caso de éxito real' : 'casos de éxito reales';
+        reasons.push(`**Validación Histórica:** Hemos detectado ${rule.count} ${caseText} que confirman este patrón. Aunque sea un grupo pequeño, la IA identifica que este es el "camino de menor resistencia" para crecer en ${rule.consequent}.`);
 
         if (rule.confidence > 0.6) {
-            reasons.push("La confianza del modelo es superior al 60%, lo que indica una ventana de oportunidad de conversión muy alta.");
+            reasons.push(`**Probabilidad de Éxito:** La confianza en este patrón es del ${(rule.confidence * 100).toFixed(0)}%. No es una suposición; es la dirección que han tomado tus mejores clientes con perfiles similares.`);
         }
 
-        actions.push(`Contactar a los ${rule.targets.length} candidatos identificados para presentar una oferta personalizada de ${rule.consequent}.`);
-        actions.push(`Utilizar el argumento de "clientes con perfil similar" que ya disfrutan de las ventajas de ${rule.consequent}.`);
-        actions.push(`Revisar si los candidatos tienen pólizas de ${rule.consequent} con la competencia para proponer una mejora.`);
+        actions.push(`Contactar a los ${rule.targets.length} candidatos: el 80% del éxito en venta cruzada depende de elegir al cliente con el perfil adecuado, y estos lo tienen.`);
+        actions.push(`Utilizar el argumento de "paso natural": este producto es la elección lógica para alguien que ya protege su ${rule.antecedent.join(' y ')} contigo.`);
+        actions.push(`Detectar pólizas externas: es muy probable que estos clientes ya tengan ${rule.consequent} con la competencia; tráelos a tu cartera con una oferta de mejora.`);
 
         return { reasons, actions };
     };
@@ -255,11 +264,11 @@ export default function PredictivePage() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                             <div className="flex justify-between items-start">
-                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Base de Datos Analizada</h3>
-                                <Package className="w-4 h-4 text-primary" />
+                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest cursor-help" title="Universo total de pólizas filtradas que tienen un asesor asignado en el registro comercial.">Número de Pólizas</h3>
+                                <LayoutList className="w-4 h-4 text-primary" />
                             </div>
                             <div className="mt-4">
-                                <span className="text-2xl font-black text-slate-800 tracking-tight">{(stats?.totalTransactions || 0).toLocaleString()} <span className="text-slate-400 text-lg font-bold">Entes</span></span>
+                                <span className="text-2xl font-black text-slate-800 tracking-tight">{(stats?.totalPolizas || 0).toLocaleString()} <span className="text-slate-400 text-lg font-bold">Pólizas</span></span>
                             </div>
                         </div>
                         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
@@ -288,7 +297,7 @@ export default function PredictivePage() {
 
                     <div className="grid grid-cols-1 xl:grid-cols-5 gap-8">
                         {/* Main Rule List */}
-                        <div className="xl:col-span-3 space-y-6">
+                        <div className="xl:col-span-5 space-y-6">
                             <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
                                 <div className="px-8 py-6 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
                                     <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
@@ -345,11 +354,11 @@ export default function PredictivePage() {
                                                         {/* Metrics */}
                                                         <div className="flex items-center gap-4 border-l border-slate-100 pl-6 w-full md:w-auto">
                                                             <div className="text-center">
-                                                                <div className="text-[10px] font-bold text-slate-400 uppercase">Conversión</div>
+                                                                <div className="text-[10px] font-bold text-slate-400 uppercase cursor-help" title="Probabilidad (Confianza) de que un ente que tiene el perfil inicial también adquiera la oferta recomendada.">Conversión</div>
                                                                 <div className={`text-lg font-black ${conf.color}`}>{(rule.confidence * 100).toFixed(0)}%</div>
                                                             </div>
                                                             <div className="text-center">
-                                                                <div className="text-[10px] font-bold text-slate-400 uppercase">Impacto</div>
+                                                                <div className="text-[10px] font-bold text-slate-400 uppercase cursor-help" title="Multiplicador que indica cuántas veces es más probable esta venta comparada con una venta aleatoria. Mide la potencia de la recomendación.">Impacto</div>
                                                                 <div className={`text-sm font-bold px-2 py-1 rounded-lg border ${getLiftColor(rule.lift)}`}>{rule.lift.toFixed(1)}x</div>
                                                             </div>
                                                         </div>
@@ -387,50 +396,6 @@ export default function PredictivePage() {
                             </div>
                         </div>
 
-                        {/* Sidebar Info */}
-                        <div className="xl:col-span-2 space-y-8">
-                            <div className="bg-slate-900 rounded-3xl p-8 text-white shadow-2xl shadow-primary/20">
-                                <h4 className="text-xl font-bold mb-6 flex items-center gap-3">
-                                    <Info className="w-5 h-5 text-primary" />
-                                    ¿Por qué es Real?
-                                </h4>
-                                <div className="space-y-6">
-                                    <div className="flex gap-4">
-                                        <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center shrink-0 border border-primary/30 font-black text-primary italic">L</div>
-                                        <div>
-                                            <p className="font-bold text-sm">Lift (Elevación)</p>
-                                            <p className="text-xs text-slate-400 mt-1">Si el Lift es 2.0x, significa que el cliente tiene el **doble de probabilidades** de contratar el segundo ramo que un cliente medio.</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-4">
-                                        <div className="w-10 h-10 bg-blue-500/20 rounded-xl flex items-center justify-center shrink-0 border border-blue-500/30 font-black text-blue-400 italic">C</div>
-                                        <div>
-                                            <p className="font-bold text-sm">Confianza Relevante</p>
-                                            <p className="text-xs text-slate-400 mt-1">Calculamos el porcentaje histórico de éxito de esta combinación específica en toda tu base de datos.</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-4">
-                                        <div className="w-10 h-10 bg-emerald-500/20 rounded-xl flex items-center justify-center shrink-0 border border-emerald-500/30 font-black text-emerald-400 italic">S</div>
-                                        <div>
-                                            <p className="font-bold text-sm">Soporte Estratégico</p>
-                                            <p className="text-xs text-slate-400 mt-1">Solo mostramos patrones que han ocurrido suficientes veces para ser estadísticamente significativos.</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="bg-white p-6 rounded-3xl border-2 border-dashed border-slate-200">
-                                <div className="text-center space-y-4">
-                                    <div className="p-3 bg-slate-50 rounded-2xl inline-block">
-                                        <Gauge className="w-8 h-8 text-slate-300" />
-                                    </div>
-                                    <div>
-                                        <h5 className="font-bold text-slate-800">Próximos Pasos</h5>
-                                        <p className="text-xs text-slate-500 mt-2 px-4 leading-relaxed">Pronto podrás aplicar estas predicciones directamente en la ficha del ente para recibir recomendaciones en tiempo real.</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 </>
             ) : (
@@ -439,41 +404,46 @@ export default function PredictivePage() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                             <div className="flex justify-between items-start">
-                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Tasa Media Cancelación</h3>
-                                <AlertTriangle className="w-4 h-4 text-red-500" />
+                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest cursor-help" title="Universo total de pólizas filtradas que tienen un asesor asignado en el registro comercial.">Número de Pólizas</h3>
+                                <LayoutList className="w-4 h-4 text-red-500" />
                             </div>
                             <div className="mt-4">
-                                <span className="text-2xl font-black text-red-600 tracking-tight">{(churnStats?.avgChurn * 100 || 0).toFixed(1)}%</span>
-                                <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Histórico General</p>
+                                <span className="text-2xl font-black text-slate-800 tracking-tight">{(churnStats?.totalPolizas || 0).toLocaleString()} <span className="text-slate-400 text-lg font-bold">Pólizas</span></span>
                             </div>
                         </div>
-                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                        <div
+                            onClick={() => setRiskFilter(riskFilter === 'critical' ? 'all' : 'critical')}
+                            className={`bg-white p-6 rounded-2xl shadow-sm border transition-all cursor-pointer group ${riskFilter === 'critical' ? 'border-amber-500 ring-2 ring-amber-500/20' : 'border-slate-200 hover:border-amber-200'}`}
+                        >
                             <div className="flex justify-between items-start">
-                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Pólizas en Riesgo Crítico</h3>
-                                <ShieldAlert className="w-4 h-4 text-amber-500" />
+                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest cursor-help" title="Pólizas con una probabilidad de cancelación superior al 1.5x de la media, identificadas por patrones de comportamiento atípico.">Pólizas en Riesgo Crítico</h3>
+                                <ShieldAlert className={`w-4 h-4 transition-colors ${riskFilter === 'critical' ? 'text-amber-600' : 'text-amber-500 group-hover:text-amber-600'}`} />
                             </div>
                             <div className="mt-4 flex items-baseline gap-2">
-                                <span className="text-2xl font-black text-amber-600 tracking-tight">{churnStats?.atHighRisk || 0}</span>
+                                <span className={`text-2xl font-black tracking-tight transition-colors ${riskFilter === 'critical' ? 'text-amber-700' : 'text-amber-600'}`}>{churnStats?.atHighRisk || 0}</span>
                                 <div className="flex flex-col">
                                     <span className="text-[10px] font-bold text-amber-500/70 bg-amber-50 px-2 py-0.5 rounded-full">{(churnStats?.highRiskPct || 0).toFixed(1)}% de Cartera</span>
                                     <span className="text-[8px] font-bold text-slate-400 uppercase mt-0.5 ml-1">Score {'>'} 1.5x Media</span>
                                 </div>
                             </div>
                         </div>
-                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                        <div
+                            onClick={() => setRiskFilter('all')}
+                            className={`bg-white p-6 rounded-2xl shadow-sm border transition-all cursor-pointer group ${riskFilter === 'all' ? 'border-emerald-500 ring-2 ring-emerald-500/20' : 'border-slate-200 hover:border-emerald-200'}`}
+                        >
                             <div className="flex justify-between items-start">
-                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Carga Proactiva</h3>
-                                <History className="w-4 h-4 text-emerald-500" />
+                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest cursor-help" title="Pólizas seleccionadas por el algoritmo de retención que requieren una acción comercial inmediata.">Carga Proactiva</h3>
+                                <History className={`w-4 h-4 transition-colors ${riskFilter === 'all' ? 'text-emerald-600' : 'text-emerald-500 group-hover:text-emerald-600'}`} />
                             </div>
                             <div className="mt-4">
-                                <span className="text-2xl font-black text-emerald-600 tracking-tight">{churnList.length}</span>
+                                <span className={`text-2xl font-black tracking-tight transition-colors ${riskFilter === 'all' ? 'text-emerald-700' : 'text-emerald-600'}`}>{churnList.length}</span>
                                 <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Pólizas en Revisión</p>
                             </div>
                         </div>
                     </div>
 
                     <div className="grid grid-cols-1 xl:grid-cols-5 gap-8">
-                        <div className="xl:col-span-3 space-y-6">
+                        <div className="xl:col-span-5 space-y-6">
                             <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
                                 <div className="px-8 py-6 border-b border-slate-100 bg-red-50/20 flex items-center justify-between">
                                     <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
@@ -489,94 +459,78 @@ export default function PredictivePage() {
                                     </div>
                                 ) : (
                                     <div className="divide-y divide-slate-100 max-h-[600px] overflow-y-auto">
-                                        {churnList.length > 0 ? (
-                                            churnList.map((poliza, idx) => (
-                                                <div
-                                                    key={idx}
-                                                    onClick={() => setSelectedRiskPoliza(poliza)}
-                                                    className="p-6 hover:bg-slate-50 transition-all cursor-pointer group flex flex-col md:flex-row md:items-center justify-between gap-6"
-                                                >
-                                                    <div className="flex-1">
-                                                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Póliza Nº {poliza.poliza}</div>
-                                                        <h4 className="text-sm md:text-base font-black text-slate-800 mb-2 group-hover:text-primary transition-colors">{poliza.ente}</h4>
-                                                        <div className="flex flex-wrap gap-2">
-                                                            <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md uppercase italic">{poliza.ramo}</span>
-                                                            <span className="text-[10px] font-medium text-slate-400">{poliza.cia}</span>
-                                                        </div>
-                                                    </div>
+                                        {(() => {
+                                            const displayList = riskFilter === 'critical'
+                                                ? churnList.filter(p => p.score > (churnStats?.avgChurn || 0) * 1.5)
+                                                : churnList;
 
-                                                    <div className="flex items-center gap-12">
-                                                        <div className="text-right">
-                                                            <div className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mb-0.5">Riesgo</div>
-                                                            <div className="text-xl font-black text-red-600">{(poliza.score * 100).toFixed(1)}%</div>
-                                                        </div>
-
-                                                        <div className="hidden lg:block">
-                                                            <div className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mb-1.5 ml-1">Factores Críticos</div>
-                                                            <div className="flex gap-1.5">
-                                                                {poliza.factors.map((f, fidx) => (
-                                                                    <span key={fidx} className="text-[9px] font-black px-2 py-0.5 bg-red-50 text-red-600 rounded-lg border border-red-100 uppercase tracking-tighter">
-                                                                        {f.name}
-                                                                    </span>
-                                                                ))}
+                                            return displayList.length > 0 ? (
+                                                displayList.map((poliza, idx) => (
+                                                    <div
+                                                        key={idx}
+                                                        onClick={() => setSelectedRiskPoliza(poliza)}
+                                                        className="p-6 hover:bg-slate-50 transition-all cursor-pointer group flex flex-col md:flex-row md:items-center justify-between gap-6"
+                                                    >
+                                                        <div className="flex-1">
+                                                            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Póliza Nº {poliza.poliza}</div>
+                                                            <h4 className="text-sm md:text-base font-black text-slate-800 mb-2 group-hover:text-primary transition-colors">{poliza.ente}</h4>
+                                                            <div className="flex flex-wrap gap-2">
+                                                                <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md uppercase italic">{poliza.ramo}</span>
+                                                                <span className="text-[10px] font-medium text-slate-400">{poliza.cia}</span>
                                                             </div>
                                                         </div>
 
-                                                        <div className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center group-hover:border-primary group-hover:bg-primary/5 transition-all">
-                                                            <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-primary transition-colors" />
+                                                        <div className="flex items-center gap-12">
+                                                            <div className="text-right">
+                                                                <div className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mb-0.5">Riesgo</div>
+                                                                <div className="text-xl font-black text-red-600">{(poliza.score * 100).toFixed(1)}%</div>
+                                                            </div>
+
+                                                            <div className="hidden lg:block">
+                                                                <div className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mb-1.5 ml-1">Factores Críticos</div>
+                                                                <div className="flex gap-1.5">
+                                                                    {poliza.factors.map((f, fidx) => (
+                                                                        <span key={fidx} className="text-[9px] font-black px-2 py-0.5 bg-red-50 text-red-600 rounded-lg border border-red-100 uppercase tracking-tighter">
+                                                                            {f.name}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center group-hover:border-primary group-hover:bg-primary/5 transition-all">
+                                                                <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-primary transition-colors" />
+                                                            </div>
                                                         </div>
                                                     </div>
+                                                ))
+                                            ) : (
+                                                <div className="p-20 text-center">
+                                                    <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-red-100">
+                                                        <ShieldAlert className="w-8 h-8 text-red-300" />
+                                                    </div>
+                                                    <h4 className="text-slate-800 font-bold">{riskFilter === 'critical' ? 'No hay pólizas críticas en esta selección' : 'Sin Alertas Críticas'}</h4>
+                                                    <p className="text-slate-500 text-xs mt-1 max-w-xs mx-auto">
+                                                        {riskFilter === 'critical'
+                                                            ? 'Prueba a cambiar los filtros globales o selecciona la tarjeta de Carga Proactiva para ver toda la lista.'
+                                                            : 'No se han encontrado pólizas que superen el umbral de riesgo basado en el histórico de cancelaciones actual.'}
+                                                    </p>
                                                 </div>
-                                            ))
-                                        ) : (
-                                            <div className="p-20 text-center">
-                                                <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-red-100">
-                                                    <ShieldAlert className="w-8 h-8 text-red-300" />
-                                                </div>
-                                                <h4 className="text-slate-800 font-bold">Sin Alertas Críticas</h4>
-                                                <p className="text-slate-500 text-xs mt-1 max-w-xs mx-auto">No se han encontrado pólizas que superen el umbral de riesgo basado en el histórico de cancelaciones actual.</p>
-                                            </div>
-                                        )}
+                                            );
+                                        })()}
                                     </div>
                                 )}
                             </div>
                         </div>
 
-                        <div className="xl:col-span-2 space-y-8">
-                            <div className="bg-red-900 rounded-3xl p-8 text-white shadow-2xl shadow-red-900/20">
-                                <h4 className="text-xl font-bold mb-6 flex items-center gap-3">
-                                    <UserMinus className="w-5 h-5 text-red-400" />
-                                    Justificación del Riesgo
-                                </h4>
-                                <div className="space-y-6">
-                                    <p className="text-xs text-red-100/70 leading-relaxed italic">Este scoring se basa en la **correlación histórica de bajas**. No es una opinión; es estadística real aplicada a tu historial de cancelaciones.</p>
-                                    <div className="space-y-4">
-                                        <div className="flex gap-4">
-                                            <div className="w-8 h-8 bg-red-800 rounded-lg flex items-center justify-center shrink-0 border border-red-700 font-black">1</div>
-                                            <p className="text-xs text-red-100 mt-1">Analizamos la **siniestralidad por Cía y Ramo**: Detectamos qué productos tienen "fuga" natural y aplicamos el peso al Ente.</p>
-                                        </div>
-                                        <div className="flex gap-4">
-                                            <div className="w-8 h-8 bg-red-800 rounded-lg flex items-center justify-center shrink-0 border border-red-700 font-black">2</div>
-                                            <p className="text-xs text-red-100 mt-1">Estudiamos la **curva de supervivencia**: Identificamos cuándo el cliente suele "enfriarse" y plantearse la baja.</p>
-                                        </div>
-                                        <div className="flex gap-4">
-                                            <div className="w-8 h-8 bg-red-800 rounded-lg flex items-center justify-center shrink-0 border border-red-700 font-black">3</div>
-                                            <p className="text-xs text-red-100 mt-1">Asignamos un **Score Probabilístico**: Multiplicamos los impactos para priorizar tu acción comercial.</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 </>
             )}
 
-            {/* Rescue Modal */}
             {selectedRiskPoliza && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
                     <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200">
                         {/* Header */}
-                        <div className="bg-slate-900 p-8 text-white relative">
+                        <div className="bg-primary p-8 text-white relative">
                             <button
                                 onClick={() => setSelectedRiskPoliza(null)}
                                 className="absolute top-6 right-6 w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-all"
@@ -584,74 +538,93 @@ export default function PredictivePage() {
                                 <ChevronRight className="w-6 h-6 rotate-180" />
                             </button>
 
-                            <div className="flex items-center gap-2 text-primary mb-2">
-                                <ShieldAlert className="w-5 h-5" />
+                            <div className="flex items-center gap-2 text-white/80 mb-2">
+                                <ShieldAlert className="w-5 h-5 text-white" />
                                 <span className="text-[10px] font-black uppercase tracking-[0.2em]">Diagnóstico de Retención</span>
                             </div>
-                            <h2 className="text-2xl font-black tracking-tight mb-2">{selectedRiskPoliza.ente}</h2>
+                            <h2 className="text-2xl font-black tracking-tight mb-2 truncate max-w-[80%]">{selectedRiskPoliza.ente}</h2>
                             <div className="flex gap-4">
-                                <div className="text-xs font-bold text-slate-400">Póliza: <span className="text-white">{selectedRiskPoliza.poliza}</span></div>
-                                <div className="text-xs font-bold text-slate-400">Ramo: <span className="text-primary italic">{selectedRiskPoliza.ramo}</span></div>
+                                <div className="text-xs font-bold text-white/70">Póliza: <span className="text-white">{selectedRiskPoliza.poliza}</span></div>
+                                <div className="text-xs font-bold text-white/70">Ramo: <span className="text-white italic">{selectedRiskPoliza.ramo}</span></div>
                             </div>
 
-                            <div className="absolute -bottom-6 right-8 bg-red-600 px-6 py-4 rounded-2xl shadow-xl flex flex-col items-center border-4 border-white">
-                                <span className="text-[10px] font-black text-white/70 uppercase">Score de Riesgo</span>
-                                <span className="text-3xl font-black text-white">{(selectedRiskPoliza.score * 100).toFixed(1)}%</span>
+                            <div className="absolute -bottom-6 right-8 bg-white px-6 py-4 rounded-2xl shadow-xl flex flex-col items-center border-4 border-primary">
+                                <span className="text-[10px] font-black text-primary/70 uppercase">Score de Riesgo</span>
+                                <span className="text-3xl font-black text-primary">{(selectedRiskPoliza.score * 100).toFixed(1)}%</span>
                             </div>
                         </div>
 
                         {/* Content */}
-                        <div className="p-8 pt-12 space-y-8 max-h-[70vh] overflow-y-auto">
-                            {/* Diagnosis Section */}
+                        <div className="p-8 pt-12 space-y-8 max-h-[70vh] overflow-y-auto text-slate-700">
+                            {/* Rotation Analysis Section */}
                             <section>
                                 <div className="flex items-center gap-2 mb-4">
-                                    <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center text-orange-600 shadow-sm border border-orange-100">
-                                        <AlertTriangle className="w-5 h-5" />
+                                    <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 shadow-sm border border-blue-100">
+                                        <TrendingUp className="w-5 h-5" />
                                     </div>
-                                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">¿Por qué este riesgo?</h3>
+                                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Análisis de Rotación (Sistémico)</h3>
                                 </div>
                                 <div className="space-y-3">
-                                    {getDiagnosis(selectedRiskPoliza).reasons.map((reason, idx) => (
-                                        <div key={idx} className="p-4 bg-orange-50/50 rounded-xl border-l-4 border-orange-400 text-sm text-slate-700 leading-relaxed font-medium">
-                                            {reason}
-                                        </div>
-                                    ))}
+                                    <div className="p-4 bg-blue-50/50 rounded-xl border-l-4 border-blue-400 text-sm leading-relaxed font-medium">
+                                        La compañía <span className="font-black text-slate-900">{selectedRiskPoliza.cia}</span> presenta una tasa de rotación acumulada del <span className="text-blue-600 font-black">{(selectedRiskPoliza.ramoChurnRate! * 100).toFixed(1)}%</span> en el ramo <span className="font-black text-slate-900">{selectedRiskPoliza.ramo}</span> dentro de tu cartera filtrada.
+                                    </div>
+                                    <div className="p-4 bg-blue-50/50 rounded-xl border-l-4 border-blue-400 text-sm leading-relaxed font-medium">
+                                        Este indicador sugiere una inestabilidad sistémica en este segmento de negocio, lo que requiere un seguimiento estrecho antes de la próxima renovación.
+                                    </div>
                                 </div>
                             </section>
 
-                            {/* Plan de Acción Section */}
+                            {/* Rejected Policies History Section */}
                             <section>
                                 <div className="flex items-center gap-2 mb-4">
-                                    <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600 shadow-sm border border-emerald-100">
-                                        <Zap className="w-5 h-5" />
+                                    <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center text-red-600 shadow-sm border border-red-100">
+                                        <AlertTriangle className="w-5 h-5" />
                                     </div>
-                                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Plan de Rescate Sugerido</h3>
+                                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Inercia de Abandono (Historial Real)</h3>
                                 </div>
-                                <div className="space-y-4">
-                                    {getDiagnosis(selectedRiskPoliza).actions.map((action, idx) => (
-                                        <div key={idx} className="flex gap-4 bg-white p-4 rounded-xl border border-slate-100 shadow-sm group hover:border-emerald-200 transition-colors">
-                                            <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex-shrink-0 flex items-center justify-center text-xs font-black italic">
-                                                {idx + 1}
+                                <div className="space-y-3">
+                                    {selectedRiskPoliza.rejectedPolicies && selectedRiskPoliza.rejectedPolicies.length > 0 ? (
+                                        <>
+                                            <div className="p-4 bg-red-50/50 rounded-xl border-l-4 border-red-400 text-sm leading-relaxed font-medium mb-4">
+                                                Este Ente ha cancelado o rechazado <span className="font-black text-red-700">{selectedRiskPoliza.rejectedPolicies.length}</span> pólizas anteriormente, lo que genera una alta probabilidad de contagio en el resto de su cartera.
                                             </div>
-                                            <p className="text-sm text-slate-600 font-bold leading-snug group-hover:text-slate-900 transition-colors">{action}</p>
+                                            <div className="grid grid-cols-1 gap-2">
+                                                {selectedRiskPoliza.rejectedPolicies.map((p, pidx) => (
+                                                    <div key={pidx} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                                        <div className="flex flex-col">
+                                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter mb-0.5">Póliza Nº {p.num}</span>
+                                                            <span className="text-xs font-bold text-slate-700">{p.ramo}</span>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <span className="text-[8px] font-black text-red-600 bg-red-50 px-2 py-0.5 rounded-full uppercase italic border border-red-100">RECHAZADA</span>
+                                                            <div className="text-[9px] font-medium text-slate-400 mt-1">{p.cia}</div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <div className="p-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-center">
+                                            <p className="text-xs text-slate-400 font-bold uppercase italic">Sin historial de rechazos previos detectado</p>
+                                            <p className="text-[10px] text-slate-400 mt-1">Este es el primer indicador crítico de este cliente.</p>
                                         </div>
-                                    ))}
+                                    )}
                                 </div>
                             </section>
 
-                            {/* Internal Data Context */}
+                            {/* Data Context */}
                             <div className="bg-slate-50 p-6 rounded-2xl flex justify-around border border-slate-100">
-                                <div className="text-center">
-                                    <div className="text-[9px] font-bold text-slate-400 uppercase mb-1">Cía Actual</div>
-                                    <div className="text-xs font-black text-slate-700">{selectedRiskPoliza.cia}</div>
-                                </div>
                                 <div className="text-center">
                                     <div className="text-[9px] font-bold text-slate-400 uppercase mb-1">Antigüedad</div>
                                     <div className="text-xs font-black text-slate-700">{selectedRiskPoliza.seniority}</div>
                                 </div>
                                 <div className="text-center">
                                     <div className="text-[9px] font-bold text-slate-400 uppercase mb-1">Forma Pago</div>
-                                    <div className="text-xs font-black text-slate-700">{(selectedRiskPoliza as any).pago || 'Anual'}</div>
+                                    <div className="text-xs font-black text-slate-700">{selectedRiskPoliza.pago || 'Anual'}</div>
+                                </div>
+                                <div className="text-center">
+                                    <div className="text-[9px] font-bold text-slate-400 uppercase mb-1">Potencial</div>
+                                    <div className="text-xs font-black text-emerald-600">RETENCIÓN</div>
                                 </div>
                             </div>
                         </div>
@@ -660,7 +633,7 @@ export default function PredictivePage() {
                         <div className="p-6 bg-slate-50 border-t border-slate-200 flex justify-end">
                             <button
                                 onClick={() => setSelectedRiskPoliza(null)}
-                                className="px-8 py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:scale-105 transition-all shadow-lg shadow-slate-900/20 active:scale-95"
+                                className="px-8 py-3 bg-primary text-white rounded-xl font-bold text-sm hover:scale-105 transition-all shadow-lg shadow-primary/20 active:scale-95"
                             >
                                 Entendido, Actuar
                             </button>
@@ -800,14 +773,18 @@ export default function PredictivePage() {
 
                                 <div className="px-8 pb-8 space-y-6">
                                     <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100">
-                                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 text-center">Cartera Vigente ({candidateProfile.totalActivePolicies})</h3>
+                                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 text-center">Cartera Detectada ({candidateProfile.totalActivePolicies})</h3>
                                         <div className="flex flex-wrap justify-center gap-3">
-                                            {candidateProfile.activeRamos.map((ramo: string) => (
-                                                <div key={ramo} className="flex flex-col items-center gap-1.5 p-3 bg-white rounded-2xl border border-slate-200 shadow-sm min-w-[70px]">
-                                                    {getRamoIcon(ramo)}
-                                                    <span className="text-[9px] font-black text-slate-600 uppercase text-center leading-tight">{ramo}</span>
-                                                </div>
-                                            ))}
+                                            {candidateProfile.activeRamos.length > 0 ? (
+                                                candidateProfile.activeRamos.map((ramo: string) => (
+                                                    <div key={ramo} className="flex flex-col items-center gap-1.5 p-3 bg-white rounded-2xl border border-slate-200 shadow-sm min-w-[70px]">
+                                                        {getRamoIcon(ramo)}
+                                                        <span className="text-[9px] font-black text-slate-600 uppercase text-center leading-tight">{ramo}</span>
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <div className="text-[10px] font-bold text-slate-400 italic py-2">Sin ramos vigentes detectados</div>
+                                            )}
                                         </div>
                                     </div>
 
@@ -818,8 +795,12 @@ export default function PredictivePage() {
                                             Oportunidad Detectada
                                         </h3>
                                         <p className="text-sm text-slate-800 font-black leading-relaxed">
-                                            Este cliente ya confía en ti para <span className="text-primary">{candidateProfile.activeRamos.join(' y ')}</span>.
-                                            El motor IA sugiere que es el momento ideal para ofrecerle <span className="underline decoration-primary decoration-2 underline-offset-4">{selectedRule?.consequent}</span>.
+                                            {candidateProfile.activeRamos.length > 0 ? (
+                                                <>Este cliente ya confía en ti para <span className="text-primary">{candidateProfile.activeRamos.join(' y ')}</span>.</>
+                                            ) : (
+                                                <>Basándonos en su **perfil de consumo comercial** y comportamiento de pares:</>
+                                            )}
+                                            {" "}El motor IA sugiere que es el momento ideal para ofrecerle <span className="underline decoration-primary decoration-2 underline-offset-4">{selectedRule?.consequent}</span>.
                                         </p>
                                         <div className="mt-4 flex items-center gap-2">
                                             <div className="px-3 py-1 bg-primary text-white text-[10px] font-black rounded-lg">MATCH ALTO</div>

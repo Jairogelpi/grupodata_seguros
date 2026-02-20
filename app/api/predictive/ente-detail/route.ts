@@ -44,9 +44,11 @@ export async function GET(request: Request) {
             const pEstado = String(p['Estado'] || '');
 
             const isMatch = (pCodeFromEnte === code || pCodeDirect === code);
-            const isActive = pEstado.toUpperCase() === 'VIGENTE' || pEstado.toUpperCase() === 'ACTIVO';
+            // Relax state filtering: if it's in the data and linked to the ente, we show it to justify the recommendation
+            const pStatus = pEstado.toUpperCase().trim();
+            const isExcluded = ['ANULADA', 'CANCELADA', 'BAJA'].includes(pStatus);
 
-            return isMatch && isActive;
+            return isMatch && !isExcluded;
         });
 
         const activeRamos = Array.from(new Set(portfolio.map((p: any) => getRamo(String(p['Producto'] || 'Otros')))));

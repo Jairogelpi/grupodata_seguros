@@ -68,7 +68,8 @@ export async function GET(request: Request) {
             return null;
         };
 
-        const enteTransactions = new Map<string, { ramo: string, date: Date }[]>();
+        // 3.5 Track unique policy numbers to provide total policy count
+        const uniquePoliciesInFilters = new Set<string>();
 
         polizas.forEach(p => {
             const finalCode = getPolizaEnteCode(p);
@@ -89,6 +90,9 @@ export async function GET(request: Request) {
 
             if (!matchAsesor || !matchEnte || !matchAnio || !matchMes || !matchEstado) return;
 
+            // Count this unique policy
+            uniquePoliciesInFilters.add(String(p['NºPóliza'] || Math.random().toString()));
+
             const producto = String(p['Producto'] || '');
             const ramo = getRamo(producto);
             // Sequential mining needs the earliest possible date for this branch for the customer
@@ -103,7 +107,8 @@ export async function GET(request: Request) {
         });
 
         const totalTransactions = enteTransactions.size;
-        if (totalTransactions === 0) return NextResponse.json({ rules: [], stats: { totalTransactions: 0 } });
+        const totalPolizas = uniquePoliciesInFilters.size;
+        if (totalTransactions === 0) return NextResponse.json({ rules: [], stats: { totalTransactions: 0, totalPolizas: 0 } });
 
         // 4. Counts for Statistical Signifance (Contingency Table)
         const ramoFrequencies = new Map<string, number>();

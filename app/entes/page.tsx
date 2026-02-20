@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Plus, Search, LayoutList, FileDown, Printer } from 'lucide-react';
+import { Plus, Search, LayoutList, FileDown, Printer, ChevronRight } from 'lucide-react';
 import FileUploader from '@/components/FileUploader';
 import MultiSelect from '@/components/MultiSelect';
 import PrintFilterSummary from '@/components/PrintFilterSummary';
@@ -25,6 +25,7 @@ export default function EntesPage() {
         Año1: ''
     });
     const [submitting, setSubmitting] = useState(false);
+    const [showAllRanking, setShowAllRanking] = useState(false);
 
     const [filters, setFilters] = useState({
         comercial: [] as string[],
@@ -268,45 +269,71 @@ export default function EntesPage() {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-6">
                     {rankingLoading ? (
                         [...Array(3)].map((_, i) => (
                             <div key={i} className="h-32 bg-slate-100 rounded-xl animate-pulse"></div>
                         ))
                     ) : efficiencyRanking.length > 0 ? (
-                        efficiencyRanking.slice(0, 3).map((item: any, idx: number) => (
-                            <div key={idx} className="relative overflow-hidden bg-white p-5 rounded-2xl border border-primary/10 shadow-sm hover:shadow-md transition-all group">
-                                <div className="absolute -right-4 -top-4 w-20 h-20 bg-primary/5 rounded-full group-hover:bg-primary/10 transition-colors"></div>
-                                <div className="flex items-center gap-3 mb-3">
-                                    <div className={`w-8 h-8 flex items-center justify-center rounded-full font-bold text-sm ${idx === 0 ? 'bg-yellow-100 text-yellow-700 shadow-sm ring-1 ring-yellow-200' :
-                                        idx === 1 ? 'bg-slate-100 text-slate-600 shadow-sm ring-1 ring-slate-200' :
-                                            'bg-orange-100 text-orange-700 shadow-sm ring-1 ring-orange-200'
-                                        }`}>
-                                        {idx + 1}
+                        <>
+                            {(showAllRanking ? efficiencyRanking : efficiencyRanking.slice(0, 3)).map((item: any, idx: number) => (
+                                <div key={idx} className="relative overflow-hidden bg-white p-5 rounded-2xl border border-primary/10 shadow-sm hover:shadow-md transition-all group">
+                                    <div className="absolute -right-4 -top-4 w-20 h-20 bg-primary/5 rounded-full group-hover:bg-primary/10 transition-colors"></div>
+                                    <div className="flex items-center gap-3 mb-3">
+                                        <div className={`w-8 h-8 flex items-center justify-center rounded-full font-bold text-sm ${idx === 0 ? 'bg-yellow-100 text-yellow-700 shadow-sm ring-1 ring-yellow-200' :
+                                            idx === 1 ? 'bg-slate-100 text-slate-600 shadow-sm ring-1 ring-slate-200' :
+                                                idx === 2 ? 'bg-orange-100 text-orange-700 shadow-sm ring-1 ring-orange-200' :
+                                                    'bg-slate-50 text-slate-400 border border-slate-100'
+                                            }`}>
+                                            {idx + 1}
+                                        </div>
+                                        <h3 className="font-bold text-slate-800 truncate">
+                                            <Link
+                                                href={`/entes/evolucion?ente=${encodeURIComponent(item.ente)}`}
+                                                className="text-indigo-600 hover:text-indigo-900 hover:underline decoration-indigo-200 underline-offset-4 transition-all"
+                                            >
+                                                {item.ente}
+                                            </Link>
+                                        </h3>
                                     </div>
-                                    <h3 className="font-bold text-slate-800 truncate">
-                                        <Link
-                                            href={`/entes/evolucion?ente=${encodeURIComponent(item.ente)}`}
-                                            className="text-indigo-600 hover:text-indigo-900 hover:underline decoration-indigo-200 underline-offset-4 transition-all"
-                                        >
-                                            {item.ente}
-                                        </Link>
-                                    </h3>
+                                    <div className="flex flex-col gap-1">
+                                        <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Ticket Medio</div>
+                                        <div className="text-xl font-black text-primary">
+                                            {new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(item.ticketMedio)}
+                                        </div>
+                                        <div className="flex justify-between items-center mt-2 text-[11px] text-slate-500 border-t pt-2">
+                                            <span>Total: <b className="text-slate-700">{new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(item.primas).replace(",00", "")}</b></span>
+                                            <span>Pólizas: <b className="text-slate-700">{item.polizas}</b></span>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="flex flex-col gap-1">
-                                    <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Ticket Medio</div>
-                                    <div className="text-xl font-black text-primary">
-                                        {new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(item.ticketMedio)}
-                                    </div>
-                                    <div className="flex justify-between items-center mt-2 text-[11px] text-slate-500 border-t pt-2">
-                                        <span>Total: <b className="text-slate-700">{new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(item.primas).replace(",00", "")}</b></span>
-                                        <span>Pólizas: <b className="text-slate-700">{item.polizas}</b></span>
-                                    </div>
+                            ))}
+
+                            {!showAllRanking && efficiencyRanking.length > 3 && (
+                                <div className="md:col-span-3 xl:col-span-4 flex justify-center mt-2">
+                                    <button
+                                        onClick={() => setShowAllRanking(true)}
+                                        className="text-sm font-bold text-primary hover:text-primary/80 flex items-center gap-2 bg-primary/5 px-6 py-2 rounded-full border border-primary/10 hover:bg-primary/10 transition-all"
+                                    >
+                                        Ver Ranking Completo ({efficiencyRanking.length} entes)
+                                        <ChevronRight className="w-4 h-4" />
+                                    </button>
                                 </div>
-                            </div>
-                        ))
+                            )}
+
+                            {showAllRanking && (
+                                <div className="md:col-span-3 xl:col-span-4 flex justify-center mt-4">
+                                    <button
+                                        onClick={() => setShowAllRanking(false)}
+                                        className="text-[10px] font-bold text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors"
+                                    >
+                                        Mostrar menos
+                                    </button>
+                                </div>
+                            )}
+                        </>
                     ) : (
-                        <div className="col-span-3 text-center py-8 text-slate-400 italic bg-slate-50 rounded-xl border border-dashed">
+                        <div className="col-span-3 xl:col-span-4 text-center py-8 text-slate-400 italic bg-slate-50 rounded-xl border border-dashed">
                             Selecciona filtros con datos para ver el ranking
                         </div>
                     )}
