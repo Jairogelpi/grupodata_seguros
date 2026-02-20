@@ -70,6 +70,7 @@ export async function GET(request: Request) {
 
         // 3.5 Track unique policy numbers to provide total policy count
         const uniquePoliciesInFilters = new Set<string>();
+        const enteTransactions = new Map<string, { ramo: string, date: Date }[]>();
 
         polizas.forEach(p => {
             const finalCode = getPolizaEnteCode(p);
