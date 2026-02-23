@@ -22,6 +22,7 @@ export async function GET(request: Request) {
         const ramoFilter = searchParams.get('ramo'); // Ramo classification filter
         const productoFilter = searchParams.get('producto');
         const companiaFilter = searchParams.get('compania');
+        const crossSellFilter = searchParams.get('crossSell'); // Cross-sell count filter (1, 2, 3+)
 
         // 1. Read Data
         const [polizas, links] = await Promise.all([
@@ -58,6 +59,21 @@ export async function GET(request: Request) {
             const link = links.find(l => String(l['ENTE']) === name);
             return link ? String(link['ASESOR'] || '') : null;
         };
+
+        // 2.5 Calculate Cross-Selling (Unique Ramos per Tomador)
+        const tomadorRamosMap = new Map<string, Set<string>>();
+        polizas.forEach(p => {
+            const tomadorDni = String(p['NIF/CIF Tomador'] || '').trim();
+            const tomadorName = String(p['Tomador'] || '').trim();
+            const tomadorKey = tomadorDni || tomadorName || 'DESCONOCIDO';
+
+            const producto = String(p['Producto'] || '');
+            const ramo = getRamo(producto);
+            if (tomadorKey && ramo) {
+                if (!tomadorRamosMap.has(tomadorKey)) tomadorRamosMap.set(tomadorKey, new Set());
+                tomadorRamosMap.get(tomadorKey)!.add(ramo);
+            }
+        });
 
         // 3. Filter Policies
         console.log(`[API:Listado] Total polizas from file: ${polizas.length}`);
@@ -123,6 +139,25 @@ export async function GET(request: Request) {
                 if (!companias.includes(cia)) return false;
             }
 
+            // Filter by Cross-Selling
+            if (crossSellFilter) {
+                const tomadorDni = String(p['NIF/CIF Tomador'] || '').trim();
+                const tomadorName = String(p['Tomador'] || '').trim();
+                const tomadorKey = tomadorDni || tomadorName || 'DESCONOCIDO';
+
+                const ramosCount = tomadorRamosMap.get(tomadorKey)?.size || 0;
+                const allowed = crossSellFilter.split(',');
+
+                // Handle "3+" case if needed, but here we just check exact numbers
+                // If user sends "3", they might mean 3 or more? Usually it's specific.
+                // For simplicity, let's treat "3" as ">= 3" if the user wants "3+"
+                const match = allowed.some(val => {
+                    if (val === '3+') return ramosCount >= 3;
+                    return ramosCount === parseInt(val);
+                });
+                if (!match) return false;
+            }
+
             return true;
         })
 
@@ -169,7 +204,8 @@ export async function GET(request: Request) {
                 primas: parseFloat(String(p['P.Produccion'] || '0').replace(',', '.')) || 0,
                 cartera: parseFloat(String(p['P.Cartera'] || '0').replace(',', '.')) || 0,
                 compania: p['Abrev.Cía'] || 'N/A',
-                ente: getPolizaEnteName(p) || 'Desconocido'
+                ente: getPolizaEnteName(p) || 'Desconocido',
+                ventaCruzada: tomadorRamosMap.get(String(p['NIF/CIF Tomador'] || '').trim() || String(p['Tomador'] || '').trim() || 'DESCONOCIDO')?.size || 0
             };
         });
 

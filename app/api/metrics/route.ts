@@ -143,7 +143,13 @@ export async function GET(request: Request) {
 
             const pAsesor = codeToAsesorMap.get(code) || 'Sin Asesor';
             const pEnteName = codeToNameMap.get(code) || code;
-            const tomadorName = String(p['Tomador'] || '').trim() || pEnteName;
+
+            // Strictly Tomador identification: DNI is the gold standard, fallback to name only.
+            const tomadorDni = String(p['NIF/CIF Tomador'] || '').trim();
+            const tomadorName = String(p['Tomador'] || '').trim();
+            const tomadorKey = tomadorDni || tomadorName || 'DESCONOCIDO';
+
+            const tomadorDisplayName = tomadorName || pEnteName; // UI fallback for label only
 
             const matchAnio = anios.length === 0 || anios.includes(pAnio);
             const matchMes = meses.length === 0 || meses.includes(pMes);
@@ -241,8 +247,8 @@ export async function GET(request: Request) {
             if (!enteRamosMap.has(code)) enteRamosMap.set(code, new Set());
             enteRamosMap.get(code)!.add(ramoName);
 
-            if (!tomadorRamosMap.has(tomadorName)) tomadorRamosMap.set(tomadorName, new Set());
-            tomadorRamosMap.get(tomadorName)!.add(ramoName);
+            if (!tomadorRamosMap.has(tomadorKey)) tomadorRamosMap.set(tomadorKey, new Set());
+            tomadorRamosMap.get(tomadorKey)!.add(ramoName);
         });
 
         const crossSellingCounts = { 1: 0, 2: 0, '3+': 0 };
@@ -376,7 +382,7 @@ export async function GET(request: Request) {
             });
         }
 
-        const crossSellRatio = totalTomadoresWithPolizas > 0 ? totalRamosCoverage / totalTomadoresWithPolizas : 0;
+        const crossSellRatio = totalTomadoresWithPolizas > 0 ? (totalRamosCoverage / totalTomadoresWithPolizas) : 0;
 
         let totalAnuladas = 0;
         breakdownMap.forEach(b => totalAnuladas += b.anulaciones);

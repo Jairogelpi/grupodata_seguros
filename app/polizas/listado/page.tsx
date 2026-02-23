@@ -25,6 +25,7 @@ interface Poliza {
     cartera: number;
     compania: string;
     ente: string;
+    ventaCruzada: number;
 }
 
 const MONTHS = [
@@ -53,6 +54,7 @@ function PolizasContent() {
             startMonth: searchParams.get('startMonth') ? [searchParams.get('startMonth')!] : filters.startMonth,
             endYear: searchParams.get('endYear') ? [searchParams.get('endYear')!] : filters.endYear,
             endMonth: searchParams.get('endMonth') ? [searchParams.get('endMonth')!] : filters.endMonth,
+            crossSell: searchParams.get('crossSell') ? searchParams.get('crossSell')!.split(',') : filters.crossSell,
         };
 
         // Update global filters if URL params were present
@@ -91,6 +93,7 @@ function PolizasContent() {
             if (filters.anio.length > 0) params.append('anio', filters.anio.join(','));
             if (filters.mes.length > 0) params.append('mes', filters.mes.join(','));
             if (filters.compania.length > 0) params.append('compania', filters.compania.join(','));
+            if (filters.crossSell.length > 0) params.append('crossSell', filters.crossSell.join(','));
 
             const res = await fetch(`/api/polizas/listado?${params.toString()}`);
             if (!res.ok) throw new Error('Failed to fetch polizas');
@@ -113,7 +116,7 @@ function PolizasContent() {
 
     const sortedData = useMemo(() => {
         const filtered = polizas.filter(p => {
-            const searchStr = `${p.poliza} ${p.tomador} ${p.dni} ${p.producto} ${p.ente}`.toLowerCase();
+            const searchStr = `${p.poliza} ${p.tomador} ${p.dni} ${p.producto} ${p.ente} ${p.ventaCruzada}`.toLowerCase();
             return searchStr.includes(searchTerm.toLowerCase());
         });
 
@@ -232,6 +235,7 @@ function PolizasContent() {
                             {filters.compania.length > 0 && ` • Cía: ${filters.compania.join(', ')}`}
                             {filters.anio.length > 0 && filters.mes.length > 0 && ` • Periodo: ${MONTHS[parseInt(filters.mes[0]) - 1]} ${filters.anio[0]}`}
                             {filters.startYear.length > 0 && filters.startMonth.length > 0 && filters.anio.length === 0 && ` • ${MONTHS[parseInt(filters.startMonth[0]) - 1]} ${filters.startYear[0]} a ${MONTHS[parseInt(filters.endMonth[0]) - 1]} ${filters.endYear[0]}`}
+                            {filters.crossSell.length > 0 && ` • V. Cruzada: ${filters.crossSell.join(', ')}`}
                         </p>
                     </div>
                 </div>
@@ -282,6 +286,25 @@ function PolizasContent() {
                             className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-4 focus:ring-primary/10 transition-all text-sm"
                         />
                     </div>
+                    {/* Cross-Sell Filter */}
+                    <div className="flex gap-2 no-print">
+                        {['1', '2', '3+'].map(val => (
+                            <button
+                                key={val}
+                                onClick={() => {
+                                    const current = filters.crossSell;
+                                    const next = current.includes(val) ? current.filter(v => v !== val) : [...current, val];
+                                    updateFilter('crossSell', next);
+                                }}
+                                className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all shadow-sm ${filters.crossSell.includes(val)
+                                    ? 'bg-primary text-white border-primary'
+                                    : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                                    }`}
+                            >
+                                {val === '3+' ? '3 o más Ramos' : `${val} ${parseInt(val) === 1 ? 'Ramo' : 'Ramos'}`}
+                            </button>
+                        ))}
+                    </div>
                 </div>
 
                 <div className="overflow-x-auto">
@@ -308,6 +331,9 @@ function PolizasContent() {
                                 </th>
                                 <th onClick={() => handleSort('estado')} className="p-4 font-bold text-slate-500 uppercase tracking-widest text-[10px] text-center cursor-pointer hover:bg-slate-100">
                                     Estado <SortIcon col="estado" />
+                                </th>
+                                <th onClick={() => handleSort('ventaCruzada')} className="p-4 font-bold text-slate-500 uppercase tracking-widest text-[10px] text-center cursor-pointer hover:bg-slate-100">
+                                    V. Cruzada <SortIcon col="ventaCruzada" />
                                 </th>
                             </tr>
                         </thead>
@@ -346,6 +372,14 @@ function PolizasContent() {
                                                 {p.estado}
                                             </span>
                                             {p.fechaAnulacion && <div className="text-[9px] text-red-400 mt-1">{p.fechaAnulacion}</div>}
+                                        </td>
+                                        <td className="p-4 text-center">
+                                            <div className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-xs font-black shadow-inner ${p.ventaCruzada >= 3 ? 'bg-indigo-100 text-indigo-700' :
+                                                p.ventaCruzada === 2 ? 'bg-purple-100 text-purple-700' :
+                                                    'bg-slate-100 text-slate-400'
+                                                }`}>
+                                                {p.ventaCruzada}
+                                            </div>
                                         </td>
                                     </tr>
                                 ))

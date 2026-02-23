@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from 'react';
+import Link from 'next/link';
 import { PieChart as PieIcon, FileText, LayoutList, ArrowUpDown, ArrowUp, ArrowDown, FileDown, Printer, BarChart2, TrendingUp, Info, Package, ShieldCheck, Zap, AlertCircle, XCircle, Users } from 'lucide-react';
 import MultiSelect from '@/components/MultiSelect';
 import PrintFilterSummary from '@/components/PrintFilterSummary';
@@ -535,21 +536,20 @@ export default function CarteraPage() {
         }
     };
 
-    const getFilterParams = (item: string) => {
+    const getFilterParams = (overrides: Record<string, string> = {}) => {
         const params = new URLSearchParams();
-        if (filters.comercial.length > 0) params.append('comercial', filters.comercial.join(','));
+        if (filters.comercial.length > 0) params.append('asesor', filters.comercial.join(','));
         if (filters.ente.length > 0) params.append('ente', filters.ente.join(','));
         if (filters.anio.length > 0) params.append('anio', filters.anio.join(','));
         if (filters.mes.length > 0) params.append('mes', filters.mes.join(','));
         if (filters.estado.length > 0) params.append('estado', filters.estado.join(','));
-        if (filters.ramo.length > 0) params.append('ramo', filters.ramo.join(',')); // Add global ramo filter
-        if (filters.producto.length > 0) params.append('producto', filters.producto.join(',')); // Add global product filter
+        if (filters.ramo.length > 0) params.append('ramo', filters.ramo.join(','));
+        if (filters.producto.length > 0) params.append('producto', filters.producto.join(','));
 
-        if (mixDepth === 'ramo') {
-            params.append('ramo', item); // Specific item override/add
-        } else {
-            params.append('producto', item);
-        }
+        Object.entries(overrides).forEach(([key, value]) => {
+            params.set(key, value);
+        });
+
         return params.toString();
     };
 
@@ -609,52 +609,71 @@ export default function CarteraPage() {
 
             {/* KPIs */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <Link
+                    href={`/polizas/listado?${getFilterParams({ estado: 'VIGOR' })}`}
+                    className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:shadow-md hover:border-indigo-300 transition-all group"
+                >
                     <div className="flex justify-between items-start">
-                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Primas en Cartera</h3>
+                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest group-hover:text-indigo-500 transition-colors">Primas en Cartera</h3>
                         <div className="p-2 bg-indigo-50 rounded-lg"><ShieldCheck className="w-4 h-4 text-indigo-500" /></div>
                     </div>
                     <div className="mt-4">
                         <span className="text-2xl font-black text-slate-800 tracking-tight">{metrics ? currencyFormatter.format(metrics.primasNP) : '0,00 €'}</span>
                     </div>
-                </div>
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                </Link>
+
+                <Link
+                    href={`/polizas/listado?${getFilterParams({ estado: 'VIGOR' })}`}
+                    className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:shadow-md hover:border-emerald-300 transition-all group"
+                >
                     <div className="flex justify-between items-start">
-                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Pólizas Activas</h3>
+                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest group-hover:text-emerald-500 transition-colors">Pólizas Activas</h3>
                         <div className="p-2 bg-emerald-50 rounded-lg"><Package className="w-4 h-4 text-emerald-500" /></div>
                     </div>
                     <div className="mt-4">
                         <span className="text-2xl font-black text-slate-800 tracking-tight">{metrics ? numberFormatter.format(metrics.numPolizas) : '0'}</span>
                     </div>
-                </div>
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                </Link>
+
+                <Link
+                    href={`/polizas/listado?${getFilterParams({ estado: 'ANULADA' })}`}
+                    className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:shadow-md hover:border-red-300 transition-all group"
+                >
                     <div className="flex justify-between items-start">
-                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Tasa Abandono</h3>
+                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest group-hover:text-red-500 transition-colors">Tasa Abandono</h3>
                         <div className="p-2 bg-red-50 rounded-lg"><AlertCircle className="w-4 h-4 text-red-500" /></div>
                     </div>
                     <div className="mt-4 flex items-baseline gap-2">
                         <span className="text-2xl font-black text-red-600 tracking-tight">{metrics ? metrics.churnRate.toFixed(1) : '0.0'}%</span>
                     </div>
-                </div>
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                </Link>
+
+                <Link
+                    href={`/polizas/listado?${getFilterParams({ crossSell: '2,3+' })}`}
+                    className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:shadow-md hover:border-purple-300 transition-all group"
+                >
                     <div className="flex justify-between items-start">
-                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Venta Cruzada</h3>
+                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest group-hover:text-purple-500 transition-colors">Venta Cruzada</h3>
                         <div className="p-2 bg-purple-50 rounded-lg"><TrendingUp className="w-4 h-4 text-purple-500" /></div>
                     </div>
                     <div className="mt-4 flex items-baseline gap-2">
                         <span className="text-2xl font-black text-purple-600 tracking-tight">{metrics ? metrics.crossSellRatio.toFixed(2) : '0.00'}</span>
                     </div>
-                </div>
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                </Link>
+
+                <Link
+                    href={`/polizas/listado?${getFilterParams({ estado: 'ANULADA' })}`}
+                    className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:shadow-md hover:border-slate-400 transition-all group"
+                >
                     <div className="flex justify-between items-start">
-                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Sin Efecto</h3>
+                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest group-hover:text-slate-600 transition-colors">Sin Efecto</h3>
                         <div className="p-2 bg-slate-50 rounded-lg"><XCircle className="w-4 h-4 text-slate-400" /></div>
                     </div>
                     <div className="mt-4 flex items-baseline gap-2">
                         <span className="text-2xl font-black text-slate-600 tracking-tight">{metrics ? metrics.polizasSinEfecto : '0'}</span>
                         <span className="text-[10px] text-slate-400 font-bold uppercase">Anuladas</span>
                     </div>
-                </div>
+                </Link>
             </div>
 
             {/* Main Distribution */}
@@ -703,7 +722,7 @@ export default function CarteraPage() {
                                             <td className="p-3 text-right font-extrabold text-primary font-mono text-xs">{currencyFormatter.format(p.primas)}</td>
                                             <td className="p-3 text-right font-bold text-slate-400 text-xs">{pct}%</td>
                                             <td className="p-3 pr-6 text-right no-print">
-                                                <button onClick={(e) => { e.stopPropagation(); window.location.href = `/polizas/listado?${getFilterParams(p.name)}`; }} className="p-1.5 text-primary hover:text-white hover:bg-primary transition-all rounded-lg border border-slate-200 shadow-sm"><TrendingUp className="w-3.5 h-3.5" /></button>
+                                                <button onClick={(e) => { e.stopPropagation(); window.location.href = `/polizas/listado?${getFilterParams({ [mixDepth]: p.name })}`; }} className="p-1.5 text-primary hover:text-white hover:bg-primary transition-all rounded-lg border border-slate-200 shadow-sm"><TrendingUp className="w-3.5 h-3.5" /></button>
                                             </td>
                                         </tr>
                                     );

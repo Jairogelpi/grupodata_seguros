@@ -15,6 +15,7 @@ interface Filters {
     endYear: string[];
     endMonth: string[];
     compania: string[];
+    crossSell: string[];
 }
 
 interface FilterContextType {
@@ -36,7 +37,8 @@ const defaultFilters: Filters = {
     startMonth: [],
     endYear: [],
     endMonth: [],
-    compania: []
+    compania: [],
+    crossSell: []
 };
 
 const FilterContext = createContext<FilterContextType | undefined>(undefined);
