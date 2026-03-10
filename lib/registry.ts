@@ -18,7 +18,6 @@ export interface EnteRecord {
     Año1?: number;
 }
 
-// Links (Asesor ↔ Ente)
 export async function getLinks(): Promise<LinkRecord[]> {
     return readData('entes_registrados_asesor.xlsx') as Promise<LinkRecord[]>;
 }
@@ -41,16 +40,13 @@ export async function removeLink(asesor: string, enteFormatted: string): Promise
     await writeData('entes_registrados_asesor.xlsx', Buffer.from(excelBuffer));
 }
 
-// Entes Registry
 export async function getEntes(): Promise<EnteRecord[]> {
     return readData('entes.xlsx') as Promise<EnteRecord[]>;
 }
 
 export async function addEnte(ente: EnteRecord): Promise<EnteRecord[]> {
-    // The user explicitly requested that registering entes SHOULD OVERWRITE the file
     const currentData = [ente];
 
-    // Rebuild the Excel buffer
     const ws = XLSX.utils.json_to_sheet(currentData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Hoja1');

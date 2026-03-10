@@ -3,8 +3,6 @@
 import { useState, useEffect } from 'react';
 import { Link as LinkIcon, UserCheck, Building2, AlertCircle, Check } from 'lucide-react';
 
-
-// Wait, I should stick to my custom SearchableSelect since I don't know if headlessui is installed.
 import SearchableSelect from '@/components/SearchableSelect';
 
 interface Asesor {
@@ -12,9 +10,12 @@ interface Asesor {
 }
 
 interface Ente {
-    Código: string | number;
+    'Código'?: string | number;
+    'CÃ³digo'?: string | number;
     Nombre: string;
 }
+
+const getEnteCode = (ente: Ente) => ente['Código'] ?? ente['CÃ³digo'] ?? '';
 
 export default function EnlazarPage() {
     const [asesores, setAsesores] = useState<Asesor[]>([]);
@@ -69,9 +70,9 @@ export default function EnlazarPage() {
             const data = await res.json();
 
             if (res.ok) {
-                setMessage({ type: 'success', text: 'Vínculo creado correctamente' });
+                setMessage({ type: 'success', text: 'Vinculo creado correctamente' });
                 setFormData(prev => ({ ...prev, enteCode: '' }));
-                // Refresh list of entes to reflect current state if needed
+
                 const entesRes = await fetch('/api/entes');
                 const entesData = await entesRes.json();
                 if (Array.isArray(entesData)) setEntes(entesData);
@@ -79,21 +80,23 @@ export default function EnlazarPage() {
                 setMessage({ type: 'error', text: data.error || 'Error al vincular' });
             }
         } catch (error) {
-            setMessage({ type: 'error', text: 'Error de conexión' });
+            setMessage({ type: 'error', text: 'Error de conexion' });
         } finally {
             setSubmitting(false);
         }
     };
 
-    // Prepare options for Selects
     const asesorOptions = asesores
-        .filter(a => a.ASESOR) // Filter out empty strings
+        .filter(a => a.ASESOR)
         .map(a => ({ value: a.ASESOR, label: a.ASESOR }))
         .sort((a, b) => a.label.localeCompare(b.label));
 
     const enteOptions = entes
-        .filter(e => e.Código && e.Nombre)
-        .map(e => ({ value: String(e.Código), label: `${e.Nombre} (${e.Código})` }))
+        .filter(e => getEnteCode(e) && e.Nombre)
+        .map(e => {
+            const code = String(getEnteCode(e));
+            return { value: code, label: `${e.Nombre} (${code})` };
+        })
         .sort((a, b) => a.label.localeCompare(b.label));
 
     return (
@@ -105,8 +108,6 @@ export default function EnlazarPage() {
 
             <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
                 <form onSubmit={handleSubmit} className="space-y-6">
-
-                    {/* Asesor Searchable Select */}
                     <div>
                         <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
                             <UserCheck className="w-4 h-4 text-primary" />
@@ -120,7 +121,6 @@ export default function EnlazarPage() {
                         />
                     </div>
 
-                    {/* Ente Searchable Select */}
                     <div>
                         <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
                             <Building2 className="w-4 h-4 text-primary" />
@@ -130,11 +130,10 @@ export default function EnlazarPage() {
                             options={enteOptions}
                             value={formData.enteCode}
                             onChange={(val) => setFormData(prev => ({ ...prev, enteCode: val }))}
-                            placeholder="Buscar ente (nombre o código)..."
+                            placeholder="Buscar ente (nombre o codigo)..."
                         />
                     </div>
 
-                    {/* Success/Error Message */}
                     {message && (
                         <div className={`p-4 rounded-lg flex items-center gap-3 ${message.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'
                             }`}>
@@ -151,7 +150,7 @@ export default function EnlazarPage() {
                         {submitting ? 'Vinculando...' : (
                             <>
                                 <LinkIcon className="w-5 h-5" />
-                                Crear Vínculo
+                                Crear Vinculo
                             </>
                         )}
                     </button>
@@ -159,9 +158,9 @@ export default function EnlazarPage() {
             </div>
 
             <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
-                <h3 className="text-sm font-bold text-slate-700 mb-2">Información</h3>
+                <h3 className="text-sm font-bold text-slate-700 mb-2">Informacion</h3>
                 <p className="text-xs text-slate-500 leading-relaxed">
-                    Al enlazar un asesor con un ente, todos los datos vinculados a ese código de ente en el listado de pólizas se atribuirán al asesor seleccionado en los informes del panel de control. Utiliza el buscador para encontrar rápidamente asesores o entes.
+                    Al enlazar un asesor con un ente, todos los datos vinculados a ese codigo de ente en el listado de polizas se atribuiran al asesor seleccionado en los informes del panel de control. Utiliza el buscador para encontrar rapidamente asesores o entes.
                 </p>
             </div>
         </div>

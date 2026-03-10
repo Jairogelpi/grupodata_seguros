@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getEntes, addLink, getLinks, removeLink } from '@/lib/registry';
 
+function getEnteCode(row: any): string {
+    return String(row['Código'] ?? row['CÃ³digo'] ?? row['CÃƒÂ³digo'] ?? '').trim();
+}
+
 export async function POST(request: Request) {
     try {
         const { asesor, enteCode } = await request.json();
@@ -10,19 +14,18 @@ export async function POST(request: Request) {
         }
 
         const entesData = await getEntes();
-        const enteRow = entesData.find((row: any) => String(row['Código']) === String(enteCode));
+        const enteRow = entesData.find((row: any) => getEnteCode(row) === String(enteCode).trim());
 
         if (!enteRow) {
-            return NextResponse.json({ error: 'Código de Ente no existe' }, { status: 404 });
+            return NextResponse.json({ error: 'Codigo de Ente no existe' }, { status: 404 });
         }
 
-        const enteName = enteRow['Nombre'] || 'Desconocido';
-        const formattedEnte = `${enteName} - ${enteCode}`;
+        const enteName = String(enteRow['Nombre'] || 'Desconocido');
+        const formattedEnte = `${enteName} - ${getEnteCode(enteRow)}`;
 
         await addLink({ ASESOR: asesor, ENTE: formattedEnte });
 
         return NextResponse.json({ success: true, message: 'Enlazado correctamente' });
-
     } catch (error: any) {
         console.error(error);
         return NextResponse.json({ error: error.message || 'Failed to link' }, { status: 500 });
@@ -45,13 +48,12 @@ export async function DELETE(request: Request) {
         );
 
         if (!targetLink) {
-            return NextResponse.json({ error: 'Vínculo no encontrado' }, { status: 404 });
+            return NextResponse.json({ error: 'Vinculo no encontrado' }, { status: 404 });
         }
 
         await removeLink(asesor, String(targetLink['ENTE']));
 
         return NextResponse.json({ success: true, message: 'Desvinculado correctamente' });
-
     } catch (error: any) {
         console.error(error);
         return NextResponse.json({ error: error.message || 'Failed to unlink' }, { status: 500 });

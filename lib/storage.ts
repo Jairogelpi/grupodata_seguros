@@ -5,43 +5,56 @@ import { createClient } from '@supabase/supabase-js';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const IS_VERCEL = process.env.VERCEL === '1';
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://yjelnqsbohuorcrpkxng.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlqZWxucXNib2h1b3JjcnBraG5nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0ODQxNzAsImV4cCI6MjA4NzA2MDE3MH0.iTHGj5KNWpw9ADMwWRyTI1oSoVaLQxiS-s_FZNgqC78';
-const USE_SUPABASE = !!(SUPABASE_URL && SUPABASE_KEY);
+const SUPABASE_URL =
+    process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.SUPABASE_URL ||
+    'https://yjelnqsbohuorcrpkxng.supabase.co';
+const SUPABASE_ANON_KEY =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    process.env.SUPABASE_ANON_KEY ||
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlqZWxucXNib2h1b3JjcnBraG5nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0ODQxNzAsImV4cCI6MjA4NzA2MDE3MH0.iTHGj5KNWpw9ADMwWRyTI1oSoVaLQxiS-s_FZNgqC78';
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const BUCKET_NAME = 'metrics';
 
-const supabase = USE_SUPABASE ? createClient(SUPABASE_URL, SUPABASE_KEY, {
-    auth: {
-        persistSession: false
-    }
-}) : null;
+const readClient = SUPABASE_URL && SUPABASE_ANON_KEY
+    ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: {
+            persistSession: false
+        }
+    })
+    : null;
 
-// In-memory cache to avoid redundant downloads
+const writeClient = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
+    ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+        auth: {
+            persistSession: false
+        }
+    })
+    : null;
+
 const storageCache: Record<string, { data: any[], timestamp: number }> = {};
-const CACHE_TTL_MS = 5000; // 5 seconds cache
+const CACHE_TTL_MS = 5000;
 
-/**
- * Get the local file path for a given filename
- */
 function getLocalPath(filename: string): string {
     return path.join(DATA_DIR, filename);
 }
 
-/**
- * Read an Excel file and return parsed JSON rows.
- * Primarily uses Supabase Storage.
- */
+function ensureLocalDataDir(): void {
+    if (!fs.existsSync(DATA_DIR)) {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+}
+
 export async function readData(filename: string): Promise<any[]> {
-    // Check in-memory cache first
     const cached = storageCache[filename];
     if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
         return cached.data;
     }
 
-    if (supabase) {
+    if (readClient) {
         try {
             console.log(`[Storage] Reading ${filename} from Supabase...`);
-            const { data: blob, error } = await supabase.storage.from(BUCKET_NAME).download(filename);
+            const { data: blob, error } = await readClient.storage.from(BUCKET_NAME).download(filename);
 
             if (!error && blob) {
                 const arrayBuffer = await blob.arrayBuffer();
@@ -51,46 +64,46 @@ export async function readData(filename: string): Promise<any[]> {
                 storageCache[filename] = { data, timestamp: Date.now() };
                 return data;
             }
+
             console.warn(`[Storage] Supabase error/missing reading ${filename}: ${error?.message || 'Empty'}`);
         } catch (err) {
             console.error(`[Storage] Unexpected error reading ${filename}:`, err);
         }
     }
 
-    // Fallback to local
     return readFromDisk(filename);
 }
 
-/**
- * Write raw file buffer (for uploads).
- * Writes directly to Supabase Storage.
- */
 export async function writeData(filename: string, buffer: Buffer): Promise<void> {
-    if (supabase) {
-        try {
-            console.log(`[Storage] Writing ${filename} to Supabase...`);
-            const { error } = await supabase.storage.from(BUCKET_NAME).upload(filename, buffer, {
-                cacheControl: '0',
-                upsert: true,
-                contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            });
-
-            if (error) {
-                console.error(`[Storage] Supabase upload error: ${error.message}`);
-                throw new Error(`Failed to save to Supabase: ${error.message}`);
-            }
-            // Invalidate ALL entries to ensure consistency across related data
-            Object.keys(storageCache).forEach(key => delete storageCache[key]);
-        } catch (err) {
-            console.error(`[Storage] Error writing ${filename} to Supabase:`, err);
-            // Re-throw to ensure the API returns an error instead of pretending success
-            throw err;
-        }
+    if (!writeClient) {
+        throw new Error(
+            `No se puede escribir en el bucket "${BUCKET_NAME}" sin SUPABASE_SERVICE_ROLE_KEY. ` +
+            `La lectura puede usar anon key, pero la escritura del servidor no.`
+        );
     }
 
-    // Always attempt local write in dev for reference/backup
+    try {
+        console.log(`[Storage] Writing ${filename} to Supabase...`);
+        const { error } = await writeClient.storage.from(BUCKET_NAME).upload(filename, buffer, {
+            cacheControl: '0',
+            upsert: true,
+            contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        });
+
+        if (error) {
+            console.error(`[Storage] Supabase upload error: ${error.message}`);
+            throw new Error(`Failed to save to Supabase: ${error.message}`);
+        }
+
+        Object.keys(storageCache).forEach(key => delete storageCache[key]);
+    } catch (err) {
+        console.error(`[Storage] Error writing ${filename} to Supabase:`, err);
+        throw err;
+    }
+
     if (!IS_VERCEL) {
         try {
+            ensureLocalDataDir();
             const filePath = getLocalPath(filename);
             fs.writeFileSync(filePath, buffer);
             console.log(`[Storage:Disk] Saved ${filename} locally`);
@@ -100,10 +113,6 @@ export async function writeData(filename: string, buffer: Buffer): Promise<void>
     }
 }
 
-/**
- * Append a row to an Excel file.
- * - Reads current data, appends row, writes back
- */
 export async function appendData(filename: string, newRow: any): Promise<any[]> {
     const currentData = await readData(filename);
     currentData.push(newRow);
@@ -117,9 +126,6 @@ export async function appendData(filename: string, newRow: any): Promise<any[]> 
     return currentData;
 }
 
-// ============================================================
-// LOCAL DISK FALLBACK
-// ============================================================
 function readFromDisk(filename: string): any[] {
     try {
         const filePath = getLocalPath(filename);
@@ -135,15 +141,13 @@ function readFromDisk(filename: string): any[] {
     }
 }
 
-/**
- * Sync: Helper to upload all local files to Supabase
- */
 export async function syncLocalToBlob(): Promise<string[]> {
     const files = [
         'listado_polizas.xlsx', 'entes.xlsx', 'entes_registrados_asesor.xlsx',
         'lista_asesores.xlsx', 'lista_anos.xlsx', 'lista_meses.xlsx', 'lista_estados.xlsx'
     ];
     const synced: string[] = [];
+
     for (const file of files) {
         try {
             const localPath = getLocalPath(file);
@@ -152,7 +156,10 @@ export async function syncLocalToBlob(): Promise<string[]> {
                 await writeData(file, buffer);
                 synced.push(file);
             }
-        } catch (e) { }
+        } catch (e) {
+            console.error(`[Storage] Error syncing ${file}:`, e);
+        }
     }
+
     return synced;
 }
