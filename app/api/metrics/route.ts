@@ -8,6 +8,12 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
+        const normalizeText = (value: any) =>
+            String(value || '')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .trim()
+                .toLowerCase();
 
         // Helper to parse comma-separated params into arrays, handling 'Todos'
         const parseParam = (param: string | null) => {
@@ -38,6 +44,7 @@ export async function GET(request: Request) {
         const codeToNameMap = new Map<string, string>();
         const codeToAsesorMap = new Map<string, string>();
         const validEnteCodes = new Set<string>();
+        const specialUnlinkedTypes = new Set(['subagente empleado', 'comercial']);
 
         links.forEach(l => {
             const val = String(l['ENTE']);
@@ -47,6 +54,22 @@ export async function GET(request: Request) {
             codeToNameMap.set(code, val);
             codeToAsesorMap.set(code, asesor);
             validEnteCodes.add(code);
+        });
+
+        entesData.forEach((ente: any) => {
+            const code = String(ente['CÃ³digo'] || ente['Código'] || '').trim();
+            const nombre = String(ente['Nombre'] || '').trim();
+            const tipo = normalizeText(ente['Tipo']);
+            if (!code || !specialUnlinkedTypes.has(tipo)) return;
+
+            validEnteCodes.add(code);
+
+            if (!codeToNameMap.has(code)) {
+                codeToNameMap.set(code, nombre ? `${nombre} - ${code}` : code);
+            }
+            if (!codeToAsesorMap.has(code)) {
+                codeToAsesorMap.set(code, 'Sin Asesor');
+            }
         });
 
         const getPolizaEnteCode = (p: any) => {
