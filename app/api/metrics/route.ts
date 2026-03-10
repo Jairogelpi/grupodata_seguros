@@ -44,7 +44,12 @@ export async function GET(request: Request) {
         const codeToNameMap = new Map<string, string>();
         const codeToAsesorMap = new Map<string, string>();
         const validEnteCodes = new Set<string>();
-        const specialUnlinkedTypes = new Set(['subagente empleado', 'comercial']);
+        const specialUnlinkedTypes = new Set(['subagente', 'comercial', 'empleado']);
+        const entesByType = {
+            subagente: 0,
+            comercial: 0,
+            empleado: 0
+        };
 
         links.forEach(l => {
             const val = String(l['ENTE']);
@@ -59,8 +64,15 @@ export async function GET(request: Request) {
         entesData.forEach((ente: any) => {
             const code = String(ente['CÃ³digo'] || ente['Código'] || '').trim();
             const nombre = String(ente['Nombre'] || '').trim();
-            const tipo = normalizeText(ente['Tipo']);
-            if (!code || !specialUnlinkedTypes.has(tipo)) return;
+            const tipoRaw = String(ente['Tipo'] || '');
+            const tipo = normalizeText(tipoRaw);
+
+            // Count by type if it matches the target types
+            if (tipo.includes('subagente')) entesByType.subagente++;
+            else if (tipo.includes('comercial')) entesByType.comercial++;
+            else if (tipo.includes('empleado')) entesByType.empleado++;
+
+            if (!code || !Array.from(specialUnlinkedTypes).some(t => tipo.includes(t))) return;
 
             validEnteCodes.add(code);
 
@@ -457,6 +469,7 @@ export async function GET(request: Request) {
             jumpProbabilities,
             crossSellingDistribution: crossSellingCounts,
             paretoData: paretoData,
+            entesByType: entesByType,
             survivalByRamo: Array.from(survivalStats.entries()).map(([ramo, stats]) => ({
                 ramo, avgMonths: stats.count > 0 ? stats.totalMonths / stats.count : 0
             })).sort((a, b) => b.avgMonths - a.avgMonths),

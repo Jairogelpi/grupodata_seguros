@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Grupo Data Seguros</string>
+    <string name="title_activity_main">Grupo Data Seguros</string>
+    <string name="package_name">com.grupodata.seguros</string>
+    <string name="custom_url_scheme">com.grupodata.seguros</string>
+</resources>
