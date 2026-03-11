@@ -58,7 +58,8 @@ export async function GET(request: Request) {
         const asesoresOptions = asesoresList.map(a => a['ASESOR']).filter(Boolean).sort();
 
         // 3. Performance Indexing
-        const codeToNameMap = new Map<string, string>();
+        const codeToLinkedNameMap = new Map<string, string>();
+        const codeToDisplayNameMap = new Map<string, string>();
         const codeToAsesorMap = new Map<string, string>();
         const validEnteCodes = new Set<string>();
         const specialUnlinkedTypes = new Set(['subagente', 'comercial', 'empleado']);
@@ -73,7 +74,7 @@ export async function GET(request: Request) {
             const parts = val.split(' - ');
             const code = parts.length > 1 ? parts[parts.length - 1].trim() : val.trim();
             const asesor = String(l['ASESOR'] || 'Sin Asesor');
-            codeToNameMap.set(code, val);
+            codeToLinkedNameMap.set(code, val);
             codeToAsesorMap.set(code, asesor);
             validEnteCodes.add(code);
         });
@@ -93,8 +94,8 @@ export async function GET(request: Request) {
 
             validEnteCodes.add(code);
 
-            if (!codeToNameMap.has(code)) {
-                codeToNameMap.set(code, nombre ? `${nombre} - ${code}` : code);
+            if (!codeToLinkedNameMap.has(code)) {
+                codeToLinkedNameMap.set(code, nombre ? `${nombre} - ${code}` : code);
             }
             if (!codeToAsesorMap.has(code)) {
                 codeToAsesorMap.set(code, 'Sin Asesor');
@@ -144,34 +145,18 @@ export async function GET(request: Request) {
 
         links.forEach(l => {
             const asesor = String(l['ASESOR'] || 'Sin Asesor');
-            const pEnteName = String(l['ENTE']);
-            const pEnteParts = pEnteName.split(' - ');
-            const code = pEnteParts.length > 1 ? pEnteParts[pEnteParts.length - 1].trim() : pEnteName.trim();
+            const linkedEnteName = String(l['ENTE'] || '');
+            const parts = linkedEnteName.split(' - ');
+            const code = parts.length > 1 ? parts[parts.length - 1].trim() : linkedEnteName.trim();
             if (asesoresStats.has(asesor)) asesoresStats.get(asesor)!.numEntes += 1;
             const matchAsesor = comerciales.length === 0 || comerciales.includes(asesor);
-            const matchEnte = entesFilter.length === 0 || entesFilter.includes(pEnteName);
-            if (matchAsesor && matchEnte) {
-                if (!breakdownMap.has(code)) {
-                    breakdownMap.set(code, { ente: pEnteName, primas: 0, polizas: 0, asesor: asesor, anulaciones: 0 });
-                }
+            const matchEnte = entesFilter.length === 0 || entesFilter.includes(linkedEnteName);
+            if (matchAsesor && matchEnte && code && !breakdownMap.has(code)) {
+                breakdownMap.set(code, { ente: linkedEnteName, primas: 0, polizas: 0, asesor, anulaciones: 0 });
             }
         });
 
-        // 3.5 Deduplicate policies by Number to avoid population inflation (Total Reality)
-        const uniquePolizasMap = new Map<string, any>();
-        polizas.forEach(p => {
-            const num = getPolicyNumber(p) || 'S/N';
-            const estado = getPolicyState(p).toLowerCase();
-            const isCancelled = estado.includes('anula') || estado.includes('baja');
-            if (!uniquePolizasMap.has(num)) {
-                uniquePolizasMap.set(num, p);
-            } else if (isCancelled) {
-                // Prioritize cancelled version for accurate churn tracking if multiple rows exist
-                uniquePolizasMap.set(num, p);
-            }
-        });
-
-        const deduplicatedPolizas = Array.from(uniquePolizasMap.values());
+        const metricPolizas = polizas;
 
         const dynAnios = new Set<string>();
         const dynMeses = new Set<string>();
@@ -181,7 +166,7 @@ export async function GET(request: Request) {
         const dynRamos = new Set<string>();
         const dynProductos = new Set<string>();
 
-        deduplicatedPolizas.forEach(p => {
+        metricPolizas.forEach(p => {
             const pAnio = getPolicyYear(p);
             const pMes = getPolicyMonth(p);
             const pEstado = getPolicyState(p);
@@ -192,7 +177,12 @@ export async function GET(request: Request) {
             if (!code) return;
 
             const pAsesor = codeToAsesorMap.get(code) || 'Sin Asesor';
-            const pEnteName = codeToNameMap.get(code) || code;
+            const rawEnteName = getPolicyEnteCommercial(p);
+            if (rawEnteName && !codeToDisplayNameMap.has(code)) {
+                codeToDisplayNameMap.set(code, rawEnteName);
+            }
+            const linkedEnteName = codeToLinkedNameMap.get(code) || code;
+            const pEnteName = codeToDisplayNameMap.get(code) || rawEnteName || linkedEnteName;
 
             // Strictly Tomador identification: DNI is the gold standard, fallback to name only.
             const tomadorDni = getPolicyHolderDocument(p);
@@ -205,7 +195,7 @@ export async function GET(request: Request) {
             const matchMes = meses.length === 0 || meses.includes(pMes);
             const matchEstado = estados.length === 0 || estados.includes(pEstado);
             const matchAsesor = comerciales.length === 0 || comerciales.includes(pAsesor);
-            const matchEnte = entesFilter.length === 0 || entesFilter.includes(pEnteName);
+            const matchEnte = entesFilter.length === 0 || entesFilter.includes(pEnteName) || entesFilter.includes(linkedEnteName);
             const matchRamo = ramosFilter.length === 0 || ramosFilter.includes(ramoName);
             const matchProducto = productosFilter.length === 0 || productosFilter.includes(producto);
 
@@ -246,6 +236,8 @@ export async function GET(request: Request) {
 
             if (!breakdownMap.has(code)) breakdownMap.set(code, { ente: pEnteName, primas: 0, polizas: 0, asesor: pAsesor, anulaciones: 0 });
             const b = breakdownMap.get(code)!;
+            b.ente = pEnteName;
+            b.asesor = pAsesor;
             b.primas += primas;
             b.polizas += 1;
             if (fAnulacion || isCancelled) b.anulaciones += 1;
@@ -443,15 +435,15 @@ export async function GET(request: Request) {
             const curY = parseInt(anios[0]), curM = parseInt(meses[0]);
             let prevY = curY, prevM = curM - 1;
             if (prevM === 0) { prevM = 12; prevY -= 1; }
-            deduplicatedPolizas.forEach(p => {
+            metricPolizas.forEach(p => {
                 if (getStringCell(p, 'AnoProd') === String(prevY) && getStringCell(p, 'MesProd') === String(prevM)) {
                     const code = getPolizaEnteCode(p);
                     if (!code || !validEnteCodes.has(code)) return;
                     const pAsesor = codeToAsesorMap.get(code) || 'Sin Asesor';
-                    const pEnteName = codeToNameMap.get(code) || code;
+                    const pEnteName = codeToDisplayNameMap.get(code) || codeToLinkedNameMap.get(code) || code;
                     if (estados.length > 0 && !estados.includes(getPolicyState(p))) return;
                     if (comerciales.length > 0 && !comerciales.includes(pAsesor)) return;
-                    if (entesFilter.length > 0 && !entesFilter.includes(pEnteName)) return;
+                    if (entesFilter.length > 0 && !entesFilter.includes(pEnteName) && !entesFilter.includes(codeToLinkedNameMap.get(code) || code)) return;
                     prevPrimas += getPolicyPremiumValue(p, 'PProduccion', 'P.Produccion');
                     prevCount += 1;
                 }
@@ -531,7 +523,7 @@ export async function GET(request: Request) {
                             reason: `Patrón en ${bestSupport} clientes`
                         };
                         allNbas.push({
-                            ente: codeToNameMap.get(code) || code, // Keeping ente property for UI compatibility but behavior is for client
+                            ente: codeToDisplayNameMap.get(code) || codeToLinkedNameMap.get(code) || code,
                             currentProduct: currentProd,
                             targetProduct: bestNext,
                             confidence: bestConf.toFixed(0),
@@ -542,7 +534,7 @@ export async function GET(request: Request) {
 
                 // Generate Timeline Data
                 const timelineMap = new Map<string, string>(); // producto -> primera fecha de efecto
-                deduplicatedPolizas.forEach(p => {
+                metricPolizas.forEach(p => {
                     const pCode = getPolizaEnteCode(p);
                     if (pCode === code) {
                         const prod = getPolicyProduct(p) ? getPolicyProduct(p).trim().toUpperCase() : 'SIN PRODUCTO';
@@ -573,7 +565,7 @@ export async function GET(request: Request) {
 
 
                 return {
-                    name: codeToNameMap.get(code) || code,
+                    name: codeToDisplayNameMap.get(code) || codeToLinkedNameMap.get(code) || code,
                     primas: b?.primas || 0,
                     products: productsArray,
                     ramosCount: enteRamosMap.get(code)?.size || 0,
