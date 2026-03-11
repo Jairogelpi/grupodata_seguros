@@ -174,8 +174,8 @@ export async function GET(request: Request) {
             if (asesoresStats.has(asesor)) asesoresStats.get(asesor)!.numEntes += 1;
             const matchAsesor = comerciales.length === 0 || comerciales.includes(asesor);
             const matchEnte = entesFilter.length === 0 || entesFilter.includes(linkedEnteName);
-            if (matchAsesor && matchEnte && code && !breakdownMap.has(code)) {
-                breakdownMap.set(code, { ente: linkedEnteName, primas: 0, polizas: 0, asesor, anulaciones: 0 });
+            if (matchAsesor && matchEnte && code && !breakdownMap.has(linkedEnteName)) {
+                breakdownMap.set(linkedEnteName, { ente: linkedEnteName, primas: 0, polizas: 0, asesor, anulaciones: 0 });
             }
         });
 
@@ -206,6 +206,7 @@ export async function GET(request: Request) {
             }
             const linkedEnteName = codeToLinkedNameMap.get(code) || code;
             const pEnteName = codeToDisplayNameMap.get(code) || rawEnteName || linkedEnteName;
+            const breakdownKey = pEnteName || linkedEnteName || code;
 
             // Strictly Tomador identification: DNI is the gold standard, fallback to name only.
             const tomadorDni = getPolicyHolderDocument(p);
@@ -257,8 +258,8 @@ export async function GET(request: Request) {
             currentPrimas += primas;
             currentCount += 1;
 
-            if (!breakdownMap.has(code)) breakdownMap.set(code, { ente: pEnteName, primas: 0, polizas: 0, asesor: pAsesor, anulaciones: 0 });
-            const b = breakdownMap.get(code)!;
+            if (!breakdownMap.has(breakdownKey)) breakdownMap.set(breakdownKey, { ente: pEnteName, primas: 0, polizas: 0, asesor: pAsesor, anulaciones: 0 });
+            const b = breakdownMap.get(breakdownKey)!;
             b.ente = pEnteName;
             b.asesor = pAsesor;
             b.primas += primas;
