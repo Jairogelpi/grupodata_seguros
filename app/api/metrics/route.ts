@@ -80,7 +80,6 @@ export async function GET(request: Request) {
 
         // 3. Performance Indexing
         const codeToLinkedNameMap = new Map<string, string>();
-        const codeToDisplayNameMap = new Map<string, string>();
         const codeToAsesorMap = new Map<string, string>();
         const validEnteCodes = new Set<string>();
         const specialUnlinkedTypes = new Set(['subagente', 'comercial', 'empleado']);
@@ -138,6 +137,7 @@ export async function GET(request: Request) {
         let currentCount = 0;
         let polizasSinEfecto = 0;
         const breakdownMap = new Map<string, { ente: string, primas: number, polizas: number, asesor: string, anulaciones: number }>();
+        const breakdownByCodeMap = new Map<string, { ente: string, primas: number, polizas: number, asesor: string, anulaciones: number }>();
         const asesoresStats = new Map<string, { asesor: string, numEntes: number, totalPrimas: number, numPolizos: number }>();
         const productStats = new Map<string, { producto: string; primas: number; polizas: number; entes: Set<string> }>();
         const estadoStats = new Map<string, { estado: string; primas: number; polizas: number }>();
@@ -201,11 +201,8 @@ export async function GET(request: Request) {
 
             const pAsesor = codeToAsesorMap.get(code) || 'Sin Asesor';
             const rawEnteName = getPolicyEnteCommercial(p);
-            if (rawEnteName && !codeToDisplayNameMap.has(code)) {
-                codeToDisplayNameMap.set(code, rawEnteName);
-            }
             const linkedEnteName = codeToLinkedNameMap.get(code) || code;
-            const pEnteName = codeToDisplayNameMap.get(code) || rawEnteName || linkedEnteName;
+            const pEnteName = rawEnteName || linkedEnteName;
             const breakdownKey = pEnteName || linkedEnteName || code;
 
             // Strictly Tomador identification: DNI is the gold standard, fallback to name only.
@@ -265,6 +262,14 @@ export async function GET(request: Request) {
             b.primas += primas;
             b.polizas += 1;
             if (fAnulacion || isCancelled) b.anulaciones += 1;
+
+            if (!breakdownByCodeMap.has(code)) breakdownByCodeMap.set(code, { ente: pEnteName, primas: 0, polizas: 0, asesor: pAsesor, anulaciones: 0 });
+            const codeBreakdown = breakdownByCodeMap.get(code)!;
+            codeBreakdown.ente = codeBreakdown.ente || pEnteName;
+            codeBreakdown.asesor = pAsesor;
+            codeBreakdown.primas += primas;
+            codeBreakdown.polizas += 1;
+            if (fAnulacion || isCancelled) codeBreakdown.anulaciones += 1;
 
             if ((fAnulacion || isCancelled) && motAnulacion) {
                 cancellationReasons.set(motAnulacion, (cancellationReasons.get(motAnulacion) || 0) + 1);
@@ -466,7 +471,7 @@ export async function GET(request: Request) {
                     const code = getPolizaEnteCode(p);
                     if (!code || !validEnteCodes.has(code)) return;
                     const pAsesor = codeToAsesorMap.get(code) || 'Sin Asesor';
-                    const pEnteName = codeToDisplayNameMap.get(code) || codeToLinkedNameMap.get(code) || code;
+                    const pEnteName = getPolicyEnteCommercial(p) || codeToLinkedNameMap.get(code) || code;
                     if (estados.length > 0 && !estados.includes(getPolicyState(p))) return;
                     if (comerciales.length > 0 && !comerciales.includes(pAsesor)) return;
                     if (entesFilter.length > 0 && !entesFilter.includes(pEnteName) && !entesFilter.includes(codeToLinkedNameMap.get(code) || code)) return;
@@ -512,7 +517,7 @@ export async function GET(request: Request) {
         const allNbas: any[] = [];
         const enrichedRamosBreakdown = !liteMode ? Array.from(ramoStats.values()).map(r => {
             const clientsInRamo = Array.from(r.entes).map(code => {
-                const b = breakdownMap.get(code);
+                const b = breakdownByCodeMap.get(code);
                 const productsArray = Array.from(productStats.values())
                     .filter(ps => ps.entes.has(code))
                     .map(ps => ps.producto);
@@ -549,7 +554,7 @@ export async function GET(request: Request) {
                             reason: `Patrón en ${bestSupport} clientes`
                         };
                         allNbas.push({
-                            ente: codeToDisplayNameMap.get(code) || codeToLinkedNameMap.get(code) || code,
+                            ente: b?.ente || codeToLinkedNameMap.get(code) || code,
                             currentProduct: currentProd,
                             targetProduct: bestNext,
                             confidence: bestConf.toFixed(0),
@@ -591,7 +596,7 @@ export async function GET(request: Request) {
 
 
                 return {
-                    name: codeToDisplayNameMap.get(code) || codeToLinkedNameMap.get(code) || code,
+                    name: b?.ente || codeToLinkedNameMap.get(code) || code,
                     primas: b?.primas || 0,
                     products: productsArray,
                     ramosCount: enteRamosMap.get(code)?.size || 0,
