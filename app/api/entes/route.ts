@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getEntes, addEnte } from '@/lib/registry';
+import { invalidateMetricsResponseCache } from '@/lib/metricsResponseCache';
 import { invalidateRuntimeDataCache } from '@/lib/storage';
 
 export async function GET() {
@@ -17,6 +18,7 @@ export async function POST(request: Request) {
         // body should match: { Código, Nombre, Tipo, Año1 }
         const data = await addEnte(body);
         invalidateRuntimeDataCache('entes.xlsx');
+        invalidateMetricsResponseCache();
         return NextResponse.json({ success: true, count: data.length });
     } catch (error: any) {
         console.error(error);

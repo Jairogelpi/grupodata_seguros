@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getEntes, addLink, getLinks, removeLink } from '@/lib/registry';
 import { getStringCell } from '@/lib/excelRow';
+import { invalidateMetricsResponseCache } from '@/lib/metricsResponseCache';
 import { invalidateRuntimeDataCache } from '@/lib/storage';
 
 function getEnteCode(row: any): string {
@@ -27,6 +28,7 @@ export async function POST(request: Request) {
 
         const updatedLinks = await addLink({ ASESOR: asesor, ENTE: formattedEnte });
         invalidateRuntimeDataCache('entes_registrados_asesor.xlsx', 'lista_asesores.xlsx');
+        invalidateMetricsResponseCache();
 
         return NextResponse.json({
             success: true,
@@ -61,6 +63,7 @@ export async function DELETE(request: Request) {
 
         await removeLink(asesor, String(targetLink['ENTE']));
         invalidateRuntimeDataCache('entes_registrados_asesor.xlsx');
+        invalidateMetricsResponseCache();
 
         return NextResponse.json({ success: true, message: 'Desvinculado correctamente' });
     } catch (error: any) {

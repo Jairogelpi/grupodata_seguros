@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { overwriteEntesFromWorkbook } from '@/lib/dbData';
+import { invalidateMetricsResponseCache } from '@/lib/metricsResponseCache';
 import { invalidateRuntimeDataCache } from '@/lib/storage';
 
 export async function POST(request: Request) {
@@ -14,6 +15,7 @@ export async function POST(request: Request) {
         const buffer = Buffer.from(await file.arrayBuffer());
         const result = await overwriteEntesFromWorkbook(buffer);
         invalidateRuntimeDataCache('entes.xlsx', 'entes_registrados_asesor.xlsx', 'lista_asesores.xlsx');
+        invalidateMetricsResponseCache();
 
         return NextResponse.json({
             success: true,

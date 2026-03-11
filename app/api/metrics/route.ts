@@ -4,6 +4,13 @@ import { getLinks, getEntes } from '@/lib/registry';
 import { getRamo } from '@/lib/ramos';
 import { getStringCell } from '@/lib/excelRow';
 import {
+    clearPendingMetricsResponse,
+    getCachedMetricsResponse,
+    getPendingMetricsResponse,
+    setCachedMetricsResponse,
+    setPendingMetricsResponse
+} from '@/lib/metricsResponseCache';
+import {
     getPolicyCancellationDate,
     getPolicyCancellationReason,
     getPolicyCompany,
@@ -24,8 +31,21 @@ import {
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
+    const cacheKey = request.url;
+    const cached = getCachedMetricsResponse(cacheKey);
+    if (cached) {
+        return NextResponse.json(cached);
+    }
+
+    const pending = getPendingMetricsResponse(cacheKey);
+    if (pending) {
+        return NextResponse.json(await pending);
+    }
+
+    const nextResponse = (async () => {
     try {
         const { searchParams } = new URL(request.url);
+        const liteMode = searchParams.get('lite') === '1';
         const normalizeText = (value: any) =>
             String(value || '')
                 .normalize('NFD')
@@ -299,6 +319,7 @@ export async function GET(request: Request) {
         const pairFreq = new Map<string, number>(); // Simple association frequency
         let totalTomadoresWithPolizas = 0, totalRamosCoverage = 0;
 
+        if (!liteMode) {
         tomadorRamosMap.forEach((ramos) => {
             totalTomadoresWithPolizas++;
             const count = ramos.size;
@@ -316,13 +337,14 @@ export async function GET(request: Request) {
                 }
             }
         });
+        }
 
         // STRATEGIC INSIGHTS ENGINE
         // Generate dynamic, context-aware strategies based on current filtered data
         const marketingStrategies = [];
 
         // 1. Retention Strategy (Priority if Churn is high)
-        if (currentCount > 0) {
+        if (!liteMode && currentCount > 0) {
             let totalAnuladas = 0;
             breakdownMap.forEach(b => totalAnuladas += b.anulaciones);
             const churnRateCalc = (totalAnuladas / currentCount) * 100;
@@ -348,7 +370,7 @@ export async function GET(request: Request) {
 
         // 2. Cross-Sell Strategy (The NBA - Next Best Action)
         const entries = Array.from(pairFreq.entries()).sort((a, b) => b[1] - a[1]);
-        if (entries.length > 0) {
+        if (!liteMode && entries.length > 0) {
             const [pair, count] = entries[0];
             const [ramoA, ramoB] = pair.split(' + ');
             const supportA = ramoStats.get(ramoA)?.entes.size || 1;
@@ -374,14 +396,14 @@ export async function GET(request: Request) {
 
         const pctMono = totalPlus1 > 0 ? (crossSellingCounts[1] / totalPlus1) * 100 : 0;
 
-        if (pctMono > 60) {
+        if (!liteMode && pctMono > 60) {
             marketingStrategies.push({
                 type: 'EXPANSION',
                 title: 'Potencial de Expansión Masiva',
                 color: 'purple',
                 description: `El **${pctMono.toFixed(1)}%** de tus clientes (tomadores) tiene un solo producto. Es una base enorme sin explotar. Ofréceles un segundo producto con descuento por vinculación.`
             });
-        } else {
+        } else if (!liteMode) {
             // Generic fallback if not extreme mono-product
             marketingStrategies.push({
                 type: 'EXPANSION',
@@ -392,7 +414,7 @@ export async function GET(request: Request) {
         }
 
         // Ensure we have at least 3 items, maybe duplicate generic ones if needed, or add a Pareto one
-        if (marketingStrategies.length < 3) {
+        if (!liteMode && marketingStrategies.length < 3) {
             // Add Pareto Insight
             const entesSorted = Array.from(breakdownMap.values()).sort((a, b) => b.primas - a.primas);
             const top20Count = Math.ceil(entesSorted.length * 0.2);
@@ -417,7 +439,7 @@ export async function GET(request: Request) {
         }
 
         // 4. Fill if still missing (Fallback)
-        if (marketingStrategies.length < 3) {
+        if (!liteMode && marketingStrategies.length < 3) {
             marketingStrategies.push({
                 type: 'GENERAL',
                 title: 'Revisión de Cartera',
@@ -487,7 +509,7 @@ export async function GET(request: Request) {
 
         // Enrich Ramos Breakdown with Top Clients and their product mix
         const allNbas: any[] = [];
-        const enrichedRamosBreakdown = Array.from(ramoStats.values()).map(r => {
+        const enrichedRamosBreakdown = !liteMode ? Array.from(ramoStats.values()).map(r => {
             const clientsInRamo = Array.from(r.entes).map(code => {
                 const b = breakdownMap.get(code);
                 const productsArray = Array.from(productStats.values())
@@ -584,7 +606,7 @@ export async function GET(request: Request) {
                 fullClients: clientsInRamo, // The full list for the modal
                 topClients: clientsInRamo.slice(0, 5) // The truncated list for the initial UI
             };
-        }).sort((a, b) => b.primas - a.primas);
+        }).sort((a, b) => b.primas - a.primas) : [];
 
         (advanced as any).topOpportunities = allNbas.sort((a, b) => parseInt(b.confidence) - parseInt(a.confidence));
 
@@ -610,17 +632,30 @@ export async function GET(request: Request) {
                 productos: Array.from(dynProductos).sort()
             },
             breakdown: Array.from(breakdownMap.values()).map(b => ({ ...b, ticketMedio: b.polizas > 0 ? b.primas / b.polizas : 0 })).sort((a, b) => b.primas - a.primas),
-            asesoresBreakdown: Array.from(asesoresStats.values()).map(a => ({ asesor: a.asesor, numEntes: a.numEntes, totalPrimas: a.totalPrimas, numPolizas: a.numPolizos, avgPrimas: a.numPolizos > 0 ? a.totalPrimas / a.numPolizos : 0 })).sort((a, b) => b.totalPrimas - a.totalPrimas),
-            companiasBreakdown: Array.from(companyStats.values()).map(c => ({ company: c.company, primas: c.primas, polizas: c.polizas, numEntes: c.entes.size, numAsesores: c.asesores.size, ticketMedio: c.polizas > 0 ? c.primas / c.polizas : 0 })).sort((a, b) => b.primas - a.primas),
-            productosBreakdown: Array.from(productStats.values()).map(p => ({ ...p, entes: p.entes.size, ticketMedio: p.polizas > 0 ? p.primas / p.polizas : 0 })).sort((a, b) => b.primas - a.primas),
+            asesoresBreakdown: liteMode ? [] : Array.from(asesoresStats.values()).map(a => ({ asesor: a.asesor, numEntes: a.numEntes, totalPrimas: a.totalPrimas, numPolizas: a.numPolizos, avgPrimas: a.numPolizos > 0 ? a.totalPrimas / a.numPolizos : 0 })).sort((a, b) => b.totalPrimas - a.totalPrimas),
+            companiasBreakdown: liteMode ? [] : Array.from(companyStats.values()).map(c => ({ company: c.company, primas: c.primas, polizas: c.polizas, numEntes: c.entes.size, numAsesores: c.asesores.size, ticketMedio: c.polizas > 0 ? c.primas / c.polizas : 0 })).sort((a, b) => b.primas - a.primas),
+            productosBreakdown: liteMode ? [] : Array.from(productStats.values()).map(p => ({ ...p, entes: p.entes.size, ticketMedio: p.polizas > 0 ? p.primas / p.polizas : 0 })).sort((a, b) => b.primas - a.primas),
             ramosBreakdown: enrichedRamosBreakdown,
-            estadosBreakdown: Array.from(estadoStats.values()).sort((a, b) => b.polizas - a.polizas),
-            cancellationReasons: Array.from(cancellationReasons.entries()).map(([reason, count]) => ({ reason, count })).sort((a, b) => b.count - a.count)
+            estadosBreakdown: liteMode ? [] : Array.from(estadoStats.values()).sort((a, b) => b.polizas - a.polizas),
+            cancellationReasons: liteMode ? [] : Array.from(cancellationReasons.entries()).map(([reason, count]) => ({ reason, count })).sort((a, b) => b.count - a.count)
         };
 
-        return NextResponse.json(payload);
+        setCachedMetricsResponse(cacheKey, payload);
+        return payload;
     } catch (error) {
         console.error(error);
+        throw error;
+    }
+    })();
+
+    setPendingMetricsResponse(cacheKey, nextResponse);
+
+    try {
+        const payload = await nextResponse;
+        return NextResponse.json(payload);
+    } catch (error) {
         return NextResponse.json({ error: 'Failed to calculate metrics' }, { status: 500 });
+    } finally {
+        clearPendingMetricsResponse(cacheKey);
     }
 }

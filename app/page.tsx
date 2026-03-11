@@ -77,6 +77,7 @@ export default function Dashboard() {
             if (filters.anio.length > 0) params.append('anio', filters.anio.join(','));
             if (filters.mes.length > 0) params.append('mes', filters.mes.join(','));
             if (filters.estado.length > 0) params.append('estado', filters.estado.join(','));
+            params.append('lite', '1');
 
             const res = await fetch(`/api/metrics?${params.toString()}`);
             if (!res.ok) throw new Error('Failed to fetch metrics');
