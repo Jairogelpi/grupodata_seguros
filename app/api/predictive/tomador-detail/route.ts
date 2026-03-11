@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { readData } from '@/lib/storage';
 import { getLinks } from '@/lib/registry';
 import { getRamo } from '@/lib/ramos';
+import { getStringCell } from '@/lib/excelRow';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,7 +43,7 @@ export async function GET(request: Request) {
         const portfolio = polizasRaw.filter((p: any) => {
             const tomadorStr = String(p['Tomador'] || '').trim();
             const enteComercial = String(p['Ente Comercial'] || '').trim();
-            const pCodeDirect = String(p['Código'] || '').trim();
+            const pCodeDirect = getStringCell(p, 'Codigo');
             const pEstado = String(p['Estado'] || '');
 
             // Match if Tomador name matches exactly, OR if no tomador and the ente matches

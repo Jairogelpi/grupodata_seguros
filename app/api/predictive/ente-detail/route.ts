@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { readData } from '@/lib/storage';
 import { getLinks } from '@/lib/registry';
 import { getRamo } from '@/lib/ramos';
+import { getStringCell } from '@/lib/excelRow';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,7 +41,7 @@ export async function GET(request: Request) {
             const enteComercial = String(p['Ente Comercial'] || '');
             const parts = enteComercial.split(' - ');
             const pCodeFromEnte = parts.length > 1 ? parts[parts.length - 1].trim() : enteComercial.trim();
-            const pCodeDirect = String(p['Código'] || '');
+            const pCodeDirect = getStringCell(p, 'Codigo');
             const pEstado = String(p['Estado'] || '');
 
             const isMatch = (pCodeFromEnte === code || pCodeDirect === code);

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { readData } from '@/lib/storage';
 import { getLinks } from '@/lib/registry';
 import { getRamo } from '@/lib/ramos';
+import { getStringCell } from '@/lib/excelRow';
 
 export const dynamic = 'force-dynamic';
 
@@ -57,7 +58,7 @@ export async function GET(request: Request) {
 
             const parts = enteComercial.split(' - ');
             const codeFromEnte = parts.length > 1 ? parts[parts.length - 1].trim() : enteComercial.trim();
-            const codeDirect = String(p['Código'] || '');
+            const codeDirect = getStringCell(p, 'Codigo');
 
             return codeToNameMap.get(codeFromEnte) || codeToNameMap.get(codeDirect) || null;
         };

@@ -10,12 +10,13 @@ interface Asesor {
 }
 
 interface Ente {
+    Codigo?: string | number;
     'Código'?: string | number;
     'CÃ³digo'?: string | number;
     Nombre: string;
 }
 
-const getEnteCode = (ente: Ente) => ente['Código'] ?? ente['CÃ³digo'] ?? '';
+const getEnteCode = (ente: Ente) => ente.Codigo ?? ente['Código'] ?? ente['CÃ³digo'] ?? '';
 
 export default function EnlazarPage() {
     const [asesores, setAsesores] = useState<Asesor[]>([]);

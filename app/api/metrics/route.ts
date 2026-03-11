@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { readData } from '@/lib/storage';
 import { getLinks, getEntes } from '@/lib/registry';
 import { getRamo } from '@/lib/ramos';
+import { getStringCell } from '@/lib/excelRow';
 
 export const dynamic = 'force-dynamic';
 
@@ -62,7 +63,7 @@ export async function GET(request: Request) {
         });
 
         entesData.forEach((ente: any) => {
-            const code = String(ente['CÃ³digo'] || ente['Código'] || '').trim();
+            const code = getStringCell(ente, 'Codigo');
             const nombre = String(ente['Nombre'] || '').trim();
             const tipoRaw = String(ente['Tipo'] || '');
             const tipo = normalizeText(tipoRaw);
@@ -88,7 +89,7 @@ export async function GET(request: Request) {
             const enteComercial = String(p['Ente Comercial'] || '');
             const parts = enteComercial.split(' - ');
             const codeFromEnte = parts.length > 1 ? parts[parts.length - 1].trim() : enteComercial.trim();
-            const codeDirect = String(p['Código'] || '');
+            const codeDirect = getStringCell(p, 'Codigo');
             if (validEnteCodes.has(codeFromEnte)) return codeFromEnte;
             if (validEnteCodes.has(codeDirect)) return codeDirect;
             return null;

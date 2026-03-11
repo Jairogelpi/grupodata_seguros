@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getEntes, addLink, getLinks, removeLink } from '@/lib/registry';
+import { getStringCell } from '@/lib/excelRow';
 
 function getEnteCode(row: any): string {
-    return String(row['Código'] ?? row['CÃ³digo'] ?? row['CÃƒÂ³digo'] ?? '').trim();
+    return getStringCell(row, 'Codigo');
 }
 
 export async function POST(request: Request) {
@@ -23,9 +24,14 @@ export async function POST(request: Request) {
         const enteName = String(enteRow['Nombre'] || 'Desconocido');
         const formattedEnte = `${enteName} - ${getEnteCode(enteRow)}`;
 
-        await addLink({ ASESOR: asesor, ENTE: formattedEnte });
+        const updatedLinks = await addLink({ ASESOR: asesor, ENTE: formattedEnte });
 
-        return NextResponse.json({ success: true, message: 'Enlazado correctamente' });
+        return NextResponse.json({
+            success: true,
+            message: 'Enlazado correctamente',
+            link: { asesor, ente: formattedEnte },
+            totalLinks: updatedLinks.length
+        });
     } catch (error: any) {
         console.error(error);
         return NextResponse.json({ error: error.message || 'Failed to link' }, { status: 500 });
