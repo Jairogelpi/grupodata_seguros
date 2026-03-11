@@ -2,6 +2,7 @@ import * as XLSX from 'xlsx';
 import fs from 'fs';
 import path from 'path';
 import { createClient } from '@supabase/supabase-js';
+import { readDatasetFromDb } from './dbData';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const IS_VERCEL = process.env.VERCEL === '1';
@@ -61,6 +62,12 @@ export async function readData(filename: string): Promise<any[]> {
         const refreshed = storageCache[filename];
         if (refreshed && Date.now() - refreshed.timestamp < CACHE_TTL_MS) {
             return refreshed.data;
+        }
+
+        const dbData = await readDatasetFromDb(filename);
+        if (dbData) {
+            storageCache[filename] = { data: dbData, timestamp: Date.now() };
+            return dbData;
         }
 
         if (readClient) {

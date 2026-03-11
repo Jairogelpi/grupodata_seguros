@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { writeData } from '@/lib/storage';
+import { overwritePoliciesFromWorkbook } from '@/lib/dbData';
 
 export async function POST(request: Request) {
     try {
@@ -7,19 +7,19 @@ export async function POST(request: Request) {
         const file = formData.get('file') as File;
 
         if (!file) {
-            return NextResponse.json({ error: 'No se ha subido ningún archivo' }, { status: 400 });
+            return NextResponse.json({ error: 'No se ha subido ningun archivo' }, { status: 400 });
         }
 
         const buffer = Buffer.from(await file.arrayBuffer());
-        await writeData('listado_polizas.xlsx', buffer);
+        const result = await overwritePoliciesFromWorkbook(buffer);
 
-        return NextResponse.json({ success: true, message: 'Pólizas actualizadas correctamente' });
+        return NextResponse.json({
+            success: true,
+            message: 'Polizas actualizadas correctamente',
+            ...result
+        });
     } catch (error: any) {
         console.error('Upload error:', error);
-        const msg = error?.message || '';
-        if (msg.includes('busy') || msg.includes('locked') || msg.includes('EBUSY')) {
-            return NextResponse.json({ error: 'El archivo está abierto. Ciérrelo y reintente.' }, { status: 500 });
-        }
-        return NextResponse.json({ error: 'Error al procesar la subida: ' + msg }, { status: 500 });
+        return NextResponse.json({ error: 'Error al procesar la subida: ' + (error?.message || '') }, { status: 500 });
     }
 }

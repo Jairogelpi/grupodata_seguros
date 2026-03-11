@@ -1,10 +1,8 @@
 /**
- * Registry: Manages "mutable" data (Links, Entes)
- * Uses the hybrid storage layer for persistence.
+ * Registry: manages mutable data through database tables.
  */
 
-import { readData, appendData, writeData } from './storage';
-import * as XLSX from 'xlsx';
+import { addDbLink, getDbEntes, getDbLinks, removeDbLink, upsertDbEnte } from './dbData';
 
 export interface LinkRecord {
     ASESOR: string;
@@ -19,39 +17,21 @@ export interface EnteRecord {
 }
 
 export async function getLinks(): Promise<LinkRecord[]> {
-    return readData('entes_registrados_asesor.xlsx') as Promise<LinkRecord[]>;
+    return getDbLinks() as Promise<LinkRecord[]>;
 }
 
 export async function addLink(link: LinkRecord): Promise<LinkRecord[]> {
-    return appendData('entes_registrados_asesor.xlsx', link);
+    return addDbLink(link) as Promise<LinkRecord[]>;
 }
 
 export async function removeLink(asesor: string, enteFormatted: string): Promise<void> {
-    const links = await getLinks();
-    const filteredLinks = links.filter(l =>
-        !(String(l['ASESOR']) === asesor && String(l['ENTE']) === enteFormatted)
-    );
-
-    const ws = XLSX.utils.json_to_sheet(filteredLinks);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Hoja1');
-    const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
-
-    await writeData('entes_registrados_asesor.xlsx', Buffer.from(excelBuffer));
+    await removeDbLink(asesor, enteFormatted);
 }
 
 export async function getEntes(): Promise<EnteRecord[]> {
-    return readData('entes.xlsx') as Promise<EnteRecord[]>;
+    return getDbEntes() as Promise<EnteRecord[]>;
 }
 
 export async function addEnte(ente: EnteRecord): Promise<EnteRecord[]> {
-    const currentData = [ente];
-
-    const ws = XLSX.utils.json_to_sheet(currentData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Hoja1');
-    const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
-
-    await writeData('entes.xlsx', Buffer.from(excelBuffer));
-    return currentData;
+    return upsertDbEnte(ente) as Promise<EnteRecord[]>;
 }
