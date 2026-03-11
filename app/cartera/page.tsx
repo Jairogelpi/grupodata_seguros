@@ -55,6 +55,7 @@ interface FilterOptions {
 type SortKey = 'producto' | 'primas' | 'polizas' | 'ramo' | 'ticketMedio';
 
 export default function CarteraPage() {
+    const showPredictiveInsights = false;
     const [productosBreakdown, setProductosBreakdown] = useState<ProductBreakdownItem[]>([]);
     const [ramosBreakdown, setRamosBreakdown] = useState<RamoBreakdownItem[]>([]);
     const [estadosBreakdown, setEstadosBreakdown] = useState<any[]>([]);
@@ -653,7 +654,7 @@ export default function CarteraPage() {
                     className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:shadow-md hover:border-purple-300 transition-all group"
                 >
                     <div className="flex justify-between items-start">
-                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest group-hover:text-purple-500 transition-colors">Venta Cruzada</h3>
+                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest group-hover:text-purple-500 transition-colors">Profundidad de Cartera</h3>
                         <div className="p-2 bg-purple-50 rounded-lg"><TrendingUp className="w-4 h-4 text-purple-500" /></div>
                     </div>
                     <div className="mt-4 flex items-baseline gap-2">
@@ -762,6 +763,7 @@ export default function CarteraPage() {
 
                                 return (
                                     <>
+                                        {showPredictiveInsights && (
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                                             {/* 1. Jump Probabilities Box (Fixed) */}
                                             <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm flex flex-col relative overflow-hidden group">
@@ -819,6 +821,7 @@ export default function CarteraPage() {
                                                 )
                                             })}
                                         </div>
+                                        )}
 
                                         {/* Full Width Chart Area */}
                                         <div className="mt-4">
@@ -853,7 +856,7 @@ export default function CarteraPage() {
 
             <div className="grid grid-cols-1 gap-8">
                 <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
-                    <h2 className="text-lg font-bold text-slate-800 flex items-center gap-3 tracking-tight mb-4"><LayoutList className="w-4 h-4 text-indigo-500" /> Venta Cruzada</h2>
+                    <h2 className="text-lg font-bold text-slate-800 flex items-center gap-3 tracking-tight mb-4"><LayoutList className="w-4 h-4 text-indigo-500" /> Distribución por Ramos por Tomador</h2>
                     <div className="h-[100px]">
                         {advancedMetrics ? <Bar data={crossSellData} options={{ indexAxis: 'y' as const, responsive: true, maintainAspectRatio: false, plugins: { datalabels: { display: false }, legend: { display: false } }, scales: { x: { display: false }, y: { grid: { display: false }, ticks: { font: { size: 9, weight: 'bold' } } } } }} /> : <div className="h-full w-full bg-slate-50 animate-pulse rounded-2xl" />}
                     </div>
@@ -875,7 +878,7 @@ export default function CarteraPage() {
             </div>
 
             {/* Top NBA Opportunities Section */}
-            {advancedMetrics?.topOpportunities && advancedMetrics.topOpportunities.length > 0 && (
+            {showPredictiveInsights && advancedMetrics?.topOpportunities && advancedMetrics.topOpportunities.length > 0 && (
                 <div className="bg-gradient-to-br from-indigo-900 via-indigo-800 to-purple-900 rounded-[40px] shadow-xl border border-indigo-700/50 overflow-hidden no-print relative mb-8">
                     <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none"></div>
                     <div className="px-10 py-8 border-b border-indigo-800/50 flex flex-col md:flex-row justify-between items-start md:items-center relative z-10 gap-4">
@@ -996,12 +999,12 @@ export default function CarteraPage() {
                                         onClick={() => setSelectedEnteForProfile(client)}
                                         className="group p-3 bg-white rounded-xl border border-slate-100 shadow-sm hover:border-indigo-300 hover:shadow-md transition-all relative overflow-hidden cursor-pointer"
                                     >
-                                        {client.nba && (
+                                        {showPredictiveInsights && client.nba && (
                                             <div className="absolute top-0 right-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-purple-500" />
                                         )}
                                         <div className="flex justify-between items-start mb-1">
                                             <span className="text-[10px] font-bold text-slate-800 truncate max-w-[120px] group-hover:text-indigo-700 transition-colors">{client.name}</span>
-                                            {client.nba ? (
+                                            {showPredictiveInsights && client.nba ? (
                                                 <span className="text-[8px] font-black text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100">
                                                     {client.nba.confidence}% Éxito
                                                 </span>
@@ -1019,7 +1022,7 @@ export default function CarteraPage() {
                                         </div>
 
                                         {/* NBA Recommendation */}
-                                        {client.nba && (
+                                        {showPredictiveInsights && client.nba && (
                                             <div className="mt-2 pt-2 border-t border-slate-50">
                                                 <div className="flex items-center gap-1 text-[9px] font-bold text-indigo-700">
                                                     <Zap className="w-3 h-3 fill-indigo-100" />
@@ -1162,7 +1165,7 @@ export default function CarteraPage() {
                         <div className="p-8 overflow-y-auto flex-1 bg-slate-50/30 flex flex-col gap-8">
 
                             {/* Predictive NBA Panel */}
-                            {selectedEnteForProfile.nba ? (
+                            {false ? (
                                 <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden">
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
                                     <div className="flex items-start gap-4 relative z-10">
