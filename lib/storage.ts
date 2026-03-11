@@ -36,6 +36,15 @@ const writeClient = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
 const storageCache: Record<string, { data: any[], timestamp: number }> = {};
 const pendingReads = new Map<string, Promise<any[]>>();
 const CACHE_TTL_MS = 300_000;
+const DATABASE_MANAGED_FILES = new Set([
+    'listado_polizas.xlsx',
+    'entes.xlsx',
+    'entes_registrados_asesor.xlsx',
+    'lista_asesores.xlsx',
+    'lista_anos.xlsx',
+    'lista_meses.xlsx',
+    'lista_estados.xlsx'
+]);
 
 function getLocalPath(filename: string): string {
     return path.join(DATA_DIR, filename);
@@ -80,9 +89,16 @@ export async function readData(filename: string): Promise<any[]> {
         }
 
         const dbData = await readDatasetFromDb(filename);
-        if (dbData) {
+        if (dbData !== null) {
             storageCache[filename] = { data: dbData, timestamp: Date.now() };
             return dbData;
+        }
+
+        if (DATABASE_MANAGED_FILES.has(filename) && IS_VERCEL) {
+            throw new Error(
+                `Database dataset unavailable for ${filename}. ` +
+                `Bucket fallback is disabled in production for database-managed files.`
+            );
         }
 
         if (readClient) {

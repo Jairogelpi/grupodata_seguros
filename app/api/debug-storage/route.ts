@@ -5,6 +5,21 @@ export const dynamic = 'force-dynamic';
 
 const BUCKET_NAME = 'metrics';
 
+async function selectAllRows(client: any, table: string) {
+    const rows: any[] = [];
+    const pageSize = 1000;
+
+    for (let from = 0; ; from += pageSize) {
+        const { data, error } = await client.from(table).select('*').range(from, from + pageSize - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        rows.push(...data);
+        if (data.length < pageSize) break;
+    }
+
+    return rows;
+}
+
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const runWriteTest = searchParams.get('mode') === 'write';
@@ -18,6 +33,7 @@ export async function GET(request: Request) {
             SUPABASE_URL_EXISTS: !!supabaseUrl,
             SUPABASE_ANON_KEY_EXISTS: !!anonKey,
             SUPABASE_SERVICE_ROLE_KEY_EXISTS: !!serviceRoleKey,
+            SUPABASE_URL_HOST: supabaseUrl ? new URL(supabaseUrl).host : null,
             VERCEL_ENV: process.env.VERCEL_ENV || 'not set',
             NODE_ENV: process.env.NODE_ENV
         },
@@ -52,6 +68,25 @@ export async function GET(request: Request) {
 
         debugInfo.steps.push('List files SUCCESS');
         debugInfo.filesFound = files.map(file => file.name);
+
+        debugInfo.steps.push('Attempting database sanity check with anon key');
+        try {
+            const [yearsRows, policiesRows, linksRows] = await Promise.all([
+                selectAllRows(readClient, 'lista_anos'),
+                selectAllRows(readClient, 'listado_polizas'),
+                selectAllRows(readClient, 'entes_registrados_asesor')
+            ]);
+
+            debugInfo.steps.push('Database sanity check SUCCESS');
+            debugInfo.database = {
+                listaAnos: yearsRows.map(row => row['AÑO_PROD']).filter(Boolean).sort(),
+                listadoPolizasCount: policiesRows.length,
+                entesRegistradosCount: linksRows.length
+            };
+        } catch (dbError: any) {
+            debugInfo.steps.push('Database sanity check FAILED');
+            debugInfo.databaseError = dbError?.message || String(dbError);
+        }
 
         if (files.length > 0) {
             const firstFile = files[0].name;
