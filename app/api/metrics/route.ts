@@ -6,8 +6,17 @@ import { getStringCell } from '@/lib/excelRow';
 
 export const dynamic = 'force-dynamic';
 
+const METRICS_CACHE_TTL_MS = 20_000;
+const metricsResponseCache = new Map<string, { timestamp: number, payload: any }>();
+
 export async function GET(request: Request) {
     try {
+        const cacheKey = request.url;
+        const cached = metricsResponseCache.get(cacheKey);
+        if (cached && Date.now() - cached.timestamp < METRICS_CACHE_TTL_MS) {
+            return NextResponse.json(cached.payload);
+        }
+
         const { searchParams } = new URL(request.url);
         const normalizeText = (value: any) =>
             String(value || '')
@@ -580,7 +589,7 @@ export async function GET(request: Request) {
 
         (advanced as any).topOpportunities = allNbas.sort((a, b) => parseInt(b.confidence) - parseInt(a.confidence));
 
-        return NextResponse.json({
+        const payload = {
             metrics: {
                 primasNP: currentPrimas,
                 numPolizas: currentCount,
@@ -608,7 +617,14 @@ export async function GET(request: Request) {
             ramosBreakdown: enrichedRamosBreakdown,
             estadosBreakdown: Array.from(estadoStats.values()).sort((a, b) => b.polizas - a.polizas),
             cancellationReasons: Array.from(cancellationReasons.entries()).map(([reason, count]) => ({ reason, count })).sort((a, b) => b.count - a.count)
+        };
+
+        metricsResponseCache.set(cacheKey, {
+            timestamp: Date.now(),
+            payload
         });
+
+        return NextResponse.json(payload);
     } catch (error) {
         console.error(error);
         return NextResponse.json({ error: 'Failed to calculate metrics' }, { status: 500 });

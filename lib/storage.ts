@@ -33,7 +33,8 @@ const writeClient = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
     : null;
 
 const storageCache: Record<string, { data: any[], timestamp: number }> = {};
-const CACHE_TTL_MS = 5000;
+const pendingReads = new Map<string, Promise<any[]>>();
+const CACHE_TTL_MS = 60_000;
 
 function getLocalPath(filename: string): string {
     return path.join(DATA_DIR, filename);
@@ -51,27 +52,47 @@ export async function readData(filename: string): Promise<any[]> {
         return cached.data;
     }
 
-    if (readClient) {
-        try {
-            console.log(`[Storage] Reading ${filename} from Supabase...`);
-            const { data: blob, error } = await readClient.storage.from(BUCKET_NAME).download(filename);
-
-            if (!error && blob) {
-                const arrayBuffer = await blob.arrayBuffer();
-                const buffer = Buffer.from(arrayBuffer);
-                const workbook = XLSX.read(buffer, { type: 'buffer' });
-                const data = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]) as any[];
-                storageCache[filename] = { data, timestamp: Date.now() };
-                return data;
-            }
-
-            console.warn(`[Storage] Supabase error/missing reading ${filename}: ${error?.message || 'Empty'}`);
-        } catch (err) {
-            console.error(`[Storage] Unexpected error reading ${filename}:`, err);
-        }
+    const pendingRead = pendingReads.get(filename);
+    if (pendingRead) {
+        return pendingRead;
     }
 
-    return readFromDisk(filename);
+    const nextRead = (async () => {
+        const refreshed = storageCache[filename];
+        if (refreshed && Date.now() - refreshed.timestamp < CACHE_TTL_MS) {
+            return refreshed.data;
+        }
+
+        if (readClient) {
+            try {
+                console.log(`[Storage] Reading ${filename} from Supabase...`);
+                const { data: blob, error } = await readClient.storage.from(BUCKET_NAME).download(filename);
+
+                if (!error && blob) {
+                    const arrayBuffer = await blob.arrayBuffer();
+                    const buffer = Buffer.from(arrayBuffer);
+                    const workbook = XLSX.read(buffer, { type: 'buffer' });
+                    const data = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]) as any[];
+                    storageCache[filename] = { data, timestamp: Date.now() };
+                    return data;
+                }
+
+                console.warn(`[Storage] Supabase error/missing reading ${filename}: ${error?.message || 'Empty'}`);
+            } catch (err) {
+                console.error(`[Storage] Unexpected error reading ${filename}:`, err);
+            }
+        }
+
+        return readFromDisk(filename);
+    })();
+
+    pendingReads.set(filename, nextRead);
+
+    try {
+        return await nextRead;
+    } finally {
+        pendingReads.delete(filename);
+    }
 }
 
 export async function writeData(filename: string, buffer: Buffer): Promise<void> {
@@ -96,6 +117,7 @@ export async function writeData(filename: string, buffer: Buffer): Promise<void>
         }
 
         Object.keys(storageCache).forEach(key => delete storageCache[key]);
+        pendingReads.clear();
     } catch (err) {
         console.error(`[Storage] Error writing ${filename} to Supabase:`, err);
         throw err;
