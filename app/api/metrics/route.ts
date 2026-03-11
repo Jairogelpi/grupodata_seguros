@@ -155,7 +155,7 @@ export async function GET(request: Request) {
         // 3.5 Deduplicate policies by Number to avoid population inflation (Total Reality)
         const uniquePolizasMap = new Map<string, any>();
         polizas.forEach(p => {
-            const num = String(p['NºPóliza'] || 'S/N');
+            const num = getStringCell(p, 'NPoliza') || 'S/N';
             const estado = String(p['Estado'] || '').toLowerCase();
             const isCancelled = estado.includes('anula') || estado.includes('baja');
             if (!uniquePolizasMap.has(num)) {
@@ -177,8 +177,8 @@ export async function GET(request: Request) {
         const dynProductos = new Set<string>();
 
         deduplicatedPolizas.forEach(p => {
-            const pAnio = String(p['AÑO_PROD'] || '');
-            const pMes = String(p['MES_Prod'] || '');
+            const pAnio = getStringCell(p, 'AnoProd');
+            const pMes = getStringCell(p, 'MesProd');
             const pEstado = String(p['Estado'] || '');
             const producto = String(p['Producto'] || 'Otros');
             const ramoName = getRamo(producto);
@@ -440,7 +440,7 @@ export async function GET(request: Request) {
             let prevY = curY, prevM = curM - 1;
             if (prevM === 0) { prevM = 12; prevY -= 1; }
             deduplicatedPolizas.forEach(p => {
-                if (String(p['AÑO_PROD']) === String(prevY) && String(p['MES_Prod']) === String(prevM)) {
+                if (getStringCell(p, 'AnoProd') === String(prevY) && getStringCell(p, 'MesProd') === String(prevM)) {
                     const code = getPolizaEnteCode(p);
                     if (!code || !validEnteCodes.has(code)) return;
                     const pAsesor = codeToAsesorMap.get(code) || 'Sin Asesor';
