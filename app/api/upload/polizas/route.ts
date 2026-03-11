@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { overwritePoliciesFromWorkbook } from '@/lib/dbData';
+import { invalidateRuntimeDataCache } from '@/lib/storage';
 
 export async function POST(request: Request) {
     try {
@@ -12,6 +13,7 @@ export async function POST(request: Request) {
 
         const buffer = Buffer.from(await file.arrayBuffer());
         const result = await overwritePoliciesFromWorkbook(buffer);
+        invalidateRuntimeDataCache('listado_polizas.xlsx', 'lista_anos.xlsx', 'lista_meses.xlsx', 'lista_estados.xlsx');
 
         return NextResponse.json({
             success: true,

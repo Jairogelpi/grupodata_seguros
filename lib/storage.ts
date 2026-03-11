@@ -2,7 +2,7 @@ import * as XLSX from 'xlsx';
 import fs from 'fs';
 import path from 'path';
 import { createClient } from '@supabase/supabase-js';
-import { readDatasetFromDb } from './dbData';
+import { invalidateDbDatasetCache, readDatasetFromDb } from './dbData';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const IS_VERCEL = process.env.VERCEL === '1';
@@ -35,7 +35,7 @@ const writeClient = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
 
 const storageCache: Record<string, { data: any[], timestamp: number }> = {};
 const pendingReads = new Map<string, Promise<any[]>>();
-const CACHE_TTL_MS = 60_000;
+const CACHE_TTL_MS = 300_000;
 
 function getLocalPath(filename: string): string {
     return path.join(DATA_DIR, filename);
@@ -45,6 +45,21 @@ function ensureLocalDataDir(): void {
     if (!fs.existsSync(DATA_DIR)) {
         fs.mkdirSync(DATA_DIR, { recursive: true });
     }
+}
+
+export function invalidateRuntimeDataCache(...filenames: string[]): void {
+    if (filenames.length === 0) {
+        Object.keys(storageCache).forEach(key => delete storageCache[key]);
+        pendingReads.clear();
+        invalidateDbDatasetCache();
+        return;
+    }
+
+    filenames.forEach(filename => {
+        delete storageCache[filename];
+        pendingReads.delete(filename);
+    });
+    invalidateDbDatasetCache(...filenames);
 }
 
 export async function readData(filename: string): Promise<any[]> {
@@ -123,8 +138,7 @@ export async function writeData(filename: string, buffer: Buffer): Promise<void>
             throw new Error(`Failed to save to Supabase: ${error.message}`);
         }
 
-        Object.keys(storageCache).forEach(key => delete storageCache[key]);
-        pendingReads.clear();
+        invalidateRuntimeDataCache();
     } catch (err) {
         console.error(`[Storage] Error writing ${filename} to Supabase:`, err);
         throw err;

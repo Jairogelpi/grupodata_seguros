@@ -17,6 +17,8 @@ const readClient = createClient(
     SUPABASE_SERVICE_ROLE_KEY || SUPABASE_ANON_KEY,
     { auth: { persistSession: false } }
 );
+const datasetCache = new Map<string, any[] | null>();
+const pendingDatasetReads = new Map<string, Promise<any[] | null>>();
 
 function getAdminClient(): SupabaseClient {
     if (!SUPABASE_SERVICE_ROLE_KEY) {
@@ -106,7 +108,20 @@ type StateRow = { ESTADO: string };
 type EnteRow = { Código: string; Nombre: string; Tipo: string | null; Año1: string | null };
 type LinkRow = { ASESOR: string; ENTE: string };
 
-export async function readDatasetFromDb(filename: string): Promise<any[] | null> {
+export function invalidateDbDatasetCache(...filenames: string[]): void {
+    if (filenames.length === 0) {
+        datasetCache.clear();
+        pendingDatasetReads.clear();
+        return;
+    }
+
+    filenames.forEach(filename => {
+        datasetCache.delete(filename);
+        pendingDatasetReads.delete(filename);
+    });
+}
+
+async function loadDatasetFromDb(filename: string): Promise<any[] | null> {
     try {
         switch (filename) {
             case 'lista_asesores.xlsx':
@@ -139,6 +154,30 @@ export async function readDatasetFromDb(filename: string): Promise<any[] | null>
     }
 }
 
+export async function readDatasetFromDb(filename: string): Promise<any[] | null> {
+    if (datasetCache.has(filename)) {
+        return datasetCache.get(filename) ?? null;
+    }
+
+    const pendingRead = pendingDatasetReads.get(filename);
+    if (pendingRead) {
+        return pendingRead;
+    }
+
+    const nextRead = loadDatasetFromDb(filename).then(data => {
+        datasetCache.set(filename, data);
+        return data;
+    });
+
+    pendingDatasetReads.set(filename, nextRead);
+
+    try {
+        return await nextRead;
+    } finally {
+        pendingDatasetReads.delete(filename);
+    }
+}
+
 export async function getDbEntes(): Promise<any[]> {
     return (await readDatasetFromDb('entes.xlsx')) || [];
 }
@@ -166,6 +205,7 @@ export async function upsertDbEnte(ente: Record<string, any>): Promise<any[]> {
     const { error: insertError } = await admin.from('entes').insert([payload]);
     if (insertError) throw insertError;
 
+    invalidateDbDatasetCache('entes.xlsx');
     return getDbEntes();
 }
 
@@ -208,6 +248,7 @@ export async function addDbLink(link: { ASESOR: string; ENTE: string }): Promise
         if (insertError) throw insertError;
     }
 
+    invalidateDbDatasetCache('lista_asesores.xlsx', 'entes_registrados_asesor.xlsx');
     return getDbLinks();
 }
 
@@ -220,6 +261,8 @@ export async function removeDbLink(asesor: string, enteFormatted: string): Promi
         .eq('ENTE', enteFormatted);
 
     if (error) throw error;
+
+    invalidateDbDatasetCache('entes_registrados_asesor.xlsx');
 }
 
 export async function overwriteEntesFromWorkbook(buffer: Buffer): Promise<{ entes: number; linksRestored: number }> {
@@ -268,6 +311,7 @@ export async function overwriteEntesFromWorkbook(buffer: Buffer): Promise<{ ente
     await insertInChunks('entes', mappedEntes);
     await ensureAdvisors(reusableLinks.map(link => link.ASESOR));
     await insertInChunks('entes_registrados_asesor', reusableLinks);
+    invalidateDbDatasetCache('entes.xlsx', 'entes_registrados_asesor.xlsx', 'lista_asesores.xlsx');
 
     return {
         entes: mappedEntes.length,
@@ -327,6 +371,7 @@ export async function overwritePoliciesFromWorkbook(
     await insertInChunks('lista_meses', months);
     await insertInChunks('lista_estados', states);
     await insertInChunks('listado_polizas', policies);
+    invalidateDbDatasetCache('lista_anos.xlsx', 'lista_meses.xlsx', 'lista_estados.xlsx', 'listado_polizas.xlsx');
 
     return {
         policies: policies.length,
