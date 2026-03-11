@@ -95,6 +95,7 @@ export default function CarteraPage() {
         if (filters.estado.length > 0) params.append('estado', filters.estado.join(','));
         if (filters.ramo.length > 0) params.append('ramo', filters.ramo.join(','));
         if (filters.producto.length > 0) params.append('producto', filters.producto.join(','));
+        params.append('view', 'cartera');
 
         const url = `/api/metrics?${params.toString()}`;
         setLoading(!peekCachedJson(url));

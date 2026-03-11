@@ -94,6 +94,7 @@ export default function CompaniasPage() {
         if (filters.mes.length) params.append('mes', filters.mes.join(','));
         if (filters.estado.length) params.append('estado', filters.estado.join(','));
         if (filters.ente.length) params.append('ente', filters.ente.join(','));
+        params.append('view', 'summary');
 
         const url = `/api/metrics?${params.toString()}`;
         setLoading(!peekCachedJson(url));

@@ -46,6 +46,13 @@ export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
         const liteMode = searchParams.get('lite') === '1';
+        const view = searchParams.get('view') || (liteMode ? 'dashboard' : 'full');
+        const dashboardMode = view === 'dashboard';
+        const summaryMode = view === 'summary';
+        const carteraMode = view === 'cartera';
+        const fullMode = view === 'full';
+        const includePortfolioAnalytics = fullMode || carteraMode;
+        const includePredictiveAnalytics = fullMode;
         const normalizeText = (value: any) =>
             String(value || '')
                 .normalize('NFD')
@@ -225,8 +232,8 @@ export async function GET(request: Request) {
             if (matchAnio && matchMes && matchAsesor && matchEnte && matchRamo && matchProducto) if (pEstado) dynEstados.add(pEstado);
             if (matchAnio && matchMes && matchEstado && matchEnte && matchRamo && matchProducto) if (pAsesor) dynAsesores.add(pAsesor);
             if (matchAnio && matchMes && matchEstado && matchAsesor && matchRamo && matchProducto) if (pEnteName) dynEntes.add(pEnteName);
-            if (matchAnio && matchMes && matchEstado && matchAsesor && matchEnte && matchProducto) if (ramoName) dynRamos.add(ramoName);
-            if (matchAnio && matchMes && matchEstado && matchAsesor && matchEnte && matchRamo) if (producto) dynProductos.add(producto);
+            if (includePortfolioAnalytics && matchAnio && matchMes && matchEstado && matchAsesor && matchEnte && matchProducto) if (ramoName) dynRamos.add(ramoName);
+            if (includePortfolioAnalytics && matchAnio && matchMes && matchEstado && matchAsesor && matchEnte && matchRamo) if (producto) dynProductos.add(producto);
 
             if (!matchAnio || !matchMes || !matchEstado || !matchAsesor || !matchEnte || !matchRamo || !matchProducto) return;
             if (!validEnteCodes.has(code)) return;
@@ -249,7 +256,9 @@ export async function GET(request: Request) {
 
             if (dateEfecto && dateAnula && dateAnula <= dateEfecto) {
                 polizasSinEfecto++;
-                sinEfectoRamoStats.set(ramoName, (sinEfectoRamoStats.get(ramoName) || 0) + 1);
+                if (includePortfolioAnalytics) {
+                    sinEfectoRamoStats.set(ramoName, (sinEfectoRamoStats.get(ramoName) || 0) + 1);
+                }
             }
 
             currentPrimas += primas;
@@ -271,11 +280,11 @@ export async function GET(request: Request) {
             codeBreakdown.polizas += 1;
             if (fAnulacion || isCancelled) codeBreakdown.anulaciones += 1;
 
-            if ((fAnulacion || isCancelled) && motAnulacion) {
+            if (!dashboardMode && (fAnulacion || isCancelled) && motAnulacion) {
                 cancellationReasons.set(motAnulacion, (cancellationReasons.get(motAnulacion) || 0) + 1);
             }
 
-            if (fAnulacion && pAnio && pMes) {
+            if (includePortfolioAnalytics && fAnulacion && pAnio && pMes) {
                 try {
                     const startYear = parseInt(pAnio);
                     const startMonth = parseInt(pMes);
@@ -297,13 +306,15 @@ export async function GET(request: Request) {
             const a = asesoresStats.get(pAsesor);
             if (a) { a.totalPrimas += primas; a.numPolizos += 1; }
 
-            if (!productStats.has(producto)) productStats.set(producto, { producto, primas: 0, polizas: 0, entes: new Set() });
-            const ps = productStats.get(producto)!;
-            ps.primas += primas; ps.polizas += 1; ps.entes.add(code);
+            if (includePortfolioAnalytics) {
+                if (!productStats.has(producto)) productStats.set(producto, { producto, primas: 0, polizas: 0, entes: new Set() });
+                const ps = productStats.get(producto)!;
+                ps.primas += primas; ps.polizas += 1; ps.entes.add(code);
 
-            if (!ramoStats.has(ramoName)) ramoStats.set(ramoName, { ramo: ramoName, primas: 0, polizas: 0, entes: new Set() });
-            const rs = ramoStats.get(ramoName)!;
-            rs.primas += primas; rs.polizas += 1; rs.entes.add(code);
+                if (!ramoStats.has(ramoName)) ramoStats.set(ramoName, { ramo: ramoName, primas: 0, polizas: 0, entes: new Set() });
+                const rs = ramoStats.get(ramoName)!;
+                rs.primas += primas; rs.polizas += 1; rs.entes.add(code);
+            }
 
             if (!estadoStats.has(pEstado)) estadoStats.set(pEstado, { estado: pEstado, primas: 0, polizas: 0 });
             const es = estadoStats.get(pEstado)!;
@@ -314,18 +325,20 @@ export async function GET(request: Request) {
             cs.primas += primas; cs.polizas += 1; cs.entes.add(code);
             if (pAsesor !== 'Sin Asesor') cs.asesores.add(pAsesor);
 
-            if (!enteRamosMap.has(code)) enteRamosMap.set(code, new Set());
-            enteRamosMap.get(code)!.add(ramoName);
+            if (includePortfolioAnalytics || includePredictiveAnalytics) {
+                if (!enteRamosMap.has(code)) enteRamosMap.set(code, new Set());
+                enteRamosMap.get(code)!.add(ramoName);
 
-            if (!tomadorRamosMap.has(tomadorKey)) tomadorRamosMap.set(tomadorKey, new Set());
-            tomadorRamosMap.get(tomadorKey)!.add(ramoName);
+                if (!tomadorRamosMap.has(tomadorKey)) tomadorRamosMap.set(tomadorKey, new Set());
+                tomadorRamosMap.get(tomadorKey)!.add(ramoName);
+            }
         });
 
         const crossSellingCounts = { 1: 0, 2: 0, '3+': 0 };
         const pairFreq = new Map<string, number>(); // Simple association frequency
         let totalTomadoresWithPolizas = 0, totalRamosCoverage = 0;
 
-        if (!liteMode) {
+        if (includePortfolioAnalytics || includePredictiveAnalytics) {
         tomadorRamosMap.forEach((ramos) => {
             totalTomadoresWithPolizas++;
             const count = ramos.size;
@@ -334,12 +347,13 @@ export async function GET(request: Request) {
             else if (count === 2) crossSellingCounts[2]++;
             else crossSellingCounts['3+']++;
 
-            // Calculate pairs for NBA argument
-            const ramosArr = Array.from(ramos);
-            for (let i = 0; i < ramosArr.length; i++) {
-                for (let j = i + 1; j < ramosArr.length; j++) {
-                    const pair = [ramosArr[i], ramosArr[j]].sort().join(' + ');
-                    pairFreq.set(pair, (pairFreq.get(pair) || 0) + 1);
+            if (includePredictiveAnalytics) {
+                const ramosArr = Array.from(ramos);
+                for (let i = 0; i < ramosArr.length; i++) {
+                    for (let j = i + 1; j < ramosArr.length; j++) {
+                        const pair = [ramosArr[i], ramosArr[j]].sort().join(' + ');
+                        pairFreq.set(pair, (pairFreq.get(pair) || 0) + 1);
+                    }
                 }
             }
         });
@@ -350,7 +364,7 @@ export async function GET(request: Request) {
         const marketingStrategies = [];
 
         // 1. Retention Strategy (Priority if Churn is high)
-        if (!liteMode && currentCount > 0) {
+        if (includePredictiveAnalytics && currentCount > 0) {
             let totalAnuladas = 0;
             breakdownMap.forEach(b => totalAnuladas += b.anulaciones);
             const churnRateCalc = (totalAnuladas / currentCount) * 100;
@@ -376,7 +390,7 @@ export async function GET(request: Request) {
 
         // 2. Cross-Sell Strategy (The NBA - Next Best Action)
         const entries = Array.from(pairFreq.entries()).sort((a, b) => b[1] - a[1]);
-        if (!liteMode && entries.length > 0) {
+        if (includePredictiveAnalytics && entries.length > 0) {
             const [pair, count] = entries[0];
             const [ramoA, ramoB] = pair.split(' + ');
             const supportA = ramoStats.get(ramoA)?.entes.size || 1;
@@ -402,14 +416,14 @@ export async function GET(request: Request) {
 
         const pctMono = totalPlus1 > 0 ? (crossSellingCounts[1] / totalPlus1) * 100 : 0;
 
-        if (!liteMode && pctMono > 60) {
+        if (includePredictiveAnalytics && pctMono > 60) {
             marketingStrategies.push({
                 type: 'EXPANSION',
                 title: 'Potencial de Expansión Masiva',
                 color: 'purple',
                 description: `El **${pctMono.toFixed(1)}%** de tus clientes (tomadores) tiene un solo producto. Es una base enorme sin explotar. Ofréceles un segundo producto con descuento por vinculación.`
             });
-        } else if (!liteMode) {
+        } else if (includePredictiveAnalytics) {
             // Generic fallback if not extreme mono-product
             marketingStrategies.push({
                 type: 'EXPANSION',
@@ -420,7 +434,7 @@ export async function GET(request: Request) {
         }
 
         // Ensure we have at least 3 items, maybe duplicate generic ones if needed, or add a Pareto one
-        if (!liteMode && marketingStrategies.length < 3) {
+        if (includePredictiveAnalytics && marketingStrategies.length < 3) {
             // Add Pareto Insight
             const entesSorted = Array.from(breakdownMap.values()).sort((a, b) => b.primas - a.primas);
             const top20Count = Math.ceil(entesSorted.length * 0.2);
@@ -445,7 +459,7 @@ export async function GET(request: Request) {
         }
 
         // 4. Fill if still missing (Fallback)
-        if (!liteMode && marketingStrategies.length < 3) {
+        if (includePredictiveAnalytics && marketingStrategies.length < 3) {
             marketingStrategies.push({
                 type: 'GENERAL',
                 title: 'Revisión de Cartera',
@@ -515,7 +529,7 @@ export async function GET(request: Request) {
 
         // Enrich Ramos Breakdown with Top Clients and their product mix
         const allNbas: any[] = [];
-        const enrichedRamosBreakdown = !liteMode ? Array.from(ramoStats.values()).map(r => {
+        const enrichedRamosBreakdown = includePortfolioAnalytics ? Array.from(ramoStats.values()).map(r => {
             const clientsInRamo = Array.from(r.entes).map(code => {
                 const b = breakdownByCodeMap.get(code);
                 const productsArray = Array.from(productStats.values())
@@ -523,8 +537,7 @@ export async function GET(request: Request) {
                     .map(ps => ps.producto);
 
                 let nba = null;
-                // Only calculate NBA for mono-product or simple clients to keep it clean
-                if (productsArray.length === 1) {
+                if (includePredictiveAnalytics && productsArray.length === 1) {
                     const currentProd = productsArray[0];
                     let bestNext = '';
                     let bestConf = 0;
@@ -614,7 +627,9 @@ export async function GET(request: Request) {
             };
         }).sort((a, b) => b.primas - a.primas) : [];
 
-        (advanced as any).topOpportunities = allNbas.sort((a, b) => parseInt(b.confidence) - parseInt(a.confidence));
+        (advanced as any).topOpportunities = includePredictiveAnalytics
+            ? allNbas.sort((a, b) => parseInt(b.confidence) - parseInt(a.confidence))
+            : [];
 
         const payload = {
             metrics: {
@@ -638,12 +653,12 @@ export async function GET(request: Request) {
                 productos: Array.from(dynProductos).sort()
             },
             breakdown: Array.from(breakdownMap.values()).map(b => ({ ...b, ticketMedio: b.polizas > 0 ? b.primas / b.polizas : 0 })).sort((a, b) => b.primas - a.primas),
-            asesoresBreakdown: liteMode ? [] : Array.from(asesoresStats.values()).map(a => ({ asesor: a.asesor, numEntes: a.numEntes, totalPrimas: a.totalPrimas, numPolizas: a.numPolizos, avgPrimas: a.numPolizos > 0 ? a.totalPrimas / a.numPolizos : 0 })).sort((a, b) => b.totalPrimas - a.totalPrimas),
-            companiasBreakdown: liteMode ? [] : Array.from(companyStats.values()).map(c => ({ company: c.company, primas: c.primas, polizas: c.polizas, numEntes: c.entes.size, numAsesores: c.asesores.size, ticketMedio: c.polizas > 0 ? c.primas / c.polizas : 0 })).sort((a, b) => b.primas - a.primas),
-            productosBreakdown: liteMode ? [] : Array.from(productStats.values()).map(p => ({ ...p, entes: p.entes.size, ticketMedio: p.polizas > 0 ? p.primas / p.polizas : 0 })).sort((a, b) => b.primas - a.primas),
+            asesoresBreakdown: dashboardMode ? [] : Array.from(asesoresStats.values()).map(a => ({ asesor: a.asesor, numEntes: a.numEntes, totalPrimas: a.totalPrimas, numPolizas: a.numPolizos, avgPrimas: a.numPolizos > 0 ? a.totalPrimas / a.numPolizos : 0 })).sort((a, b) => b.totalPrimas - a.totalPrimas),
+            companiasBreakdown: dashboardMode ? [] : Array.from(companyStats.values()).map(c => ({ company: c.company, primas: c.primas, polizas: c.polizas, numEntes: c.entes.size, numAsesores: c.asesores.size, ticketMedio: c.polizas > 0 ? c.primas / c.polizas : 0 })).sort((a, b) => b.primas - a.primas),
+            productosBreakdown: fullMode ? Array.from(productStats.values()).map(p => ({ ...p, entes: p.entes.size, ticketMedio: p.polizas > 0 ? p.primas / p.polizas : 0 })).sort((a, b) => b.primas - a.primas) : [],
             ramosBreakdown: enrichedRamosBreakdown,
-            estadosBreakdown: liteMode ? [] : Array.from(estadoStats.values()).sort((a, b) => b.polizas - a.polizas),
-            cancellationReasons: liteMode ? [] : Array.from(cancellationReasons.entries()).map(([reason, count]) => ({ reason, count })).sort((a, b) => b.count - a.count)
+            estadosBreakdown: dashboardMode ? [] : Array.from(estadoStats.values()).sort((a, b) => b.polizas - a.polizas),
+            cancellationReasons: dashboardMode ? [] : Array.from(cancellationReasons.entries()).map(([reason, count]) => ({ reason, count })).sort((a, b) => b.count - a.count)
         };
 
         setCachedMetricsResponse(cacheKey, payload);

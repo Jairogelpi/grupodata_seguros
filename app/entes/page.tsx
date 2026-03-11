@@ -51,6 +51,7 @@ export default function EntesPage() {
         if (filters.anio.length > 0) params.append('anio', filters.anio.join(','));
         if (filters.mes.length > 0) params.append('mes', filters.mes.join(','));
         if (filters.estado.length > 0) params.append('estado', filters.estado.join(','));
+        params.append('view', 'summary');
 
         const url = `/api/metrics?${params.toString()}`;
         setRankingLoading(!peekCachedJson(url));
