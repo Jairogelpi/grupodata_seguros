@@ -2,7 +2,16 @@ import { NextResponse } from 'next/server';
 import { readData } from '@/lib/storage';
 import { getLinks } from '@/lib/registry';
 import { getRamo } from '@/lib/ramos';
-import { getStringCell } from '@/lib/excelRow';
+import {
+    getPolicyCancellationDate,
+    getPolicyEffectiveDate,
+    getPolicyEnteCode,
+    getPolicyMonth,
+    getPolicyPremiumValue,
+    getPolicyProduct,
+    getPolicyState,
+    getPolicyYear
+} from '@/lib/policyRow';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,19 +50,15 @@ export async function GET(request: Request) {
         });
 
         const getPolizaAsesor = (p: any) => {
-            const enteComercial = String(p['Ente Comercial'] || '');
-            const parts = enteComercial.split(' - ');
-            const codeFromEnte = parts.length > 1 ? parts[parts.length - 1].trim() : enteComercial.trim();
-            const codeDirect = getStringCell(p, 'Codigo');
+            const codeFromEnte = getPolicyEnteCode(p);
+            const codeDirect = getPolicyEnteCode(p);
             const code = validEnteCodes.has(codeFromEnte) ? codeFromEnte : (validEnteCodes.has(codeDirect) ? codeDirect : null);
             return code ? codeToAsesorMap.get(code) : null;
         };
 
         const getPolizaEnteCode = (p: any) => {
-            const enteComercial = String(p['Ente Comercial'] || '');
-            const parts = enteComercial.split(' - ');
-            const codeFromEnte = parts.length > 1 ? parts[parts.length - 1].trim() : enteComercial.trim();
-            const codeDirect = getStringCell(p, 'Codigo');
+            const codeFromEnte = getPolicyEnteCode(p);
+            const codeDirect = getPolicyEnteCode(p);
             return validEnteCodes.has(codeFromEnte) ? codeFromEnte : (validEnteCodes.has(codeDirect) ? codeDirect : null);
         };
 
@@ -93,12 +98,12 @@ export async function GET(request: Request) {
             const asesor = getPolizaAsesor(p);
             if (asesor !== asesorName) return;
 
-            const anio = parseInt(p['AÑO_PROD']);
-            const mes = parseInt(p['MES_Prod']);
+            const anio = parseInt(getPolicyYear(p), 10);
+            const mes = parseInt(getPolicyMonth(p), 10);
             if (isNaN(anio) || isNaN(mes)) return;
 
             // Apply Filters (Before Aggregation)
-            const producto = String(p['Producto'] || 'Sin Producto');
+            const producto = getPolicyProduct(p) || 'Sin Producto';
 
             // Filter by Period (if params present)
             if (targetAnio && anio !== targetAnio) return;
@@ -111,10 +116,9 @@ export async function GET(request: Request) {
             }
 
             const key = `${anio}-${String(mes).padStart(2, '0')}`;
-            const pStr = String(p['P.Produccion'] || '0').replace(',', '.');
-            const primas = parseFloat(pStr) || 0;
+            const primas = getPolicyPremiumValue(p, 'PProduccion', 'P.Produccion');
             const enteCode = getPolizaEnteCode(p) || 'unknown';
-            const estado = String(p['Estado'] || '').toUpperCase();
+            const estado = getPolicyState(p).toUpperCase();
 
             if (!monthlyStats.has(key)) {
                 monthlyStats.set(key, { anio, mes, primas: 0, polizas: 0, entesSet: new Set(), anuladas: 0, enVigor: 0, suspension: 0, anulacionesTempranas: 0 });
@@ -126,7 +130,7 @@ export async function GET(request: Request) {
 
             if (estado.includes('ANULADA')) {
                 stats.anuladas += 1;
-                const dias = calcDiasVigor(String(p['F.Efecto'] || ''), String(p['F.Anulación'] || ''));
+                const dias = calcDiasVigor(getPolicyEffectiveDate(p), getPolicyCancellationDate(p));
                 if (dias !== null && dias < 180) {
                     stats.anulacionesTempranas += 1;
                 }
@@ -183,7 +187,7 @@ export async function GET(request: Request) {
             const asesor = getPolizaAsesor(p);
             if (asesor !== asesorName) return;
 
-            const estado = String(p['Estado'] || '').toUpperCase();
+            const estado = getPolicyState(p).toUpperCase();
             if (estado.includes('VIGOR')) globalStats.active++;
             else if (estado.includes('SUSPENSIÓN') || estado.includes('SUSPENSION')) globalStats.suspension++;
             else if (estado.includes('ANULADA')) globalStats.totalAnuladas++;

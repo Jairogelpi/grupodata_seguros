@@ -1,7 +1,24 @@
 import { NextResponse } from 'next/server';
 import { readData } from '@/lib/storage';
 import { getLinks } from '@/lib/registry';
-import { getStringCell } from '@/lib/excelRow';
+import {
+    getPolicyAltaDate,
+    getPolicyCancellationDate,
+    getPolicyCancellationReason,
+    getPolicyCompany,
+    getPolicyEffectiveDate,
+    getPolicyEnteCode,
+    getPolicyEnteCommercial,
+    getPolicyHolder,
+    getPolicyHolderDocument,
+    getPolicyMonth,
+    getPolicyNumber,
+    getPolicyPaymentMethod,
+    getPolicyPremiumValue,
+    getPolicyProduct,
+    getPolicyState,
+    getPolicyYear
+} from '@/lib/policyRow';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,10 +56,8 @@ export async function GET(request: Request) {
         });
 
         const getPolizaAsesor = (p: any) => {
-            const enteComercial = String(p['Ente Comercial'] || '');
-            const parts = enteComercial.split(' - ');
-            const codeFromEnte = parts.length > 1 ? parts[parts.length - 1].trim() : enteComercial.trim();
-            const codeDirect = getStringCell(p, 'Codigo');
+            const codeFromEnte = getPolicyEnteCode(p);
+            const codeDirect = getPolicyEnteCode(p);
             const code = validEnteCodes.has(codeFromEnte) ? codeFromEnte : (validEnteCodes.has(codeDirect) ? codeDirect : null);
             return code ? codeToAsesorMap.get(code) : null;
         };
@@ -52,14 +67,14 @@ export async function GET(request: Request) {
             const name = getPolizaAsesor(p);
             if (name !== asesorName) return false;
 
-            const pAnio = parseInt(p['AÑO_PROD']);
-            const pMes = parseInt(p['MES_Prod']);
+            const pAnio = parseInt(getPolicyYear(p), 10);
+            const pMes = parseInt(getPolicyMonth(p), 10);
 
             return pAnio === targetAnio && pMes === targetMes;
         }).map(p => {
-            const fEfectoStr = p['F.Efecto'] || '';
-            const fAnulaStr = p['F.Anulación'] || '';
-            const estado = p['Estado'] || 'N/A';
+            const fEfectoStr = getPolicyEffectiveDate(p) || '';
+            const fAnulaStr = getPolicyCancellationDate(p) || '';
+            const estado = getPolicyState(p) || 'N/A';
 
             let diasHastaAnula = null;
 
@@ -80,21 +95,21 @@ export async function GET(request: Request) {
                         } else {
                             // Without explicit cancellation date or Vigor status, we don't calc days
                             return {
-                                poliza: p['NºPóliza'] || p['Poliza'] || 'N/A',
+                                poliza: getPolicyNumber(p) || 'N/A',
                                 estado,
-                                tomador: p['Tomador'] || 'N/A',
-                                producto: p['Producto'] || 'N/A',
+                                tomador: getPolicyHolder(p) || 'N/A',
+                                producto: getPolicyProduct(p) || 'N/A',
                                 fechaEfecto: fEfectoStr,
                                 fechaAnulacion: fAnulaStr,
                                 diasHastaAnula: null,
-                                dni: p['NIF/CIF Tomador'] || 'N/A',
-                                primas: parseFloat(String(p['P.Produccion'] || '0').replace(',', '.')) || 0,
-                                cartera: parseFloat(String(p['P.Cartera'] || '0').replace(',', '.')) || 0,
-                                motivoAnulacion: p['Mot.Anulación'] || '',
-                                compania: p['Abrev.Cía'] || 'N/A',
-                                duracion: p['Duración'] || '',
-                                formaPago: p['Forma Pago'] || '',
-                                fAlta: p['F. Alta'] || ''
+                                dni: getPolicyHolderDocument(p) || 'N/A',
+                                primas: getPolicyPremiumValue(p, 'PProduccion', 'P.Produccion'),
+                                cartera: getPolicyPremiumValue(p, 'PCartera', 'P.Cartera'),
+                                motivoAnulacion: getPolicyCancellationReason(p),
+                                compania: getPolicyCompany(p) || 'N/A',
+                                duracion: String(p['Duración'] || ''),
+                                formaPago: getPolicyPaymentMethod(p),
+                                fAlta: getPolicyAltaDate(p)
                             };
                         }
 
@@ -109,21 +124,21 @@ export async function GET(request: Request) {
             }
 
             return {
-                poliza: p['NºPóliza'] || p['Poliza'] || 'N/A',
+                poliza: getPolicyNumber(p) || 'N/A',
                 estado,
-                tomador: p['Tomador'] || 'N/A',
-                producto: p['Producto'] || 'N/A',
+                tomador: getPolicyHolder(p) || 'N/A',
+                producto: getPolicyProduct(p) || 'N/A',
                 fechaEfecto: fEfectoStr,
                 fechaAnulacion: fAnulaStr,
                 diasHastaAnula,
-                dni: p['NIF/CIF Tomador'] || 'N/A',
-                primas: parseFloat(String(p['P.Produccion'] || '0').replace(',', '.')) || 0,
-                cartera: parseFloat(String(p['P.Cartera'] || '0').replace(',', '.')) || 0,
-                motivoAnulacion: p['Mot.Anulación'] || '',
-                compania: p['Abrev.Cía'] || 'N/A',
-                duracion: p['Duración'] || '',
-                formaPago: p['Forma Pago'] || '',
-                fAlta: p['F. Alta'] || ''
+                dni: getPolicyHolderDocument(p) || 'N/A',
+                primas: getPolicyPremiumValue(p, 'PProduccion', 'P.Produccion'),
+                cartera: getPolicyPremiumValue(p, 'PCartera', 'P.Cartera'),
+                motivoAnulacion: getPolicyCancellationReason(p),
+                compania: getPolicyCompany(p) || 'N/A',
+                duracion: String(p['Duración'] || ''),
+                formaPago: getPolicyPaymentMethod(p),
+                fAlta: getPolicyAltaDate(p)
             };
         });
 

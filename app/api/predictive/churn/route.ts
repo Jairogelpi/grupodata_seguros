@@ -2,6 +2,21 @@ import { NextResponse } from 'next/server';
 import { readData } from '@/lib/storage';
 import { getRamo } from '@/lib/ramos';
 import { getLinks } from '@/lib/registry';
+import {
+    getPolicyCancellationDate,
+    getPolicyCompany,
+    getPolicyEffectiveDate,
+    getPolicyEnteCode,
+    getPolicyEnteCommercial,
+    getPolicyHolderDocument,
+    getPolicyMonth,
+    getPolicyNumber,
+    getPolicyPaymentMethod,
+    getPolicyPremiumValue,
+    getPolicyProduct,
+    getPolicyState,
+    getPolicyYear
+} from '@/lib/policyRow';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,10 +74,8 @@ export async function GET(request: Request) {
         });
 
         const getPolizaEnteCode = (p: any) => {
-            const enteComercial = String(p['Ente Comercial'] || '');
-            const parts = enteComercial.split(' - ');
-            const codeFromEnte = parts.length > 1 ? parts[parts.length - 1].trim() : enteComercial.trim();
-            const codeDirect = String(p['Código'] || '');
+            const codeFromEnte = getPolicyEnteCode(p);
+            const codeDirect = getPolicyEnteCommercial(p);
             if (validEnteCodes.has(codeFromEnte)) return codeFromEnte;
             if (validEnteCodes.has(codeDirect)) return codeDirect;
             return null;
@@ -75,9 +88,9 @@ export async function GET(request: Request) {
 
             const asesor = codeToAsesorMap.get(code) || 'Sin Asesor';
             const enteName = codeToNameMap.get(code) || code;
-            const pAnio = String(p['AÑO_PROD'] || '');
-            const pMes = String(p['MES_Prod'] || '');
-            const pEstado = String(p['Estado'] || '');
+            const pAnio = getPolicyYear(p);
+            const pMes = getPolicyMonth(p);
+            const pEstado = getPolicyState(p);
 
             const matchAsesor = comerciales.length === 0 || comerciales.includes(asesor);
             const matchEnte = entesFilter.length === 0 || entesFilter.includes(enteName);
@@ -91,8 +104,8 @@ export async function GET(request: Request) {
         // 1. Unique-ify policies by Number to avoid population inflation
         const uniquePolizasMap = new Map<string, any>();
         polizas.forEach(p => {
-            const num = String(p['NºPóliza'] || 'S/N');
-            const estado = String(p['Estado'] || '').toLowerCase();
+            const num = getPolicyNumber(p) || 'S/N';
+            const estado = getPolicyState(p).toLowerCase();
             const isCancelled = estado.includes('anula') || estado.includes('baja');
 
             if (!uniquePolizasMap.has(num)) {
@@ -106,12 +119,12 @@ export async function GET(request: Request) {
         const uniquePolizas = Array.from(uniquePolizasMap.values());
 
         const cancelled = uniquePolizas.filter(p => {
-            const estado = String(p['Estado'] || '').toLowerCase();
+            const estado = getPolicyState(p).toLowerCase();
             return estado.includes('anula') || estado.includes('baja');
         });
 
         const active = uniquePolizas.filter(p => {
-            const estado = String(p['Estado'] || '').toLowerCase();
+            const estado = getPolicyState(p).toLowerCase();
             // Active is basically anything that isn't cancelled and isn't a future/test record
             return estado.includes('vigor') || estado.includes('pendien') || estado.includes('cartera') || estado.includes('cobro') || estado.includes('suspension');
         });
@@ -139,15 +152,15 @@ export async function GET(request: Request) {
         const totalPop = uniquePolizas.length;
 
         uniquePolizas.forEach(p => {
-            const ramo = getRamo(String(p['Producto'] || ''));
-            const cia = String(p['Abrev.Cía'] || p['Compañía'] || 'Otros');
-            const estado = String(p['Estado'] || '').toLowerCase();
+            const ramo = getRamo(getPolicyProduct(p));
+            const cia = getPolicyCompany(p) || 'Otros';
+            const estado = getPolicyState(p).toLowerCase();
             // CRITICAL: Must use the exact same filter as 'cancelled' above
             const isCancelled = estado.includes('anula') || estado.includes('baja');
 
             // Seniority logic (months between Effekt and current or Cancel date)
-            const dateEfecto = parseAnyDate(p['F.Efecto']);
-            const dateAnula = parseAnyDate(p['F.Anulación']);
+            const dateEfecto = parseAnyDate(getPolicyEffectiveDate(p));
+            const dateAnula = parseAnyDate(getPolicyCancellationDate(p));
             const now = new Date();
             let seniorityRange = 'Desconocido';
 
@@ -160,7 +173,7 @@ export async function GET(request: Request) {
                 else seniorityRange = '> 5 años';
             }
 
-            const pago = String(p['Forma de Pago'] || 'Anual');
+            const pago = getPolicyPaymentMethod(p) || 'Anual';
 
             [
                 { map: stats.ramo, key: ramo },
@@ -184,7 +197,7 @@ export async function GET(request: Request) {
         const rejectedByEnte = new Map<string, { num: string, ramo: string, cia: string, fecha: string }[]>();
 
         active.forEach(p => {
-            const code = String(p['Ente Comercial'] || '');
+            const code = getPolicyEnteCommercial(p);
             entePolicyCount.set(code, (entePolicyCount.get(code) || 0) + 1);
         });
 
@@ -196,10 +209,10 @@ export async function GET(request: Request) {
                 const list = rejectedByEnte.get(code)!;
                 if (list.length < 5) {
                     list.push({
-                        num: String(p['NºPóliza'] || 'S/N'),
-                        ramo: getRamo(String(p['Producto'] || '')),
-                        cia: String(p['Abrev.Cía'] || p['Compañía'] || 'Otros'),
-                        fecha: String(p['F.Anulación'] || p['F.Baja'] || 'Reciente')
+                        num: getPolicyNumber(p) || 'S/N',
+                        ramo: getRamo(getPolicyProduct(p)),
+                        cia: getPolicyCompany(p) || 'Otros',
+                        fecha: getPolicyCancellationDate(p) || 'Reciente'
                     });
                 }
             }
@@ -215,12 +228,12 @@ export async function GET(request: Request) {
         };
 
         const riskList = active.map(p => {
-            const code = String(p['Ente Comercial'] || '');
-            const ramo = getRamo(String(p['Producto'] || ''));
-            const cia = String(p['Abrev.Cía'] || p['Compañía'] || 'Otros');
-            const prima = parseFloat(String(p['Primas'] || '0').replace(',', '.'));
+            const code = getPolicyEnteCommercial(p);
+            const ramo = getRamo(getPolicyProduct(p));
+            const cia = getPolicyCompany(p) || 'Otros';
+            const prima = getPolicyPremiumValue(p, 'Primas', 'PProduccion', 'P.Produccion');
 
-            const dateEfecto = parseAnyDate(p['F.Efecto']);
+            const dateEfecto = parseAnyDate(getPolicyEffectiveDate(p));
             const now = new Date();
             let seniorityRange = 'Desconocido';
             let isNearRenewal = false;
@@ -241,7 +254,7 @@ export async function GET(request: Request) {
             const ramoInfo = getFactorRisk(stats.ramo, ramo);
             const ciaInfo = getFactorRisk(stats.compania, cia);
             const seniorityInfo = getFactorRisk(stats.seniority, seniorityRange);
-            const pagoInfo = getFactorRisk(stats.pago, String(p['Forma de Pago'] || 'Anual'));
+            const pagoInfo = getFactorRisk(stats.pago, getPolicyPaymentMethod(p) || 'Anual');
 
             const contagionRisk = enteHasCanceledBefore.has(code) ? 1.45 : 0.9;
             const renewalPressure = isNearRenewal ? 1.4 : 1.0;
@@ -249,7 +262,9 @@ export async function GET(request: Request) {
             const loyaltyBonus = count > 3 ? 0.6 : (count > 1 ? 0.8 : 1.35);
 
             const ramoData = stats.ramo.get(ramo);
-            const avgRamoPrima = ramoData ? (active.filter(ap => getRamo(String(ap['Producto'])) === ramo).reduce((s, ap) => s + parseFloat(String(ap['Primas']).replace(',', '.')), 0) / (ramoData.total || 1)) : 100;
+            const avgRamoPrima = ramoData
+                ? (active.filter(ap => getRamo(getPolicyProduct(ap)) === ramo).reduce((s, ap) => s + getPolicyPremiumValue(ap, 'Primas', 'PProduccion', 'P.Produccion'), 0) / (ramoData.total || 1))
+                : 100;
             const premiumPressure = prima > (avgRamoPrima * 1.6) ? 1.4 : 1.0;
 
             const rawScore = (ramoInfo.factor * ciaInfo.factor * seniorityInfo.factor * pagoInfo.factor * contagionRisk * renewalPressure * loyaltyBonus * premiumPressure);
@@ -267,13 +282,13 @@ export async function GET(request: Request) {
             ].filter(f => f.impact > 1.05).sort((a, b) => b.impact - a.impact).slice(0, 3);
 
             return {
-                poliza: String(p['NºPóliza'] || 'S/N'),
+                poliza: getPolicyNumber(p) || 'S/N',
                 ente: code || 'Ente Desconocido',
                 ramo,
                 cia,
                 seniority: seniorityRange,
                 prima,
-                pago: String(p['Forma de Pago'] || 'Anual'),
+                pago: getPolicyPaymentMethod(p) || 'Anual',
                 score: probability,
                 factors,
                 rejectedPolicies: rejectedByEnte.get(code) || [],

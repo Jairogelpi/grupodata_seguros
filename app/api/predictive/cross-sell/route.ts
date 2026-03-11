@@ -2,6 +2,16 @@ import { NextResponse } from 'next/server';
 import { readData } from '@/lib/storage';
 import { getLinks } from '@/lib/registry';
 import { getRamo } from '@/lib/ramos';
+import {
+    getPolicyEffectiveDate,
+    getPolicyEnteCode,
+    getPolicyHolder,
+    getPolicyMonth,
+    getPolicyNumber,
+    getPolicyProduct,
+    getPolicyState,
+    getPolicyYear
+} from '@/lib/policyRow';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,10 +69,8 @@ export async function GET(request: Request) {
         };
 
         const getPolizaEnteCode = (p: any) => {
-            const enteComercial = String(p['Ente Comercial'] || '');
-            const parts = enteComercial.split(' - ');
-            const codeFromEnte = parts.length > 1 ? parts[parts.length - 1].trim() : enteComercial.trim();
-            const codeDirect = String(p['Código'] || '');
+            const codeFromEnte = getPolicyEnteCode(p);
+            const codeDirect = getPolicyEnteCode(p);
             if (validEnteCodes.has(codeFromEnte)) return codeFromEnte;
             if (validEnteCodes.has(codeDirect)) return codeDirect;
             return null;
@@ -78,10 +86,10 @@ export async function GET(request: Request) {
 
             const asesor = codeToAsesorMap.get(finalCode) || 'Sin Asesor';
             const enteName = codeToNameMap.get(finalCode) || finalCode;
-            const tomador = String(p['Tomador'] || '').trim() || enteName; // Default to Ente if no Tomador
-            const pAnio = String(p['AÑO_PROD'] || '');
-            const pMes = String(p['MES_Prod'] || '');
-            const pEstado = String(p['Estado'] || '');
+            const tomador = getPolicyHolder(p) || enteName;
+            const pAnio = getPolicyYear(p);
+            const pMes = getPolicyMonth(p);
+            const pEstado = getPolicyState(p);
 
             // Combined filtering
             const matchAsesor = comerciales.length === 0 || comerciales.includes(asesor) || (asesorFilter === asesor);
@@ -93,12 +101,12 @@ export async function GET(request: Request) {
             if (!matchAsesor || !matchEnte || !matchAnio || !matchMes || !matchEstado) return;
 
             // Count this unique policy
-            uniquePoliciesInFilters.add(String(p['NºPóliza'] || Math.random().toString()));
+            uniquePoliciesInFilters.add(getPolicyNumber(p) || Math.random().toString());
 
-            const producto = String(p['Producto'] || '');
+            const producto = getPolicyProduct(p);
             const ramo = getRamo(producto);
             // Sequential mining needs the earliest possible date for this branch for the customer
-            const fEfecto = parseAnyDate(p['F.Efecto']);
+            const fEfecto = parseAnyDate(getPolicyEffectiveDate(p));
 
             if (!tomadorTransactions.has(tomador)) {
                 tomadorTransactions.set(tomador, []);

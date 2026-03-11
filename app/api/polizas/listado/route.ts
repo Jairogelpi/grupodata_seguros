@@ -2,6 +2,22 @@ import { NextResponse } from 'next/server';
 import { readData } from '@/lib/storage';
 import { getLinks } from '@/lib/registry';
 import { getRamo } from '@/lib/ramos';
+import {
+    getPolicyAltaDate,
+    getPolicyCancellationDate,
+    getPolicyCompany,
+    getPolicyEffectiveDate,
+    getPolicyEnteCode,
+    getPolicyEnteCommercial,
+    getPolicyHolder,
+    getPolicyHolderDocument,
+    getPolicyMonth,
+    getPolicyNumber,
+    getPolicyPremiumValue,
+    getPolicyProduct,
+    getPolicyState,
+    getPolicyYear
+} from '@/lib/policyRow';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,12 +59,11 @@ export async function GET(request: Request) {
         });
 
         const getPolizaEnteName = (p: any) => {
-            const enteComercial = String(p['Ente Comercial'] || '');
+            const enteComercial = getPolicyEnteCommercial(p);
             if (validEnteNames.has(enteComercial)) return enteComercial;
 
-            const parts = enteComercial.split(' - ');
-            const codeFromEnte = parts.length > 1 ? parts[parts.length - 1].trim() : enteComercial.trim();
-            const codeDirect = String(p['Código'] || '');
+            const codeFromEnte = getPolicyEnteCode(p);
+            const codeDirect = getPolicyEnteCode(p);
 
             return codeToNameMap.get(codeFromEnte) || codeToNameMap.get(codeDirect) || null;
         };
@@ -63,11 +78,11 @@ export async function GET(request: Request) {
         // 2.5 Calculate Cross-Selling (Unique Ramos per Tomador)
         const tomadorRamosMap = new Map<string, Set<string>>();
         polizas.forEach(p => {
-            const tomadorDni = String(p['NIF/CIF Tomador'] || '').trim();
-            const tomadorName = String(p['Tomador'] || '').trim();
+            const tomadorDni = getPolicyHolderDocument(p);
+            const tomadorName = getPolicyHolder(p);
             const tomadorKey = tomadorDni || tomadorName || 'DESCONOCIDO';
 
-            const producto = String(p['Producto'] || '');
+            const producto = getPolicyProduct(p);
             const ramo = getRamo(producto);
             if (tomadorKey && ramo) {
                 if (!tomadorRamosMap.has(tomadorKey)) tomadorRamosMap.set(tomadorKey, new Set());
@@ -97,15 +112,15 @@ export async function GET(request: Request) {
 
             // Filter by Estado
             if (estadoFilter) {
-                const estado = String(p['Estado'] || '').toUpperCase();
+                const estado = getPolicyState(p).toUpperCase();
                 if (estadoFilter === 'VIGOR' && !estado.includes('VIGOR')) return false;
                 if (estadoFilter === 'SUSPENSION' && !estado.includes('SUSPENSI')) return false;
                 if (estadoFilter === 'ANULADA' && !estado.includes('ANULADA')) return false;
             }
 
             // Filter by PeriodSelection (pAnio/pMes used for multiple filters)
-            const pAnio = parseInt(p['AÑO_PROD']);
-            const pMes = parseInt(p['MES_Prod']);
+            const pAnio = parseInt(getPolicyYear(p), 10);
+            const pMes = parseInt(getPolicyMonth(p), 10);
             const currentVal = pAnio * 100 + pMes;
 
             if (periodsFilter && periodsFilter.length > 0) {
@@ -121,28 +136,28 @@ export async function GET(request: Request) {
             // Filter by Ramo classification (supports comma-separated values)
             if (ramoFilter) {
                 const ramos = ramoFilter.split(',');
-                const producto = String(p['Producto'] || '');
+                const producto = getPolicyProduct(p);
                 if (!ramos.includes(getRamo(producto))) return false;
             }
 
             // Filter by Producto
             if (productoFilter) {
                 const productos = productoFilter.split(',');
-                const producto = String(p['Producto'] || '');
+                const producto = getPolicyProduct(p);
                 if (!productos.includes(producto)) return false;
             }
 
             // Filter by Compañia
             if (companiaFilter) {
                 const companias = companiaFilter.split(',');
-                const cia = String(p['Abrev.Cía'] || p['Compañía'] || 'Otros');
+                const cia = getPolicyCompany(p) || 'Otros';
                 if (!companias.includes(cia)) return false;
             }
 
             // Filter by Cross-Selling
             if (crossSellFilter) {
-                const tomadorDni = String(p['NIF/CIF Tomador'] || '').trim();
-                const tomadorName = String(p['Tomador'] || '').trim();
+                const tomadorDni = getPolicyHolderDocument(p);
+                const tomadorName = getPolicyHolder(p);
                 const tomadorKey = tomadorDni || tomadorName || 'DESCONOCIDO';
 
                 const ramosCount = tomadorRamosMap.get(tomadorKey)?.size || 0;
@@ -164,9 +179,9 @@ export async function GET(request: Request) {
         console.log(`[API:Listado] Policies after filters: ${filteredPolizas.length}`);
 
         const mappedPolizas = filteredPolizas.map(p => {
-            const fAltaStr = p['F. Alta'] || p['F.Efecto'] || '';
-            const fAnulaStr = p['F.Anulación'] || '';
-            const estado = p['Estado'] || '';
+            const fAltaStr = getPolicyAltaDate(p) || getPolicyEffectiveDate(p) || '';
+            const fAnulaStr = getPolicyCancellationDate(p) || '';
+            const estado = getPolicyState(p) || '';
             let diasVida = 0;
 
             if (fAltaStr) {
@@ -193,19 +208,19 @@ export async function GET(request: Request) {
             }
 
             return {
-                poliza: p['NºPóliza'] || p['Poliza'] || 'N/A',
-                estado: p['Estado'] || 'N/A',
-                tomador: p['Tomador'] || 'N/A',
-                producto: p['Producto'] || 'N/A',
-                fechaEfecto: p['F.Efecto'] || '',
+                poliza: getPolicyNumber(p) || 'N/A',
+                estado: getPolicyState(p) || 'N/A',
+                tomador: getPolicyHolder(p) || 'N/A',
+                producto: getPolicyProduct(p) || 'N/A',
+                fechaEfecto: getPolicyEffectiveDate(p) || '',
                 fechaAnulacion: fAnulaStr,
                 diasVida,
-                dni: p['NIF/CIF Tomador'] || 'N/A',
-                primas: parseFloat(String(p['P.Produccion'] || '0').replace(',', '.')) || 0,
-                cartera: parseFloat(String(p['P.Cartera'] || '0').replace(',', '.')) || 0,
-                compania: p['Abrev.Cía'] || 'N/A',
+                dni: getPolicyHolderDocument(p) || 'N/A',
+                primas: getPolicyPremiumValue(p, 'PProduccion', 'P.Produccion'),
+                cartera: getPolicyPremiumValue(p, 'PCartera', 'P.Cartera'),
+                compania: getPolicyCompany(p) || 'N/A',
                 ente: getPolizaEnteName(p) || 'Desconocido',
-                ventaCruzada: tomadorRamosMap.get(String(p['NIF/CIF Tomador'] || '').trim() || String(p['Tomador'] || '').trim() || 'DESCONOCIDO')?.size || 0
+                ventaCruzada: tomadorRamosMap.get(getPolicyHolderDocument(p) || getPolicyHolder(p) || 'DESCONOCIDO')?.size || 0
             };
         });
 

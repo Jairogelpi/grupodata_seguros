@@ -2,7 +2,17 @@ import { NextResponse } from 'next/server';
 import { readData } from '@/lib/storage';
 import { getLinks } from '@/lib/registry';
 import { getRamo } from '@/lib/ramos';
-import { getStringCell } from '@/lib/excelRow';
+import {
+    getPolicyCancellationDate,
+    getPolicyEffectiveDate,
+    getPolicyEnteCode,
+    getPolicyEnteCommercial,
+    getPolicyMonth,
+    getPolicyPremiumValue,
+    getPolicyProduct,
+    getPolicyState,
+    getPolicyYear
+} from '@/lib/policyRow';
 
 export const dynamic = 'force-dynamic';
 
@@ -53,12 +63,11 @@ export async function GET(request: Request) {
         });
 
         const getPolizaEnteName = (p: any) => {
-            const enteComercial = String(p['Ente Comercial'] || '');
+            const enteComercial = getPolicyEnteCommercial(p);
             if (validEnteNames.has(enteComercial)) return enteComercial;
 
-            const parts = enteComercial.split(' - ');
-            const codeFromEnte = parts.length > 1 ? parts[parts.length - 1].trim() : enteComercial.trim();
-            const codeDirect = getStringCell(p, 'Codigo');
+            const codeFromEnte = getPolicyEnteCode(p);
+            const codeDirect = getPolicyEnteCode(p);
 
             return codeToNameMap.get(codeFromEnte) || codeToNameMap.get(codeDirect) || null;
         };
@@ -104,12 +113,12 @@ export async function GET(request: Request) {
 
             if (name.toUpperCase() !== enteName.toUpperCase()) return;
 
-            const anio = parseInt(p['AÑO_PROD']);
-            const mes = parseInt(p['MES_Prod']);
+            const anio = parseInt(getPolicyYear(p), 10);
+            const mes = parseInt(getPolicyMonth(p), 10);
             if (isNaN(anio) || isNaN(mes)) return;
 
             // Apply Filters (Before Aggregation)
-            const producto = String(p['Producto'] || 'Sin Producto');
+            const producto = getPolicyProduct(p) || 'Sin Producto';
             const currentVal = anio * 100 + mes;
 
             // 3.1. ALWAYS Initialize bucket (regardless of filters)
@@ -131,9 +140,8 @@ export async function GET(request: Request) {
                 if (!productFilter.includes(producto)) return;
             }
 
-            const pStr = String(p['P.Produccion'] || '0').replace(',', '.');
-            const primas = parseFloat(pStr) || 0;
-            const estado = String(p['Estado'] || '').toUpperCase();
+            const primas = getPolicyPremiumValue(p, 'PProduccion', 'P.Produccion');
+            const estado = getPolicyState(p).toUpperCase();
 
             // Aggregation into monthly buckets (now filtered by Ramo/Product)
             const stats = monthlyStats.get(key)!;
@@ -142,7 +150,7 @@ export async function GET(request: Request) {
 
             if (estado.includes('ANULADA')) {
                 stats.anuladas += 1;
-                const dias = calcDiasVigor(String(p['F.Efecto'] || ''), String(p['F.Anulación'] || ''));
+                const dias = calcDiasVigor(getPolicyEffectiveDate(p), getPolicyCancellationDate(p));
                 if (dias !== null) {
                     stats.totalDiasDuracion += dias;
                     stats.polizasConFechaDuracion += 1;
@@ -189,7 +197,7 @@ export async function GET(request: Request) {
             // Wait, getPolizaEnteName returns the GROUP name if mapped. 
             // We want the RAW code to count distinct sub-entities if any.
             // Let's use p['Ente Comercial'] as the raw identifier for counting "how many entes"
-            const rawEnte = String(p['Ente Comercial'] || '');
+            const rawEnte = getPolicyEnteCommercial(p);
             pm.entes.add(rawEnte);
 
             const ramoName = getRamo(producto);

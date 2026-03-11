@@ -1,7 +1,24 @@
 import { NextResponse } from 'next/server';
 import { readData } from '@/lib/storage';
 import { getLinks } from '@/lib/registry';
-import { getStringCell } from '@/lib/excelRow';
+import {
+    getPolicyAltaDate,
+    getPolicyCancellationDate,
+    getPolicyCancellationReason,
+    getPolicyCompany,
+    getPolicyEffectiveDate,
+    getPolicyEnteCode,
+    getPolicyEnteCommercial,
+    getPolicyHolder,
+    getPolicyHolderDocument,
+    getPolicyMonth,
+    getPolicyNumber,
+    getPolicyPaymentMethod,
+    getPolicyPremiumValue,
+    getPolicyProduct,
+    getPolicyState,
+    getPolicyYear
+} from '@/lib/policyRow';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,12 +55,11 @@ export async function GET(request: Request) {
         });
 
         const getPolizaEnteName = (p: any) => {
-            const enteComercial = String(p['Ente Comercial'] || '');
+            const enteComercial = getPolicyEnteCommercial(p);
             if (validEnteNames.has(enteComercial)) return enteComercial;
 
-            const parts = enteComercial.split(' - ');
-            const codeFromEnte = parts.length > 1 ? parts[parts.length - 1].trim() : enteComercial.trim();
-            const codeDirect = getStringCell(p, 'Codigo');
+            const codeFromEnte = getPolicyEnteCode(p);
+            const codeDirect = getPolicyEnteCode(p);
 
             return codeToNameMap.get(codeFromEnte) || codeToNameMap.get(codeDirect) || null;
         };
@@ -53,14 +69,14 @@ export async function GET(request: Request) {
             const name = getPolizaEnteName(p);
             if (name !== enteName) return false;
 
-            const pAnio = parseInt(p['AÑO_PROD']);
-            const pMes = parseInt(p['MES_Prod']);
+            const pAnio = parseInt(getPolicyYear(p), 10);
+            const pMes = parseInt(getPolicyMonth(p), 10);
 
             return pAnio === targetAnio && pMes === targetMes;
         }).map(p => {
-            const fEfectoStr = p['F.Efecto'] || '';
-            const fAnulaStr = p['F.Anulación'] || '';
-            const estado = p['Estado'] || '';
+            const fEfectoStr = getPolicyEffectiveDate(p) || '';
+            const fAnulaStr = getPolicyCancellationDate(p) || '';
+            const estado = getPolicyState(p) || '';
 
             let diasHastaAnula = null;
 
@@ -82,21 +98,21 @@ export async function GET(request: Request) {
                         } else {
                             // Other states without cancellation date don't get a "days" calculation
                             return {
-                                poliza: p['NºPóliza'] || p['Poliza'] || 'N/A',
-                                estado: p['Estado'] || 'N/A',
-                                tomador: p['Tomador'] || 'N/A',
-                                producto: p['Producto'] || 'N/A',
+                                poliza: getPolicyNumber(p) || 'N/A',
+                                estado: getPolicyState(p) || 'N/A',
+                                tomador: getPolicyHolder(p) || 'N/A',
+                                producto: getPolicyProduct(p) || 'N/A',
                                 fechaEfecto: fEfectoStr,
                                 fechaAnulacion: fAnulaStr,
                                 diasHastaAnula: null,
-                                dni: p['NIF/CIF Tomador'] || 'N/A',
-                                primas: parseFloat(String(p['P.Produccion'] || '0').replace(',', '.')) || 0,
-                                cartera: parseFloat(String(p['P.Cartera'] || '0').replace(',', '.')) || 0,
-                                motivoAnulacion: p['Mot.Anulación'] || '',
-                                compania: p['Abrev.Cía'] || 'N/A',
-                                duracion: p['Duración'] || '',
-                                formaPago: p['Forma Pago'] || '',
-                                fAlta: p['F. Alta'] || ''
+                                dni: getPolicyHolderDocument(p) || 'N/A',
+                                primas: getPolicyPremiumValue(p, 'PProduccion', 'P.Produccion'),
+                                cartera: getPolicyPremiumValue(p, 'PCartera', 'P.Cartera'),
+                                motivoAnulacion: getPolicyCancellationReason(p),
+                                compania: getPolicyCompany(p) || 'N/A',
+                                duracion: String(p['Duración'] || ''),
+                                formaPago: getPolicyPaymentMethod(p),
+                                fAlta: getPolicyAltaDate(p)
                             };
                         }
 
@@ -111,21 +127,21 @@ export async function GET(request: Request) {
             }
 
             return {
-                poliza: p['NºPóliza'] || p['Poliza'] || 'N/A',
-                estado: p['Estado'] || 'N/A',
-                tomador: p['Tomador'] || 'N/A',
-                producto: p['Producto'] || 'N/A',
+                poliza: getPolicyNumber(p) || 'N/A',
+                estado: getPolicyState(p) || 'N/A',
+                tomador: getPolicyHolder(p) || 'N/A',
+                producto: getPolicyProduct(p) || 'N/A',
                 fechaEfecto: fEfectoStr,
                 fechaAnulacion: fAnulaStr,
                 diasHastaAnula,
-                dni: p['NIF/CIF Tomador'] || 'N/A',
-                primas: parseFloat(String(p['P.Produccion'] || '0').replace(',', '.')) || 0,
-                cartera: parseFloat(String(p['P.Cartera'] || '0').replace(',', '.')) || 0,
-                motivoAnulacion: p['Mot.Anulación'] || '',
-                compania: p['Abrev.Cía'] || 'N/A',
-                duracion: p['Duración'] || '',
-                formaPago: p['Forma Pago'] || '',
-                fAlta: p['F. Alta'] || ''
+                dni: getPolicyHolderDocument(p) || 'N/A',
+                primas: getPolicyPremiumValue(p, 'PProduccion', 'P.Produccion'),
+                cartera: getPolicyPremiumValue(p, 'PCartera', 'P.Cartera'),
+                motivoAnulacion: getPolicyCancellationReason(p),
+                compania: getPolicyCompany(p) || 'N/A',
+                duracion: String(p['Duración'] || ''),
+                formaPago: getPolicyPaymentMethod(p),
+                fAlta: getPolicyAltaDate(p)
             };
         });
 

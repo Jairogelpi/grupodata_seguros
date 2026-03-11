@@ -3,6 +3,22 @@ import { readData } from '@/lib/storage';
 import { getLinks, getEntes } from '@/lib/registry';
 import { getRamo } from '@/lib/ramos';
 import { getStringCell } from '@/lib/excelRow';
+import {
+    getPolicyCancellationDate,
+    getPolicyCancellationReason,
+    getPolicyCompany,
+    getPolicyEffectiveDate,
+    getPolicyEnteCode,
+    getPolicyEnteCommercial,
+    getPolicyHolder,
+    getPolicyHolderDocument,
+    getPolicyMonth,
+    getPolicyNumber,
+    getPolicyPremiumValue,
+    getPolicyProduct,
+    getPolicyState,
+    getPolicyYear
+} from '@/lib/policyRow';
 
 export const dynamic = 'force-dynamic';
 
@@ -86,9 +102,7 @@ export async function GET(request: Request) {
         });
 
         const getPolizaEnteCode = (p: any) => {
-            const enteComercial = String(p['Ente Comercial'] || '');
-            const parts = enteComercial.split(' - ');
-            const codeFromEnte = parts.length > 1 ? parts[parts.length - 1].trim() : enteComercial.trim();
+            const codeFromEnte = getPolicyEnteCode(p);
             const codeDirect = getStringCell(p, 'Codigo');
             if (validEnteCodes.has(codeFromEnte)) return codeFromEnte;
             if (validEnteCodes.has(codeDirect)) return codeDirect;
@@ -146,8 +160,8 @@ export async function GET(request: Request) {
         // 3.5 Deduplicate policies by Number to avoid population inflation (Total Reality)
         const uniquePolizasMap = new Map<string, any>();
         polizas.forEach(p => {
-            const num = getStringCell(p, 'NPoliza') || 'S/N';
-            const estado = String(p['Estado'] || '').toLowerCase();
+            const num = getPolicyNumber(p) || 'S/N';
+            const estado = getPolicyState(p).toLowerCase();
             const isCancelled = estado.includes('anula') || estado.includes('baja');
             if (!uniquePolizasMap.has(num)) {
                 uniquePolizasMap.set(num, p);
@@ -168,10 +182,10 @@ export async function GET(request: Request) {
         const dynProductos = new Set<string>();
 
         deduplicatedPolizas.forEach(p => {
-            const pAnio = getStringCell(p, 'AnoProd');
-            const pMes = getStringCell(p, 'MesProd');
-            const pEstado = String(p['Estado'] || '');
-            const producto = String(p['Producto'] || 'Otros');
+            const pAnio = getPolicyYear(p);
+            const pMes = getPolicyMonth(p);
+            const pEstado = getPolicyState(p);
+            const producto = getPolicyProduct(p) || 'Otros';
             const ramoName = getRamo(producto);
             const code = getPolizaEnteCode(p);
 
@@ -181,8 +195,8 @@ export async function GET(request: Request) {
             const pEnteName = codeToNameMap.get(code) || code;
 
             // Strictly Tomador identification: DNI is the gold standard, fallback to name only.
-            const tomadorDni = String(p['NIF/CIF Tomador'] || '').trim();
-            const tomadorName = String(p['Tomador'] || '').trim();
+            const tomadorDni = getPolicyHolderDocument(p);
+            const tomadorName = getPolicyHolder(p);
             const tomadorKey = tomadorDni || tomadorName || 'DESCONOCIDO';
 
             const tomadorDisplayName = tomadorName || pEnteName; // UI fallback for label only
@@ -206,12 +220,11 @@ export async function GET(request: Request) {
             if (!matchAnio || !matchMes || !matchEstado || !matchAsesor || !matchEnte || !matchRamo || !matchProducto) return;
             if (!validEnteCodes.has(code)) return;
 
-            const pStr = String(p['P.Produccion'] || '0').replace(',', '.');
-            const primas = parseFloat(pStr) || 0;
-            const company = String(p['Abrev.Cía'] || 'Desconocida').trim();
-            const fAnulacion = p['F.Anulación'];
-            const fEfecto = p['F.Efecto'];
-            const motAnulacion = String(p['Mot.Anulación'] || '').trim();
+            const primas = getPolicyPremiumValue(p, 'PProduccion', 'P.Produccion');
+            const company = getPolicyCompany(p) || 'Desconocida';
+            const fAnulacion = getPolicyCancellationDate(p);
+            const fEfecto = getPolicyEffectiveDate(p);
+            const motAnulacion = getPolicyCancellationReason(p);
 
             const dateEfecto = parseAnyDate(fEfecto);
             const dateAnula = parseAnyDate(fAnulacion);
@@ -436,10 +449,10 @@ export async function GET(request: Request) {
                     if (!code || !validEnteCodes.has(code)) return;
                     const pAsesor = codeToAsesorMap.get(code) || 'Sin Asesor';
                     const pEnteName = codeToNameMap.get(code) || code;
-                    if (estados.length > 0 && !estados.includes(String(p['Estado']))) return;
+                    if (estados.length > 0 && !estados.includes(getPolicyState(p))) return;
                     if (comerciales.length > 0 && !comerciales.includes(pAsesor)) return;
                     if (entesFilter.length > 0 && !entesFilter.includes(pEnteName)) return;
-                    prevPrimas += (parseFloat(String(p['P.Produccion'] || '0').replace(',', '.')) || 0);
+                    prevPrimas += getPolicyPremiumValue(p, 'PProduccion', 'P.Produccion');
                     prevCount += 1;
                 }
             });
@@ -532,8 +545,8 @@ export async function GET(request: Request) {
                 deduplicatedPolizas.forEach(p => {
                     const pCode = getPolizaEnteCode(p);
                     if (pCode === code) {
-                        const prod = p['Producto'] ? String(p['Producto']).trim().toUpperCase() : 'SIN PRODUCTO';
-                        const effectDate = p['F.Efecto'] ? String(p['F.Efecto']) : null;
+                        const prod = getPolicyProduct(p) ? getPolicyProduct(p).trim().toUpperCase() : 'SIN PRODUCTO';
+                        const effectDate = getPolicyEffectiveDate(p) || null;
                         if (effectDate) {
                             const existingDate = timelineMap.get(prod);
 
