@@ -18,6 +18,7 @@ import { Doughnut } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, ChartEvent, ActiveElement } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import MultiSelect from '@/components/MultiSelect';
+import { fetchCachedJson, peekCachedJson } from '@/lib/clientApiCache';
 import * as XLSX from 'xlsx';
 
 // Register ChartJS with DataLabels
@@ -87,17 +88,18 @@ export default function CompaniasPage() {
     }, [filters.comercial, filters.anio, filters.mes, filters.estado, filters.ente]);
 
     const fetchMetrics = async () => {
-        setLoading(true);
-        try {
-            const params = new URLSearchParams();
-            if (filters.comercial.length) params.append('comercial', filters.comercial.join(','));
-            if (filters.anio.length) params.append('anio', filters.anio.join(','));
-            if (filters.mes.length) params.append('mes', filters.mes.join(','));
-            if (filters.estado.length) params.append('estado', filters.estado.join(','));
-            if (filters.ente.length) params.append('ente', filters.ente.join(','));
+        const params = new URLSearchParams();
+        if (filters.comercial.length) params.append('comercial', filters.comercial.join(','));
+        if (filters.anio.length) params.append('anio', filters.anio.join(','));
+        if (filters.mes.length) params.append('mes', filters.mes.join(','));
+        if (filters.estado.length) params.append('estado', filters.estado.join(','));
+        if (filters.ente.length) params.append('ente', filters.ente.join(','));
 
-            const res = await fetch(`/api/metrics?${params.toString()}`);
-            const json = await res.json();
+        const url = `/api/metrics?${params.toString()}`;
+        setLoading(!peekCachedJson(url));
+
+        try {
+            const json = await fetchCachedJson(url);
 
             if (json.companiasBreakdown) setData(json.companiasBreakdown);
             if (json.filters) setOptions(json.filters);

@@ -9,6 +9,7 @@ import * as XLSX from 'xlsx';
 import { Doughnut, Bar, Chart } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title } from 'chart.js';
 import { getRamo } from '@/lib/ramos';
+import { fetchCachedJson, peekCachedJson } from '@/lib/clientApiCache';
 import { useFilters } from '@/lib/FilterContext';
 
 import ChartDataLabels from 'chartjs-plugin-datalabels';
@@ -86,21 +87,20 @@ export default function CarteraPage() {
     });
 
     const fetchMetrics = async () => {
-        setLoading(true);
+        const params = new URLSearchParams();
+        if (filters.comercial.length > 0) params.append('comercial', filters.comercial.join(','));
+        if (filters.ente.length > 0) params.append('ente', filters.ente.join(','));
+        if (filters.anio.length > 0) params.append('anio', filters.anio.join(','));
+        if (filters.mes.length > 0) params.append('mes', filters.mes.join(','));
+        if (filters.estado.length > 0) params.append('estado', filters.estado.join(','));
+        if (filters.ramo.length > 0) params.append('ramo', filters.ramo.join(','));
+        if (filters.producto.length > 0) params.append('producto', filters.producto.join(','));
+
+        const url = `/api/metrics?${params.toString()}`;
+        setLoading(!peekCachedJson(url));
+
         try {
-            const params = new URLSearchParams();
-            if (filters.comercial.length > 0) params.append('comercial', filters.comercial.join(','));
-            if (filters.ente.length > 0) params.append('ente', filters.ente.join(','));
-            if (filters.anio.length > 0) params.append('anio', filters.anio.join(','));
-            if (filters.mes.length > 0) params.append('mes', filters.mes.join(','));
-            if (filters.estado.length > 0) params.append('estado', filters.estado.join(','));
-            if (filters.ramo.length > 0) params.append('ramo', filters.ramo.join(','));
-            if (filters.producto.length > 0) params.append('producto', filters.producto.join(','));
-
-            const res = await fetch(`/api/metrics?${params.toString()}`);
-            if (!res.ok) throw new Error('Failed to fetch metrics');
-
-            const data = await res.json();
+            const data = await fetchCachedJson(url);
             setFilterOptions(data.filters);
 
             // Map products to their ramos for the table

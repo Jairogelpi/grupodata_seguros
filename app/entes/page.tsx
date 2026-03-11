@@ -6,6 +6,7 @@ import { Plus, Search, LayoutList, FileDown, Printer, ChevronRight } from 'lucid
 import FileUploader from '@/components/FileUploader';
 import MultiSelect from '@/components/MultiSelect';
 import PrintFilterSummary from '@/components/PrintFilterSummary';
+import { fetchCachedJson, invalidateClientApiCache, peekCachedJson } from '@/lib/clientApiCache';
 import * as XLSX from 'xlsx';
 
 interface Ente {
@@ -44,17 +45,18 @@ export default function EntesPage() {
     const [rankingLoading, setRankingLoading] = useState(false);
 
     const fetchEfficiencyRanking = async () => {
-        setRankingLoading(true);
-        try {
-            const params = new URLSearchParams();
-            if (filters.comercial.length > 0) params.append('comercial', filters.comercial.join(','));
-            if (filters.ente.length > 0) params.append('ente', filters.ente.join(','));
-            if (filters.anio.length > 0) params.append('anio', filters.anio.join(','));
-            if (filters.mes.length > 0) params.append('mes', filters.mes.join(','));
-            if (filters.estado.length > 0) params.append('estado', filters.estado.join(','));
+        const params = new URLSearchParams();
+        if (filters.comercial.length > 0) params.append('comercial', filters.comercial.join(','));
+        if (filters.ente.length > 0) params.append('ente', filters.ente.join(','));
+        if (filters.anio.length > 0) params.append('anio', filters.anio.join(','));
+        if (filters.mes.length > 0) params.append('mes', filters.mes.join(','));
+        if (filters.estado.length > 0) params.append('estado', filters.estado.join(','));
 
-            const res = await fetch(`/api/metrics?${params.toString()}`);
-            const data = await res.json();
+        const url = `/api/metrics?${params.toString()}`;
+        setRankingLoading(!peekCachedJson(url));
+
+        try {
+            const data = await fetchCachedJson(url);
             setFilterOptions(data.filters);
             if (data.breakdown) {
                 const ranked = data.breakdown
@@ -142,6 +144,10 @@ export default function EntesPage() {
                 body: JSON.stringify(formData)
             });
             if (res.ok) {
+                invalidateClientApiCache((url) =>
+                    url.startsWith('/api/metrics') ||
+                    url.startsWith('/api/entes')
+                );
                 setFormData({ Código: '', Nombre: '', Tipo: '', Año1: '' });
                 fetchEntes();
                 fetchEfficiencyRanking();

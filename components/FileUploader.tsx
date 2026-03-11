@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { Upload, Check, AlertCircle, Loader2 } from 'lucide-react';
+import { invalidateClientApiCache } from '@/lib/clientApiCache';
 
 interface FileUploaderProps {
     target: 'polizas' | 'entes';
@@ -36,6 +37,11 @@ export default function FileUploader({ target, label, onUploadStart, onUploadSuc
             const data = await res.json();
 
             if (res.ok) {
+                invalidateClientApiCache((url) =>
+                    url.startsWith('/api/metrics') ||
+                    url.startsWith('/api/entes') ||
+                    url.startsWith('/api/asesores')
+                );
                 setStatus('success');
                 setMessage(data.message || 'Archivo actualizado');
                 if (onUploadSuccess) onUploadSuccess();

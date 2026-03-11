@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Users, FileText, LayoutList, ArrowUpDown, ArrowUp, ArrowDown, FileDown, Printer, BarChart2, TrendingUp, Info, MousePointer2, XCircle } from 'lucide-react';
 import MultiSelect from '@/components/MultiSelect';
 import PrintFilterSummary from '@/components/PrintFilterSummary';
+import { fetchCachedJson, peekCachedJson } from '@/lib/clientApiCache';
 import * as XLSX from 'xlsx';
 
 // Formatter for currency
@@ -69,18 +70,16 @@ export default function ProductividadPage() {
     });
 
     const fetchMetrics = async () => {
-        setLoading(true);
+        const params = new URLSearchParams();
+        if (filters.anio.length > 0) params.append('anio', filters.anio.join(','));
+        if (filters.mes.length > 0) params.append('mes', filters.mes.join(','));
+        if (filters.estado.length > 0) params.append('estado', filters.estado.join(','));
+
+        const url = `/api/metrics?${params.toString()}`;
+        setLoading(!peekCachedJson(url));
+
         try {
-            const params = new URLSearchParams();
-            // Solo filtramos por periodo y estado para tener todo el contexto en el cliente para el resaltado BI
-            if (filters.anio.length > 0) params.append('anio', filters.anio.join(','));
-            if (filters.mes.length > 0) params.append('mes', filters.mes.join(','));
-            if (filters.estado.length > 0) params.append('estado', filters.estado.join(','));
-
-            const res = await fetch(`/api/metrics?${params.toString()}`);
-            if (!res.ok) throw new Error('Failed to fetch metrics');
-
-            const data = await res.json();
+            const data = await fetchCachedJson(url);
             setFilterOptions(data.filters);
             setAsesorBreakdown(data.asesoresBreakdown || []);
             setEnteBreakdown(data.breakdown || []);
