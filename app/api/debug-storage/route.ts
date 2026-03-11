@@ -1,58 +1,62 @@
-
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
-    const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    const BUCKET_NAME = 'metrics';
+const BUCKET_NAME = 'metrics';
+
+export async function GET(request: Request) {
+    const { searchParams } = new URL(request.url);
+    const runWriteTest = searchParams.get('mode') === 'write';
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     const debugInfo: any = {
         env: {
-            SUPABASE_URL_EXISTS: !!SUPABASE_URL,
-            SUPABASE_KEY_EXISTS: !!SUPABASE_KEY,
-            VERCEL_ENV: process.env.VERCEL || 'not set',
+            SUPABASE_URL_EXISTS: !!supabaseUrl,
+            SUPABASE_ANON_KEY_EXISTS: !!anonKey,
+            SUPABASE_SERVICE_ROLE_KEY_EXISTS: !!serviceRoleKey,
+            VERCEL_ENV: process.env.VERCEL_ENV || 'not set',
             NODE_ENV: process.env.NODE_ENV
         },
         steps: []
     };
 
-    if (!SUPABASE_URL || !SUPABASE_KEY) {
+    if (!supabaseUrl || !anonKey) {
         return NextResponse.json({
-            error: 'Missing environment variables in production',
-            details: debugInfo
+            error: 'Missing Supabase read configuration',
+            debug: debugInfo
         }, { status: 500 });
     }
 
     try {
-        const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+        const readClient = createClient(supabaseUrl, anonKey, {
+            auth: { persistSession: false }
+        });
 
-        // Step 1: List files
-        debugInfo.steps.push('Attempting to list files in bucket...');
-        const { data: files, error: listError } = await supabase.storage
+        debugInfo.steps.push('Attempting to list files in bucket with anon key');
+        const { data: files, error: listError } = await readClient.storage
             .from(BUCKET_NAME)
             .list();
 
         if (listError) {
             debugInfo.steps.push('List files FAILED');
             return NextResponse.json({
-                error: 'Supabase List Error',
+                error: 'Supabase list error',
                 message: listError.message,
-                details: listError,
                 debug: debugInfo
             }, { status: 500 });
         }
 
         debugInfo.steps.push('List files SUCCESS');
-        debugInfo.filesFound = files.map(f => f.name);
+        debugInfo.filesFound = files.map(file => file.name);
 
-        // Step 2: Test Download of a known file
         if (files.length > 0) {
             const firstFile = files[0].name;
-            debugInfo.steps.push(`Attempting to download ${firstFile}...`);
-            const { data: downloadData, error: downloadError } = await supabase.storage
+            debugInfo.steps.push(`Attempting to download ${firstFile} with anon key`);
+            const { data: downloadData, error: downloadError } = await readClient.storage
                 .from(BUCKET_NAME)
                 .download(firstFile);
 
@@ -65,15 +69,62 @@ export async function GET() {
             }
         }
 
+        if (runWriteTest) {
+            if (!serviceRoleKey) {
+                debugInfo.steps.push('Write test skipped: missing SUPABASE_SERVICE_ROLE_KEY');
+                return NextResponse.json({
+                    error: 'Missing SUPABASE_SERVICE_ROLE_KEY for write test',
+                    debug: debugInfo
+                }, { status: 500 });
+            }
+
+            const writeClient = createClient(supabaseUrl, serviceRoleKey, {
+                auth: { persistSession: false }
+            });
+
+            const testPath = `_debug/storage-write-test-${Date.now()}.txt`;
+            const testBody = Buffer.from(`write test ${new Date().toISOString()}`);
+
+            debugInfo.steps.push(`Attempting upload to ${testPath} with service role`);
+            const { error: uploadError } = await writeClient.storage
+                .from(BUCKET_NAME)
+                .upload(testPath, testBody, {
+                    upsert: true,
+                    cacheControl: '0',
+                    contentType: 'text/plain'
+                });
+
+            if (uploadError) {
+                debugInfo.steps.push('Write test upload FAILED');
+                return NextResponse.json({
+                    error: 'Supabase write test failed',
+                    message: uploadError.message,
+                    debug: debugInfo
+                }, { status: 500 });
+            }
+
+            debugInfo.steps.push('Write test upload SUCCESS');
+
+            const { error: removeError } = await writeClient.storage
+                .from(BUCKET_NAME)
+                .remove([testPath]);
+
+            if (removeError) {
+                debugInfo.steps.push('Cleanup FAILED');
+                debugInfo.cleanupError = removeError.message;
+            } else {
+                debugInfo.steps.push('Cleanup SUCCESS');
+            }
+        }
+
         return NextResponse.json({
             success: true,
             debug: debugInfo
         });
-
-    } catch (e: any) {
+    } catch (error: any) {
         return NextResponse.json({
             error: 'Unexpected code error',
-            message: e.message,
+            message: error.message,
             debug: debugInfo
         }, { status: 500 });
     }
