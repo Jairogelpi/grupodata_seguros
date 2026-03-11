@@ -201,9 +201,9 @@ export async function GET(request: Request) {
 
             const pAsesor = codeToAsesorMap.get(code) || 'Sin Asesor';
             const rawEnteName = getPolicyEnteCommercial(p);
-            const linkedEnteName = codeToLinkedNameMap.get(code) || code;
-            const pEnteName = rawEnteName || linkedEnteName;
-            const breakdownKey = pEnteName || linkedEnteName || code;
+            const linkedEnteName = codeToLinkedNameMap.get(code) || '';
+            const pEnteName = linkedEnteName || rawEnteName || code;
+            const breakdownKey = linkedEnteName || rawEnteName || code;
 
             // Strictly Tomador identification: DNI is the gold standard, fallback to name only.
             const tomadorDni = getPolicyHolderDocument(p);
@@ -471,7 +471,7 @@ export async function GET(request: Request) {
                     const code = getPolizaEnteCode(p);
                     if (!code || !validEnteCodes.has(code)) return;
                     const pAsesor = codeToAsesorMap.get(code) || 'Sin Asesor';
-                    const pEnteName = getPolicyEnteCommercial(p) || codeToLinkedNameMap.get(code) || code;
+                    const pEnteName = codeToLinkedNameMap.get(code) || getPolicyEnteCommercial(p) || code;
                     if (estados.length > 0 && !estados.includes(getPolicyState(p))) return;
                     if (comerciales.length > 0 && !comerciales.includes(pAsesor)) return;
                     if (entesFilter.length > 0 && !entesFilter.includes(pEnteName) && !entesFilter.includes(codeToLinkedNameMap.get(code) || code)) return;
