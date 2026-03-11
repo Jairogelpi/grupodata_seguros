@@ -86,3 +86,17 @@ export function getPolicyEnteCode(row: Record<string, any>): string {
 
     return getPolicySourceCode(row);
 }
+
+export function getPolicyEnteCodeCandidates(row: Record<string, any>): string[] {
+    const candidates = [
+        (() => {
+            const enteCommercial = getPolicyEnteCommercial(row);
+            const parts = enteCommercial.split(' - ');
+            return (parts.length > 1 ? parts[parts.length - 1] : enteCommercial).trim();
+        })(),
+        getPolicyEnteCode3(row),
+        getPolicySourceCode(row)
+    ];
+
+    return Array.from(new Set(candidates.filter(Boolean)));
+}

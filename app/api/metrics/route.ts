@@ -7,6 +7,7 @@ import {
     getPolicyCancellationDate,
     getPolicyCancellationReason,
     getPolicyCompany,
+    getPolicyEnteCodeCandidates,
     getPolicyEffectiveDate,
     getPolicyEnteCode,
     getPolicyEnteCommercial,
@@ -103,9 +104,11 @@ export async function GET(request: Request) {
         });
 
         const getPolizaEnteCode = (p: any) => {
-            const codeFromEnte = getPolicyEnteCode(p);
+            for (const candidate of getPolicyEnteCodeCandidates(p)) {
+                if (validEnteCodes.has(candidate)) return candidate;
+            }
+
             const codeDirect = getStringCell(p, 'Codigo');
-            if (validEnteCodes.has(codeFromEnte)) return codeFromEnte;
             if (validEnteCodes.has(codeDirect)) return codeDirect;
             return null;
         };
