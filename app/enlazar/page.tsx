@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Link as LinkIcon, UserCheck, Building2, AlertCircle, Check } from 'lucide-react';
 
 import SearchableSelect from '@/components/SearchableSelect';
+import { invalidateClientApiCache } from '@/lib/clientApiCache';
 
 interface Asesor {
     ASESOR: string;
@@ -71,6 +72,11 @@ export default function EnlazarPage() {
             const data = await res.json();
 
             if (res.ok) {
+                invalidateClientApiCache((url) =>
+                    url.startsWith('/api/metrics') ||
+                    url.startsWith('/api/entes') ||
+                    url.startsWith('/api/asesores')
+                );
                 setMessage({ type: 'success', text: 'Vinculo creado correctamente' });
                 setFormData(prev => ({ ...prev, enteCode: '' }));
 
